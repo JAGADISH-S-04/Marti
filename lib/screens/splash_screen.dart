@@ -1,67 +1,29 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
- 
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
- 
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
- 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
- 
+
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
- 
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
- 
-    _scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: 0.0).chain(CurveTween(curve: Curves.elasticOut)),
-        weight: 60,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: 3.0, end: 1.5).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 40,
-      ),
-    ]).animate(_controller);
- 
-    _controller.forward();
- 
-    Timer(const Duration(seconds: 3), () {
+    // Delay briefly, then navigate with no animation
+    Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final tween = Tween<Offset>(
-              begin: const Offset(-1.0, 0.0),
-              end: Offset.zero,
-            ).chain(CurveTween(curve: Curves.easeInOut));
-            return SlideTransition(position: animation.drive(tween), child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 600),
+          pageBuilder: (_, __, ___) => const LoginPage(),
+          transitionDuration: Duration.zero,
+          transitionsBuilder: (_, __, ___, child) => child,
         ),
       );
     });
-  }
- 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
  
   @override
@@ -72,33 +34,58 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           image: DecorationImage(
             image: AssetImage('assets/images/artisan-1.jpg'), // Updated path
             fit: BoxFit.cover,
-            onError: null, // Handle error gracefully
           ),
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.55),
+                Colors.black.withOpacity(0.35),
+                Colors.black.withOpacity(0.65),
+              ],
+            ),
           ),
           child: Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Text(
-                  'Welcome to Arti',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: const Offset(0, 2),
-                        blurRadius: 4,
-                        color: Colors.black.withOpacity(0.8),
-                      ),
-                    ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0x66D4AF37)),
+                  ),
+                  child: ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFFF5E6A2), Color(0xFFD4AF37), Color(0xFFB8860B)],
+                    ).createShader(bounds),
+                    blendMode: BlendMode.srcIn,
+                    child: Text(
+                      'ARTI',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 6,
+                          ) ?? const TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 6,
+                          ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Local Artisans Marketplace',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
