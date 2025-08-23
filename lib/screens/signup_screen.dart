@@ -4,6 +4,7 @@ import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:arti/screens/customer_home_screen.dart';
 import 'package:arti/screens/retailer_home_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -56,6 +57,56 @@ class _SignUpPageState extends State<SignUpPage> {
     } catch (e) {
       print("Unexpected error: $e");
       _showSnackBar('An unexpected error occurred: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signUpWithGoogle() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      print("Starting Google Sign-In...");
+      
+      // Sign out from Google first to force account selection
+      await GoogleSignIn().signOut();
+      
+      // Start Google Sign-In process
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      
+      if (googleUser == null) {
+        print("User cancelled Google sign-in");
+        setState(() => _isLoading = false);
+        return; // User cancelled sign in
+      }
+      
+      print("Google user selected: ${googleUser.email}");
+      
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      print("Attempting Firebase authentication with Google credentials...");
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        print("Google sign-up successful!");
+        print("User: ${userCredential.user?.email}");
+        _navigateToHome();
+      } else {
+        print("Google sign-in failed: No user returned");
+        _showSnackBar('Google sign-in failed: No user returned');
+      }
+      
+    } on FirebaseAuthException catch (e) {
+      print("Firebase auth error: ${e.code} - ${e.message}");
+      _showSnackBar(e.message ?? 'Google sign in failed');
+    } catch (e) {
+      print("Unexpected error during Google sign-in: $e");
+      _showSnackBar('An unexpected error occurred during Google sign-in');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -290,43 +341,43 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Or sign up using
-                      const Text(
-                        'Or sign up using:',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      // Divider
+                      Row(
+                        children: [
+                          const Expanded(child: Divider(thickness: 1)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              'Or sign up with',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+                          const Expanded(child: Divider(thickness: 1)),
+                        ],
                       ),
                       const SizedBox(height: 15),
-                    SizedBox(
-                      height: 50,
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Google sign-in functionality not implemented'),
+
+                      // Google Sign Up Button
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _signUpWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+                          label: const Text(
+                            'Sign up with Google',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
-                        label: const Text(
-                          'Google',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black87,
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-                    ),
                       const SizedBox(height: 15),
 
                       // Login Link
