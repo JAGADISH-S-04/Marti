@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:arti/screens/customer_home_screen.dart';
 import 'package:arti/screens/retailer_home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:arti/services/firestore_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -17,6 +19,7 @@ class _SignUpPageState extends State<SignUpPage> {
   bool isRetailer = false; // false = Customer, true = Retailer
   bool _isLoading = false;
   final AuthService _authService = AuthService.instance;
+  final FirestoreService _firestoreService = FirestoreService();
   
   final TextEditingController emailController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
@@ -30,6 +33,13 @@ class _SignUpPageState extends State<SignUpPage> {
     print("=== SIGNUP ATTEMPT STARTED ===");
     
     if (!_validateFields()) {
+      return;
+    }
+
+    // Check username availability
+    bool isUsernameAvailable = await _firestoreService.isUsernameAvailable(usernameController.text.trim());
+    if (!isUsernameAvailable) {
+      _showSnackBar('Username is already taken. Please choose another one.');
       return;
     }
 
@@ -48,6 +58,19 @@ class _SignUpPageState extends State<SignUpPage> {
       if (userCredential.user != null) {
         // Update display name
         await _authService.updateDisplayName(nameController.text.trim());
+        
+        // Store user details in appropriate Firestore collection
+        await _firestoreService.createUserDocument(
+          uid: userCredential.user!.uid,
+          email: emailController.text.trim(),
+          fullName: nameController.text.trim(),
+          username: usernameController.text.trim(),
+          mobile: mobileController.text.trim(),
+          location: locationController.text.trim(),
+          isRetailer: isRetailer,
+        );
+        
+        print("User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
         _navigateToHome();
       }
     } on FirebaseAuthException catch (e) {
@@ -95,6 +118,30 @@ class _SignUpPageState extends State<SignUpPage> {
       if (userCredential.user != null) {
         print("Google sign-up successful!");
         print("User: ${userCredential.user?.email}");
+        
+        // Check if user document already exists in either collection
+        final existingUser = await _firestoreService.checkUserExists(userCredential.user!.uid);
+        
+        if (existingUser == null) {
+          // Create user document for new Google users in appropriate collection
+          await _firestoreService.createUserDocument(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email ?? '',
+            fullName: userCredential.user!.displayName ?? 'Google User',
+            username: userCredential.user!.email?.split('@')[0] ?? 'user_${userCredential.user!.uid.substring(0, 8)}',
+            mobile: '', // Google doesn't provide phone number
+            location: '', // Will need to be filled later
+            isRetailer: isRetailer,
+            profileImageUrl: userCredential.user!.photoURL,
+          );
+          
+          print("User data stored in ${isRetailer ? 'retailers' : 'customers'} collection");
+        } else {
+          // User already exists, use their existing type
+          isRetailer = existingUser['isRetailer'] ?? false;
+          print("Existing user found in ${isRetailer ? 'retailers' : 'customers'} collection");
+        }
+        
         _navigateToHome();
       } else {
         print("Google sign-in failed: No user returned");

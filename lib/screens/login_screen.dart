@@ -3,6 +3,7 @@ import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/screens/customer_home_screen.dart';
 import 'package:arti/screens/retailer_home_screen.dart';
 import 'package:arti/services/auth_service.dart';
+import 'package:arti/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,6 +31,10 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _storeUserType() async {
+    await StorageService.saveUserType(isRetailer ? 'retailer' : 'customer');
+  }
+
   Future<void> _signInWithEmailAndPassword() async {
     print("=== LOGIN ATTEMPT STARTED ===");
 
@@ -51,6 +56,8 @@ class _LoginPageState extends State<LoginPage> {
       print("User: ${userCredential.user?.email}");
 
       if (userCredential.user != null) {
+        // Store user type for persistent login
+        await _storeUserType();
         _navigateToHome();
       }
     } on FirebaseAuthException catch (e) {
@@ -83,6 +90,9 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      // Store user type for persistent login
+      await _storeUserType();
       _navigateToHome();
     } on FirebaseAuthException catch (e) {
       _showSnackBar(e.message ?? 'Google sign in failed');
@@ -94,187 +104,187 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _forgotPassword() async {
-  final TextEditingController forgotEmailController = TextEditingController();
-  
-  return showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (BuildContext dialogContext) {
-      bool isLoading = false;
-      
-      return StatefulBuilder(
-        builder: (context, setDialogState) {
-          return WillPopScope(
-            onWillPop: () async {
-              return !isLoading;
-            },
-            child: AlertDialog(
-              title: const Text(
-                'Reset Password',
-                style: TextStyle(
-                  color: Color.fromARGB(255, 93, 64, 55),
-                  fontWeight: FontWeight.bold,
+    final TextEditingController forgotEmailController = TextEditingController();
+    
+    return showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        bool isLoading = false;
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return WillPopScope(
+              onWillPop: () async {
+                return !isLoading;
+              },
+              child: AlertDialog(
+                title: const Text(
+                  'Reset Password',
+                  style: TextStyle(
+                    color: Color.fromARGB(255, 93, 64, 55),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Enter your email address and we\'ll send you a link to reset your password.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: forgotEmailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
-                      hintText: 'Enter registered email',
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter your email address and we\'ll send you a link to reset your password.',
+                      style: TextStyle(fontSize: 14),
                     ),
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                  ),
-                  if (isLoading) ...[
                     const SizedBox(height: 20),
-                    const CircularProgressIndicator(),
+                    TextField(
+                      controller: forgotEmailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email Address',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email_outlined),
+                        hintText: 'Enter registered email',
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !isLoading,
+                    ),
+                    if (isLoading) ...[
+                      const SizedBox(height: 20),
+                      const CircularProgressIndicator(),
+                    ],
                   ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isLoading ? null : () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 93, 64, 55),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: isLoading ? null : () async {
+                      String email = forgotEmailController.text.trim();
+                      
+                      if (email.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter your email address'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      
+                      setDialogState(() {
+                        isLoading = true;
+                      });
+                      
+                      try {
+                        print("🔄 Attempting to send password reset email to: $email");
+                        
+                        // Configure action code settings with your Firebase app URL
+                        await FirebaseAuth.instance.sendPasswordResetEmail(
+                          email: email,
+                          actionCodeSettings: ActionCodeSettings(
+                            url: 'https://artie-sans-app.firebaseapp.com/__/auth/action',
+                            handleCodeInApp: false,
+                            androidPackageName: 'com.example.arti', // Replace with your actual package name
+                            androidInstallApp: false,
+                            androidMinimumVersion: '21',
+                            iOSBundleId: 'com.example.arti', // Replace with your iOS bundle ID if applicable
+                          ),
+                        );
+                        
+                        print("✅ Password reset email sent successfully!");
+                        
+                        Navigator.of(dialogContext).pop();
+                        
+                        if (mounted) {
+                          _showSnackBar(
+                            'Password reset email sent to $email. Please check your inbox and spam folder.',
+                            isSuccess: true,
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        print("❌ Firebase Auth Error: ${e.code} - ${e.message}");
+                        
+                        setDialogState(() {
+                          isLoading = false;
+                        });
+                        
+                        String message = 'Failed to send reset email';
+                        switch (e.code) {
+                          case 'user-not-found':
+                            message = 'No account found with this email. Please check the email or create an account.';
+                            break;
+                          case 'invalid-email':
+                            message = 'Invalid email address format.';
+                            break;
+                          case 'too-many-requests':
+                            message = 'Too many requests. Please try again in a few minutes.';
+                            break;
+                          case 'network-request-failed':
+                            message = 'Network error. Please check your internet connection.';
+                            break;
+                          case 'operation-not-allowed':
+                            message = 'Password reset is not enabled. Please contact support.';
+                            break;
+                          default:
+                            message = 'Error: ${e.message ?? "Unknown error occurred"}';
+                        }
+                        
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(message),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        print("❌ Unexpected error: $e");
+                        
+                        setDialogState(() {
+                          isLoading = false;
+                        });
+                        
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Unexpected error: $e'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: isLoading 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Send Reset Email'),
+                  ),
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: isLoading ? null : () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 93, 64, 55),
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: isLoading ? null : () async {
-                    String email = forgotEmailController.text.trim();
-                    
-                    if (email.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter your email address'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    
-                    setDialogState(() {
-                      isLoading = true;
-                    });
-                    
-                    try {
-                      print("🔄 Attempting to send password reset email to: $email");
-                      
-                      // Configure action code settings with your Firebase app URL
-                      await FirebaseAuth.instance.sendPasswordResetEmail(
-                        email: email,
-                        actionCodeSettings: ActionCodeSettings(
-                          url: 'https://artie-sans-app.firebaseapp.com/__/auth/action',
-                          handleCodeInApp: false,
-                          androidPackageName: 'com.example.arti', // Replace with your actual package name
-                          androidInstallApp: false,
-                          androidMinimumVersion: '21',
-                          iOSBundleId: 'com.example.arti', // Replace with your iOS bundle ID if applicable
-                        ),
-                      );
-                      
-                      print("✅ Password reset email sent successfully!");
-                      
-                      Navigator.of(dialogContext).pop();
-                      
-                      if (mounted) {
-                        _showSnackBar(
-                          'Password reset email sent to $email. Please check your inbox and spam folder.',
-                          isSuccess: true,
-                        );
-                      }
-                    } on FirebaseAuthException catch (e) {
-                      print("❌ Firebase Auth Error: ${e.code} - ${e.message}");
-                      
-                      setDialogState(() {
-                        isLoading = false;
-                      });
-                      
-                      String message = 'Failed to send reset email';
-                      switch (e.code) {
-                        case 'user-not-found':
-                          message = 'No account found with this email. Please check the email or create an account.';
-                          break;
-                        case 'invalid-email':
-                          message = 'Invalid email address format.';
-                          break;
-                        case 'too-many-requests':
-                          message = 'Too many requests. Please try again in a few minutes.';
-                          break;
-                        case 'network-request-failed':
-                          message = 'Network error. Please check your internet connection.';
-                          break;
-                        case 'operation-not-allowed':
-                          message = 'Password reset is not enabled. Please contact support.';
-                          break;
-                        default:
-                          message = 'Error: ${e.message ?? "Unknown error occurred"}';
-                      }
-                      
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(message),
-                            backgroundColor: Colors.red,
-                            duration: const Duration(seconds: 5),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      print("❌ Unexpected error: $e");
-                      
-                      setDialogState(() {
-                        isLoading = false;
-                      });
-                      
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Unexpected error: $e'),
-                            backgroundColor: Colors.red,
-                            duration: const Duration(seconds: 5),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: isLoading 
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Send Reset Email'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  ).then((_) {
-    forgotEmailController.dispose();
-  });
-}
+            );
+          },
+        );
+      },
+    ).then((_) {
+      forgotEmailController.dispose();
+    });
+  }
 
   void _navigateToHome() {
     print("Navigating to home screen...");
