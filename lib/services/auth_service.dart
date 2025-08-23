@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   AuthService._internal();
@@ -73,9 +74,25 @@ class AuthService {
     await user.delete();
   }
 
+  // Add this method to your AuthService class:
+
+Future<void> signOutFromAll() async {
+  try {
+    // Sign out from Google if signed in with Google
+    await GoogleSignIn().signOut();
+    // Sign out from Firebase
+    await FirebaseAuth.instance.signOut();
+    print("User signed out successfully");
+  } catch (e) {
+    print("Error signing out: $e");
+    throw Exception("Failed to sign out: $e");
+  }
+}
+
   // Human-friendly error messages
   String messageFromCode(Object error) {
-    if (error is! FirebaseAuthException) return 'Something went wrong. Please try again.';
+    if (error is! FirebaseAuthException)
+      return 'Something went wrong. Please try again.';
     switch (error.code) {
       case 'invalid-email':
         return 'The email address is not valid.';
@@ -97,33 +114,4 @@ class AuthService {
         return error.message ?? 'Authentication failed.';
     }
   }
-
-  // OPTIONAL: Google Sign-In (uncomment after adding google_sign_in to pubspec)
-  /*
-  import 'package:google_sign_in/google_sign_in.dart';
-
-  final GoogleSignIn _google = GoogleSignIn();
-
-  Future<UserCredential> signInWithGoogle() async {
-    try {
-      if (kIsWeb) {
-        final provider = GoogleAuthProvider();
-        return await _auth.signInWithPopup(provider);
-      } else {
-        final GoogleSignInAccount? googleUser = await _google.signIn();
-        if (googleUser == null) {
-          throw FirebaseAuthException(code: 'canceled', message: 'Sign-in canceled');
-        }
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        return await _auth.signInWithCredential(credential);
-      }
-    } on FirebaseAuthException {
-      rethrow;
-    }
-  }
-  */
 }
