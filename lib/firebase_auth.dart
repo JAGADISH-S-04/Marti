@@ -2,22 +2,23 @@ import 'dart:ui';
 import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/screens/customer_home_screen.dart';
 import 'package:arti/screens/retailer_home_screen.dart';
-import 'package:arti/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:google_sign_in/google_sign_in.dart'; // Comment out temporarily
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class Login_Page extends StatefulWidget {
+  const Login_Page({super.key});
   
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<Login_Page> createState() => _Login_PageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  bool isRetailer = false; // false = Customer, true = Retailer
+class _Login_PageState extends State<Login_Page> {
+  bool isRetailer = false;
   bool _isLoading = false;
-  final AuthService _authService = AuthService.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // final GoogleSignIn _googleSignIn = GoogleSignIn(); // Comment out temporarily
   
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -30,8 +31,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signInWithEmailAndPassword() async {
-    print("=== LOGIN ATTEMPT STARTED ===");
-    
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       _showSnackBar('Please fill in all fields');
       return;
@@ -40,56 +39,59 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      print("Attempting Firebase authentication with AuthService...");
-      UserCredential userCredential = await _authService.signInWithEmail(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      print("Firebase auth successful!");
-      print("User: ${userCredential.user?.email}");
-      
       if (userCredential.user != null) {
         _navigateToHome();
       }
     } on FirebaseAuthException catch (e) {
-      print("Firebase auth error: ${e.code} - ${e.message}");
-      String message = _authService.messageFromCode(e);
+      String message = 'An error occurred';
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No user found for that email.';
+          break;
+        case 'wrong-password':
+          message = 'Wrong password provided.';
+          break;
+        case 'invalid-email':
+          message = 'The email address is not valid.';
+          break;
+        case 'user-disabled':
+          message = 'This user account has been disabled.';
+          break;
+        default:
+          message = e.message ?? 'Login failed';
+      }
       _showSnackBar(message);
     } catch (e) {
-      print("Unexpected error: $e");
-      _showSnackBar('An unexpected error occurred: $e');
+      _showSnackBar('An unexpected error occurred');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   void _navigateToHome() {
-    print("Navigating to home screen...");
-    _showSnackBar('Login successful as ${isRetailer ? "Retailer" : "Customer"}!');
-    
-    // Add a small delay to show the success message
-    Future.delayed(const Duration(seconds: 1), () {
-      if (isRetailer) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
-        );
-      }
-    });
+  _showSnackBar('Login successful as ${isRetailer ? "Retailer" : "Customer"}!');
+  
+  // Navigate to appropriate home screen based on user type
+  if (isRetailer) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+    );
+  } else {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+    );
   }
-
+}
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
   
@@ -242,52 +244,13 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: _isLoading ? null : () {
-                          print("Login button pressed!");
-                          _signInWithEmailAndPassword();
-                        },
+                        onPressed: _isLoading ? null : _signInWithEmailAndPassword,
                         child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              'Login as ${isRetailer ? "Retailer" : "Customer"}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Or sign in with:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color.fromARGB(255, 48, 46, 46),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    SizedBox(
-                      height: 50,
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Google sign-in functionality not implemented'),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
-                        label: const Text(
-                          'Google',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black87,
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Login as ${isRetailer ? "Retailer" : "Customer"}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),

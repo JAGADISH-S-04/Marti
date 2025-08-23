@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "388213060628",
+    "project_id": "artie-sans",
+    "storage_bucket": "artie-sans.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:388213060628:android:c3ca00ac0a368398f0e301",
+        "android_client_info": {
+          "package_name": "com.example.arti"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "388213060628-37k5155bocoipa4iv2k10kka8qfaumvo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.arti",
+            "certificate_hash": "6a7be0c520087298cfc07c526fb58d2669248f54"
+          }
+        },
+        {
+          "client_id": "388213060628-6tnnad9k0pt7vs0h0dhfagonpbhmj4cp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Y99wVUB-EVnIBiNEIatXFLGEidPhWLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "388213060628-6tnnad9k0pt7vs0h0dhfagonpbhmj4cp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "388213060628-vm3l9q8mba2pd4cgu7nt2idcn0fv3p5v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.arti"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

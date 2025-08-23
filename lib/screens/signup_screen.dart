@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:arti/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:arti/screens/customer_home_screen.dart';
+import 'package:arti/screens/retailer_home_screen.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -10,6 +14,8 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   bool isRetailer = false; // false = Customer, true = Retailer
+  bool _isLoading = false;
+  final AuthService _authService = AuthService.instance;
   
   final TextEditingController emailController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
@@ -18,6 +24,71 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+
+  Future<void> _signUpWithEmailAndPassword() async {
+    print("=== SIGNUP ATTEMPT STARTED ===");
+    
+    if (!_validateFields()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      print("Attempting Firebase signup with AuthService...");
+      UserCredential userCredential = await _authService.signUpWithEmail(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      print("Firebase signup successful!");
+      print("User: ${userCredential.user?.email}");
+      
+      if (userCredential.user != null) {
+        // Update display name
+        await _authService.updateDisplayName(nameController.text.trim());
+        _navigateToHome();
+      }
+    } on FirebaseAuthException catch (e) {
+      print("Firebase signup error: ${e.code} - ${e.message}");
+      String message = _authService.messageFromCode(e);
+      _showSnackBar(message);
+    } catch (e) {
+      print("Unexpected error: $e");
+      _showSnackBar('An unexpected error occurred: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _navigateToHome() {
+    print("Navigating to home screen...");
+    _showSnackBar('Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+    
+    // Add a small delay to show the success message
+    Future.delayed(const Duration(seconds: 1), () {
+      if (isRetailer) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+        );
+      }
+    });
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,21 +276,16 @@ class _SignUpPageState extends State<SignUpPage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: () {
-                            if (_validateFields()) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Sign up as ${isRetailer ? "Retailer" : "Customer"} functionality not implemented'
-                                  ),
-                                ),
-                              );
-                            }
+                          onPressed: _isLoading ? null : () {
+                            print("Sign up button pressed!");
+                            _signUpWithEmailAndPassword();
                           },
-                          child: Text(
-                            'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                          child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -235,25 +301,32 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                       const SizedBox(height: 15),
-
-                      // Google Sign Up Icon
-                      Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
+                    SizedBox(
+                      height: 50,
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Google sign-in functionality not implemented'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+                        label: const Text(
+                          'Google',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                          ),
-                          child: IconButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Google Sign Up functionality not implemented')),
-                              );
-                            },
-                            icon: const Icon(Icons.g_mobiledata, size: 30, color: Colors.red),
                           ),
                         ),
                       ),
+                    ),
                       const SizedBox(height: 15),
 
                       // Login Link
@@ -323,16 +396,17 @@ class _SignUpPageState extends State<SignUpPage> {
         locationController.text.isEmpty ||
         passwordController.text.isEmpty ||
         confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
+      _showSnackBar('Please fill all required fields');
       return false;
     }
 
     if (passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      _showSnackBar('Passwords do not match');
+      return false;
+    }
+
+    if (passwordController.text.length < 6) {
+      _showSnackBar('Password must be at least 6 characters');
       return false;
     }
 

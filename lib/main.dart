@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/customer_home_screen.dart';
+import 'screens/retailer_home_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'firebase_auth.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -23,8 +31,10 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
-        '/login': (context) => const LoginPage(),
+        '/login': (context) => const Login_Page(),
         '/signup': (context) => const SignUpPage(),
+        '/customer_home': (context) => const CustomerHomeScreen(),
+        '/retailer_home': (context) => const RetailerHomeScreen(),
       },
     );
   }

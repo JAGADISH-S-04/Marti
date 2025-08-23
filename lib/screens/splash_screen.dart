@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import '../firebase_auth.dart'; // Import the Firebase auth module instead of login_screen.dart
  
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -44,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => const Login_Page(), // Use Login_Page from firebase_auth.dart
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final tween = Tween<Offset>(
               begin: const Offset(-1.0, 0.0),
@@ -70,9 +70,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/artisan-1.jpg'), // Updated path
+            image: AssetImage('assets/images/artisan-1.jpg'),
             fit: BoxFit.cover,
-            onError: null, // Handle error gracefully
           ),
         ),
         child: Container(
@@ -106,4 +105,3 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 }
- 
