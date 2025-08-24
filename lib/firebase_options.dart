@@ -89,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'artie-sans.firebasestorage.app',
     measurementId: 'G-9ZFYV09VBF',
   );
+
 }

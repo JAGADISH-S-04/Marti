@@ -2,116 +2,108 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  AuthService._internal();
+  static final AuthService instance = AuthService._internal();
 
-  // Get current user
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Stream of auth state
+  Stream<User?> get authState => _auth.authStateChanges();
+
+  // Current user
   User? get currentUser => _auth.currentUser;
 
-  // Auth state changes stream
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // Sign in with email and password
-  Future<UserCredential?> signInWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
+  // Email/password sign up
+  Future<UserCredential> signUpWithEmail({
+    required String email,
+    required String password,
+  }) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
         password: password,
       );
-      return result;
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      return cred;
+    } on FirebaseAuthException {
+      rethrow;
     }
   }
 
-  // Register with email and password
-  Future<UserCredential?> registerWithEmailAndPassword(
-    String email,
-    String password,
-    String name,
-  ) async {
+  // Email/password sign in
+  Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
     try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
         password: password,
       );
-      
-      // Update display name
-      await result.user?.updateDisplayName(name);
-      
-      return result;
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      return cred;
+    } on FirebaseAuthException {
+      rethrow;
     }
   }
 
-  // Sign in with Google
-  Future<UserCredential?> signInWithGoogle() async {
+  // Send password reset
+  Future<void> sendPasswordReset(String email) async {
     try {
-      // First sign out to ensure clean state
-      await _googleSignIn.signOut();
-      
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        throw Exception('Google Sign-In was cancelled by user');
-      }
-
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = 
-          await googleUser.authentication;
-
-      // Validate tokens
-      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw Exception('Failed to obtain Google authentication tokens');
-      }
-
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase with the Google credential
-      return await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw Exception('Google Sign-In failed. Please check your internet connection and try again.');
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException {
+      rethrow;
     }
+  }
+
+  // Update display name
+  Future<void> updateDisplayName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.updateDisplayName(name);
+    await user.reload();
   }
 
   // Sign out
   Future<void> signOut() async {
-    try {
-      await _googleSignIn.signOut();
-      await _auth.signOut();
-    } catch (e) {
-      throw Exception('Sign out failed: $e');
-    }
+    await _auth.signOut();
   }
 
-  // Send password reset email
-  Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    }
+  // Delete account
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.delete();
   }
 
-  // Handle Firebase Auth exceptions
-  String _handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
+  // Add this method to your AuthService class:
+
+Future<void> signOutFromAll() async {
+  try {
+    // Sign out from Google if signed in with Google
+    await GoogleSignIn().signOut();
+    // Sign out from Firebase
+    await FirebaseAuth.instance.signOut();
+    print("User signed out successfully");
+  } catch (e) {
+    print("Error signing out: $e");
+    throw Exception("Failed to sign out: $e");
+  }
+}
+
+  // Human-friendly error messages
+  String messageFromCode(Object error) {
+    if (error is! FirebaseAuthException)
+      return 'Something went wrong. Please try again.';
+    switch (error.code) {
+      case 'invalid-email':
+        return 'The email address is not valid.';
+      case 'user-disabled':
+        return 'This user account has been disabled.';
       case 'user-not-found':
         return 'No user found for that email.';
       case 'wrong-password':
         return 'Wrong password provided.';
       case 'email-already-in-use':
+<<<<<<< HEAD
         return 'The account already exists for that email.';
       case 'weak-password':
         return 'The password provided is too weak.';
@@ -125,6 +117,17 @@ class AuthService {
         return 'Email/password accounts are not enabled.';
       default:
         return 'An error occurred: ${e.message}';
+=======
+        return 'An account already exists for that email.';
+      case 'weak-password':
+        return 'Password is too weak.';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again later.';
+      case 'operation-not-allowed':
+        return 'This sign-in method is disabled.';
+      default:
+        return error.message ?? 'Authentication failed.';
+>>>>>>> b04416a56c9191a52b385163e3ad2bacad385cb7
     }
   }
 }

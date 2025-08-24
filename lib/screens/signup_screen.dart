@@ -6,6 +6,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:arti/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:arti/screens/customer_home_screen.dart';
+import 'package:arti/screens/retailer_home_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:arti/services/firestore_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -16,9 +23,9 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   bool isRetailer = false; // false = Customer, true = Retailer
-  bool isLoading = false;
-  bool obscurePassword = true;
-  bool obscureConfirmPassword = true;
+  bool _isLoading = false;
+  final AuthService _authService = AuthService.instance;
+  final FirestoreService _firestoreService = FirestoreService();
   
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
@@ -29,6 +36,165 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+
+  Future<void> _signUpWithEmailAndPassword() async {
+    print("=== SIGNUP ATTEMPT STARTED ===");
+    
+    if (!_validateFields()) {
+      return;
+    }
+
+    // Check username availability
+    bool isUsernameAvailable = await _firestoreService.isUsernameAvailable(usernameController.text.trim());
+    if (!isUsernameAvailable) {
+      _showSnackBar('Username is already taken. Please choose another one.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      print("Attempting Firebase signup with AuthService...");
+      UserCredential userCredential = await _authService.signUpWithEmail(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      print("Firebase signup successful!");
+      print("User: ${userCredential.user?.email}");
+      
+      if (userCredential.user != null) {
+        // Update display name
+        await _authService.updateDisplayName(nameController.text.trim());
+        
+        // Store user details in appropriate Firestore collection
+        await _firestoreService.createUserDocument(
+          uid: userCredential.user!.uid,
+          email: emailController.text.trim(),
+          fullName: nameController.text.trim(),
+          username: usernameController.text.trim(),
+          mobile: mobileController.text.trim(),
+          location: locationController.text.trim(),
+          isRetailer: isRetailer,
+        );
+        
+        print("User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
+        _navigateToHome();
+      }
+    } on FirebaseAuthException catch (e) {
+      print("Firebase signup error: ${e.code} - ${e.message}");
+      String message = _authService.messageFromCode(e);
+      _showSnackBar(message);
+    } catch (e) {
+      print("Unexpected error: $e");
+      _showSnackBar('An unexpected error occurred: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signUpWithGoogle() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      print("Starting Google Sign-In...");
+      
+      // Sign out from Google first to force account selection
+      await GoogleSignIn().signOut();
+      
+      // Start Google Sign-In process
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      
+      if (googleUser == null) {
+        print("User cancelled Google sign-in");
+        setState(() => _isLoading = false);
+        return; // User cancelled sign in
+      }
+      
+      print("Google user selected: ${googleUser.email}");
+      
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      print("Attempting Firebase authentication with Google credentials...");
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        print("Google sign-up successful!");
+        print("User: ${userCredential.user?.email}");
+        
+        // Check if user document already exists in either collection
+        final existingUser = await _firestoreService.checkUserExists(userCredential.user!.uid);
+        
+        if (existingUser == null) {
+          // Create user document for new Google users in appropriate collection
+          await _firestoreService.createUserDocument(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email ?? '',
+            fullName: userCredential.user!.displayName ?? 'Google User',
+            username: userCredential.user!.email?.split('@')[0] ?? 'user_${userCredential.user!.uid.substring(0, 8)}',
+            mobile: '', // Google doesn't provide phone number
+            location: '', // Will need to be filled later
+            isRetailer: isRetailer,
+            profileImageUrl: userCredential.user!.photoURL,
+          );
+          
+          print("User data stored in ${isRetailer ? 'retailers' : 'customers'} collection");
+        } else {
+          // User already exists, use their existing type
+          isRetailer = existingUser['isRetailer'] ?? false;
+          print("Existing user found in ${isRetailer ? 'retailers' : 'customers'} collection");
+        }
+        
+        _navigateToHome();
+      } else {
+        print("Google sign-in failed: No user returned");
+        _showSnackBar('Google sign-in failed: No user returned');
+      }
+      
+    } on FirebaseAuthException catch (e) {
+      print("Firebase auth error: ${e.code} - ${e.message}");
+      _showSnackBar(e.message ?? 'Google sign in failed');
+    } catch (e) {
+      print("Unexpected error during Google sign-in: $e");
+      _showSnackBar('An unexpected error occurred during Google sign-in');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _navigateToHome() {
+    print("Navigating to home screen...");
+    _showSnackBar('Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+    
+    // Add a small delay to show the success message
+    Future.delayed(const Duration(seconds: 1), () {
+      if (isRetailer) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+        );
+      }
+    });
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -229,61 +395,73 @@ class _SignUpPageState extends State<SignUpPage> {
                             fontSize: 16,
                             color: Colors.white.withOpacity(0.8),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Toggle Button for Customer/Retailer
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.3))
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => isRetailer = false),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: !isRetailer 
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: Text(
-                                      'Buyer',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: !isRetailer ? Colors.white : Colors.white70,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                          onPressed: _isLoading ? null : () {
+                            print("Sign up button pressed!");
+                            _signUpWithEmailAndPassword();
+                          },
+                          child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => isRetailer = true),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: isRetailer 
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: Text(
-                                      'Seller',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: isRetailer ? Colors.white : Colors.white70,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Divider
+                      Row(
+                        children: [
+                          const Expanded(child: Divider(thickness: 1)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              'Or sign up with',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+                          const Expanded(child: Divider(thickness: 1)),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+
+                      // Google Sign Up Button
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _signUpWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+                          label: const Text(
+                            'Sign up with Google',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+
+                      // Login Link
+                      Center(
+                        child: RichText(
+                          text: TextSpan(
+                            text: "Already have an account? ",
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            children: [
+                              TextSpan(
+                                text: 'Login',
+                                style: const TextStyle(
+                                  decoration: TextDecoration.underline,
+                                  color: Color.fromARGB(255, 93, 64, 55),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
@@ -536,5 +714,42 @@ class _SignUpPageState extends State<SignUpPage> {
         suffixIcon: suffixIcon,
       ),
     );
+  }
+
+  bool _validateFields() {
+    if (nameController.text.isEmpty ||
+        usernameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        mobileController.text.isEmpty ||
+        locationController.text.isEmpty ||
+        passwordController.text.isEmpty ||
+        confirmPasswordController.text.isEmpty) {
+      _showSnackBar('Please fill all required fields');
+      return false;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      _showSnackBar('Passwords do not match');
+      return false;
+    }
+
+    if (passwordController.text.length < 6) {
+      _showSnackBar('Password must be at least 6 characters');
+      return false;
+    }
+
+    return true;
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    nameController.dispose();
+    usernameController.dispose();
+    mobileController.dispose();
+    locationController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
   }
 }
