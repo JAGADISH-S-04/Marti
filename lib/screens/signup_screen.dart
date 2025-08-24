@@ -236,29 +236,34 @@ class _SignUpPageState extends State<SignUpPage> {
                         // Toggle Button for Customer/Retailer
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(25),
-                            border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.3))
+                            border: Border.all(color: const Color(0xFFD4AF37), width: 2)
                           ),
                           child: Row(
                             children: [
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () => setState(() => isRetailer = false),
+                                  onTap: () {
+                                    print('Signup - Buyer button tapped');
+                                    setState(() => isRetailer = false);
+                                    print('Signup - isRetailer set to: $isRetailer');
+                                  },
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(vertical: 15),
                                     decoration: BoxDecoration(
                                       color: !isRetailer 
-                                        ? Theme.of(context).colorScheme.primary
+                                        ? const Color(0xFFD4AF37)
                                         : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(25),
+                                      borderRadius: BorderRadius.circular(23),
                                     ),
                                     child: Text(
                                       'Buyer',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: !isRetailer ? Colors.white : Colors.white70,
+                                        color: !isRetailer ? Colors.black : Colors.white,
                                         fontWeight: FontWeight.bold,
+                                        fontSize: 16,
                                       ),
                                     ),
                                   ),
@@ -266,21 +271,26 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () => setState(() => isRetailer = true),
+                                  onTap: () {
+                                    print('Signup - Seller button tapped');
+                                    setState(() => isRetailer = true);
+                                    print('Signup - isRetailer set to: $isRetailer');
+                                  },
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(vertical: 15),
                                     decoration: BoxDecoration(
                                       color: isRetailer 
-                                        ? Theme.of(context).colorScheme.primary
+                                        ? const Color(0xFFD4AF37)
                                         : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(25),
+                                      borderRadius: BorderRadius.circular(23),
                                     ),
                                     child: Text(
                                       'Seller',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: isRetailer ? Colors.white : Colors.white70,
+                                        color: isRetailer ? Colors.black : Colors.white,
                                         fontWeight: FontWeight.bold,
+                                        fontSize: 16,
                                       ),
                                     ),
                                   ),
