@@ -1,3 +1,5 @@
+import 'package:arti/screens/buyer_screen.dart';
+import 'package:arti/screens/seller_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:arti/services/storage_service.dart';
@@ -33,12 +35,12 @@ class _SplashScreenState extends State<SplashScreen> {
       if (userType == 'retailer') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const SellerScreen()),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const BuyerScreen()),
         );
       }
     } else {

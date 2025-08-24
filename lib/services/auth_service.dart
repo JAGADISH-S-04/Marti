@@ -103,21 +103,6 @@ Future<void> signOutFromAll() async {
       case 'wrong-password':
         return 'Wrong password provided.';
       case 'email-already-in-use':
-<<<<<<< HEAD
-        return 'The account already exists for that email.';
-      case 'weak-password':
-        return 'The password provided is too weak.';
-      case 'invalid-email':
-        return 'The email address is not valid.';
-      case 'user-disabled':
-        return 'This user account has been disabled.';
-      case 'too-many-requests':
-        return 'Too many requests. Try again later.';
-      case 'operation-not-allowed':
-        return 'Email/password accounts are not enabled.';
-      default:
-        return 'An error occurred: ${e.message}';
-=======
         return 'An account already exists for that email.';
       case 'weak-password':
         return 'Password is too weak.';
@@ -127,7 +112,6 @@ Future<void> signOutFromAll() async {
         return 'This sign-in method is disabled.';
       default:
         return error.message ?? 'Authentication failed.';
->>>>>>> b04416a56c9191a52b385163e3ad2bacad385cb7
     }
   }
 }

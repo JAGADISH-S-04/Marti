@@ -1,5 +1,450 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'add_product_screen.dart';
+import '../ref/test_store_creation.dart';
+import 'enhanced_product_listing_page.dart';
+
+class MyStoreScreen extends StatefulWidget {
+  const MyStoreScreen({super.key});
+
+  @override
+  State<MyStoreScreen> createState() => _MyStoreScreenState();
+}
+
+class _MyStoreScreenState extends State<MyStoreScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _storeData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStoreData();
+  }
+
+  Future<void> _loadStoreData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final storeDoc = await FirebaseFirestore.instance
+            .collection('stores')
+            .doc(user.uid)
+            .get();
+        
+        if (storeDoc.exists) {
+          setState(() {
+            _storeData = storeDoc.data();
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading store: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: Text(
+          'My Store',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(0xFF2C1810),
+        elevation: 0,
+        centerTitle: true,
+        actions: [
+          if (_storeData != null)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                // Navigate to add product
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EnhancedProductListingPage(),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _storeData == null
+              ? _buildNoStoreView()
+              : _buildStoreView(),
+    );
+  }
+
+  Widget _buildNoStoreView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.store_mall_directory_outlined,
+            size: 100,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No Store Created Yet',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2C1810),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Create your store to start selling your amazing products',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddProductScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add_business),
+            label: const Text('Create My Store'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2C1810),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Store Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 0,
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Store Image
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey[200],
+                      ),
+                      child: _storeData!['imageUrl'] != null && _storeData!['imageUrl'].isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _storeData!['imageUrl'],
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Icon(
+                              Icons.store,
+                              size: 40,
+                              color: Colors.grey[400],
+                            ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _storeData!['storeName'] ?? 'Unknown Store',
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF2C1810),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _storeData!['storeType'] ?? '',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                _storeData!['contactNumber'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _storeData!['description'] ?? '',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Products Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Products',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2C1810),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EnhancedProductListingPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Product'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Products List
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('products')
+                .where('artisanId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.inventory_outlined,
+                        size: 60,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Products Yet',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add your first product to start selling',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final product = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  return _buildProductCard(product);
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard(Map<String, dynamic> product) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Product Image
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[200],
+            ),
+            child: product['imageUrls'] != null && product['imageUrls'].isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      product['imageUrls'][0],
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Icon(
+                    Icons.image,
+                    color: Colors.grey[400],
+                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product['name'] ?? 'Unknown Product',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF2C1810),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product['category'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '₹${product['price'] ?? 0}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFD4AF37),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Stock: ${product['stockQuantity'] ?? 0}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class SellerScreen extends StatelessWidget {
   const SellerScreen({super.key});
@@ -137,9 +582,12 @@ class SellerScreen extends StatelessWidget {
                               'My Store',
                               Icons.storefront,
                               () {
-                                // Navigate to My Store
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('My Store - Coming Soon')),
+                                // Navigate to My Store View
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const MyStoreScreen(),
+                                  ),
                                 );
                               },
                             ),
@@ -152,8 +600,11 @@ class SellerScreen extends StatelessWidget {
                               Icons.add_business,
                               () {
                                 // Navigate to List Store
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('List My Store - Coming Soon')),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AddProductScreen(),
+                                  ),
                                 );
                               },
                             ),
@@ -165,12 +616,33 @@ class SellerScreen extends StatelessWidget {
                         width: double.infinity,
                         child: _buildActionButton(
                           context,
-                          'Product Listing',
-                          Icons.inventory_2,
+                          'Product Listing (AI-Powered)',
+                          Icons.auto_awesome,
                           () {
-                            // Navigate to Product Listing
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Product Listing - Coming Soon')),
+                            // Navigate to Enhanced Product Listing with AI
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EnhancedProductListingPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          'Test Store (No Image)',
+                          Icons.science,
+                          () {
+                            // Navigate to Test Store Creation
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const TestStoreCreationScreen(),
+                              ),
                             );
                           },
                         ),

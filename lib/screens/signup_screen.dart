@@ -1,11 +1,7 @@
-import 'dart:ui';
-import 'package:arti/services/auth_service.dart';
 import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:arti/screens/customer_home_screen.dart';
@@ -13,10 +9,11 @@ import 'package:arti/screens/retailer_home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:arti/services/firestore_service.dart';
+import 'package:arti/screens/complete_profile_screen.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
-  
+
   @override
   State<SignUpPage> createState() => _SignUpPageState();
 }
@@ -26,28 +23,39 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isLoading = false;
   final AuthService _authService = AuthService.instance;
   final FirestoreService _firestoreService = FirestoreService();
-  
-  final AuthService _authService = AuthService();
-  final _formKey = GlobalKey<FormState>();
+
   final TextEditingController emailController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Future<void> _signUpWithEmailAndPassword() async {
     print("=== SIGNUP ATTEMPT STARTED ===");
-    
+
     if (!_validateFields()) {
       return;
     }
 
     // Check username availability
-    bool isUsernameAvailable = await _firestoreService.isUsernameAvailable(usernameController.text.trim());
+    bool isUsernameAvailable = await _firestoreService
+        .isUsernameAvailable(usernameController.text.trim());
     if (!isUsernameAvailable) {
       _showSnackBar('Username is already taken. Please choose another one.');
+      return;
+    }
+
+    // Check if email already exists for the same user type
+    bool emailExistsForType = await _firestoreService
+        .checkEmailExistsForUserType(emailController.text.trim(), isRetailer);
+
+    if (emailExistsForType) {
+      String userType = isRetailer ? 'Retailer' : 'Customer';
+      _showSnackBar(
+          'This email is already registered as $userType. Please login instead.');
       return;
     }
 
@@ -62,11 +70,49 @@ class _SignUpPageState extends State<SignUpPage> {
 
       print("Firebase signup successful!");
       print("User: ${userCredential.user?.email}");
-      
+
       if (userCredential.user != null) {
+        // Check if user already exists in either collection with the same UID
+        final existingUser =
+            await _firestoreService.checkUserExists(userCredential.user!.uid);
+
+        if (existingUser != null) {
+          // User exists with same UID, check if they're trying to signup as different type
+          bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
+
+          if (existingUserIsRetailer != isRetailer) {
+            // User wants to create account for different type with same email
+            // Create a custom document ID for the dual account
+            String customId =
+                '${userCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
+
+            await _firestoreService.createUserDocumentWithCustomId(
+              customId: customId,
+              email: emailController.text.trim(),
+              fullName: nameController.text.trim(),
+              username: usernameController.text.trim(),
+              mobile: mobileController.text.trim(),
+              location: locationController.text.trim(),
+              isRetailer: isRetailer,
+            );
+
+            print(
+                "Dual account created successfully as ${isRetailer ? 'retailer' : 'customer'}");
+            _showSnackBar(
+                'Account created successfully! You now have both Customer and Retailer accounts.');
+            _navigateToHome();
+            return;
+          } else {
+            // Same type, just login
+            _showSnackBar('Account already exists. Logging you in...');
+            _navigateToHome();
+            return;
+          }
+        }
+
         // Update display name
         await _authService.updateDisplayName(nameController.text.trim());
-        
+
         // Store user details in appropriate Firestore collection
         await _firestoreService.createUserDocument(
           uid: userCredential.user!.uid,
@@ -77,14 +123,67 @@ class _SignUpPageState extends State<SignUpPage> {
           location: locationController.text.trim(),
           isRetailer: isRetailer,
         );
-        
-        print("User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
+
+        print(
+            "User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
         _navigateToHome();
       }
     } on FirebaseAuthException catch (e) {
       print("Firebase signup error: ${e.code} - ${e.message}");
-      String message = _authService.messageFromCode(e);
-      _showSnackBar(message);
+
+      // Handle case where email is already in use by Firebase Auth
+      if (e.code == 'email-already-in-use') {
+        // Try to sign in with existing credentials to get the user
+        try {
+          UserCredential existingUserCredential =
+              await _authService.signInWithEmail(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+          if (existingUserCredential.user != null) {
+            // Check if user wants to create account for different type
+            final existingUser = await _firestoreService
+                .checkUserExists(existingUserCredential.user!.uid);
+
+            if (existingUser != null) {
+              bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
+
+              if (existingUserIsRetailer != isRetailer) {
+                // Create dual account
+                String customId =
+                    '${existingUserCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
+
+                await _firestoreService.createUserDocumentWithCustomId(
+                  customId: customId,
+                  email: emailController.text.trim(),
+                  fullName: nameController.text.trim(),
+                  username: usernameController.text.trim(),
+                  mobile: mobileController.text.trim(),
+                  location: locationController.text.trim(),
+                  isRetailer: isRetailer,
+                );
+
+                print(
+                    "Dual account created successfully as ${isRetailer ? 'retailer' : 'customer'}");
+                _showSnackBar(
+                    'Account created successfully! You now have both Customer and Retailer accounts.');
+                _navigateToHome();
+                return;
+              } else {
+                _showSnackBar(
+                    'This email is already registered as ${isRetailer ? "Retailer" : "Customer"}. Please login instead.');
+              }
+            }
+          }
+        } catch (signInError) {
+          _showSnackBar(
+              'This email is already registered with a different password. Please use the correct password or reset it.');
+        }
+      } else {
+        String message = _authService.messageFromCode(e);
+        _showSnackBar(message);
+      }
     } catch (e) {
       print("Unexpected error: $e");
       _showSnackBar('An unexpected error occurred: $e');
@@ -93,75 +192,124 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  // ...existing code...
+
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
-    
+
     try {
       print("Starting Google Sign-In...");
-      
+
       // Sign out from Google first to force account selection
       await GoogleSignIn().signOut();
-      
+
       // Start Google Sign-In process
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      
+
       if (googleUser == null) {
         print("User cancelled Google sign-in");
         setState(() => _isLoading = false);
         return; // User cancelled sign in
       }
-      
+
       print("Google user selected: ${googleUser.email}");
-      
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      
+
       print("Attempting Firebase authentication with Google credentials...");
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
       if (userCredential.user != null) {
         print("Google sign-up successful!");
         print("User: ${userCredential.user?.email}");
-        
-        // Check if user document already exists in either collection
-        final existingUser = await _firestoreService.checkUserExists(userCredential.user!.uid);
-        
-        if (existingUser == null) {
-          // Create user document for new Google users in appropriate collection
-          await _firestoreService.createUserDocument(
-            uid: userCredential.user!.uid,
-            email: userCredential.user!.email ?? '',
-            fullName: userCredential.user!.displayName ?? 'Google User',
-            username: userCredential.user!.email?.split('@')[0] ?? 'user_${userCredential.user!.uid.substring(0, 8)}',
-            mobile: '', // Google doesn't provide phone number
-            location: '', // Will need to be filled later
-            isRetailer: isRetailer,
-            profileImageUrl: userCredential.user!.photoURL,
-          );
-          
-          print("User data stored in ${isRetailer ? 'retailers' : 'customers'} collection");
-        } else {
-          // User already exists, use their existing type
-          isRetailer = existingUser['isRetailer'] ?? false;
-          print("Existing user found in ${isRetailer ? 'retailers' : 'customers'} collection");
+
+        // Check if email already exists for the same user type
+        bool emailExistsForType =
+            await _firestoreService.checkEmailExistsForUserType(
+                userCredential.user!.email!, isRetailer);
+
+        if (emailExistsForType) {
+          String userType = isRetailer ? 'Retailer' : 'Customer';
+          _showSnackBar(
+              'This Google account is already registered as $userType. Please login instead.');
+          await FirebaseAuth.instance.signOut();
+          return;
         }
-        
-        _navigateToHome();
+
+        // Check if user document already exists in either collection with same UID
+        final existingUser =
+            await _firestoreService.checkUserExists(userCredential.user!.uid);
+
+        String username = userCredential.user!.email?.split('@')[0] ??
+            'user_${userCredential.user!.uid.substring(0, 8)}';
+
+        if (existingUser != null) {
+          // User already exists, check if they're trying to signup as different type
+          bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
+
+          if (existingUserIsRetailer != isRetailer) {
+            // Navigate to complete profile for dual account
+            String customId =
+                '${userCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CompleteProfileScreen(
+                  uid: userCredential.user!.uid,
+                  email: userCredential.user!.email ?? '',
+                  fullName: userCredential.user!.displayName ?? 'Google User',
+                  username: username,
+                  isRetailer: isRetailer,
+                  profileImageUrl: userCredential.user!.photoURL,
+                  isDualAccount: true,
+                  customId: customId,
+                ),
+              ),
+            );
+            return;
+          } else {
+            // Same type, just login
+            print(
+                "Existing user found with same type in ${existingUserIsRetailer ? 'retailers' : 'customers'} collection");
+            _showSnackBar('Welcome back!');
+            _navigateToHome();
+            return;
+          }
+        } else {
+          // New user - navigate to complete profile screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CompleteProfileScreen(
+                uid: userCredential.user!.uid,
+                email: userCredential.user!.email ?? '',
+                fullName: userCredential.user!.displayName ?? 'Google User',
+                username: username,
+                isRetailer: isRetailer,
+                profileImageUrl: userCredential.user!.photoURL,
+              ),
+            ),
+          );
+          return;
+        }
       } else {
         print("Google sign-in failed: No user returned");
-        _showSnackBar('Google sign-in failed: No user returned');
+        _showSnackBar('Google sign-up failed: No user returned');
       }
-      
     } on FirebaseAuthException catch (e) {
       print("Firebase auth error: ${e.code} - ${e.message}");
-      _showSnackBar(e.message ?? 'Google sign in failed');
+      _showSnackBar(e.message ?? 'Google sign up failed');
     } catch (e) {
-      print("Unexpected error during Google sign-in: $e");
-      _showSnackBar('An unexpected error occurred during Google sign-in');
+      print("Unexpected error during Google sign-up: $e");
+      _showSnackBar('An unexpected error occurred during Google sign-up');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -169,19 +317,20 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _navigateToHome() {
     print("Navigating to home screen...");
-    _showSnackBar('Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
-    
+    _showSnackBar(
+        'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+
     // Add a small delay to show the success message
     Future.delayed(const Duration(seconds: 1), () {
       if (isRetailer) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const SellerScreen()),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const BuyerScreen()),
         );
       }
     });
@@ -194,127 +343,6 @@ class _SignUpPageState extends State<SignUpPage> {
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    nameController.dispose();
-    usernameController.dispose();
-    mobileController.dispose();
-    locationController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _signUpWithEmailPassword() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      UserCredential? userCredential = await _authService.registerWithEmailAndPassword(
-        emailController.text.trim(),
-        passwordController.text,
-        nameController.text.trim(),
-      );
-
-      if (userCredential != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account Created Successfully!'),
-            backgroundColor: Color.fromARGB(255, 93, 64, 55),
-          ),
-        );
-        
-        // Navigate based on selected role
-        if (isRetailer) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const SellerScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BuyerScreen()),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _signUpWithGoogle() async {
-    try {
-      setState(() {
-        isLoading = true;
-      });
-
-      UserCredential? userCredential = await _authService.signInWithGoogle();
-      
-      if (userCredential != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Google Sign-Up Successful!'),
-            backgroundColor: Color.fromARGB(255, 93, 64, 55),
-          ),
-        );
-        
-        // Navigate based on selected role
-        if (isRetailer) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const SellerScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BuyerScreen()),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = e.toString();
-        if (errorMessage.contains('cancelled')) {
-          errorMessage = 'Google Sign-Up was cancelled';
-        } else if (errorMessage.contains('network')) {
-          errorMessage = 'Network error. Please check your connection.';
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
   }
 
   @override
@@ -332,79 +360,199 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.black.withOpacity(0.3),
           ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
-                child: Container(
-                  padding: const EdgeInsets.all(24.0),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
-                        spreadRadius: 5,
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Container(
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      spreadRadius: 5,
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Back button
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Color.fromARGB(255, 93, 64, 55)),
+                          ),
+                          const Expanded(
+                            child: Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(255, 93, 64, 55),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Back button and Title
-                        Row(
+                      const SizedBox(height: 20),
+
+                      // Toggle Button for Customer/Retailer
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Row(
                           children: [
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.secondary),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => isRetailer = false),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: !isRetailer
+                                        ? const Color.fromARGB(255, 93, 64, 55)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  child: Text(
+                                    'Customer',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: !isRetailer
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                             Expanded(
-                                child: Text(
-                                'Create Account',
-                                style: GoogleFonts.playfairDisplay(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                              child: GestureDetector(
+                                onTap: () => setState(() => isRetailer = true),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isRetailer
+                                        ? const Color.fromARGB(255, 93, 64, 55)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  child: Text(
+                                    'Retailer',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: isRetailer
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                             ),
-                            const SizedBox(width: 48), // To balance the back button
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Join our artisan community',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withOpacity(0.8),
+                      ),
+                      const SizedBox(height: 20),
+                      // Form Fields
+                      _buildTextField(
+                        controller: nameController,
+                        label: 'Full Name *',
+                        icon: Icons.person_outline,
+                        keyboardType: TextInputType.name,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: usernameController,
+                        label: 'Username *',
+                        icon: Icons.alternate_email,
+                        keyboardType: TextInputType.text,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: emailController,
+                        label: 'Email *',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: mobileController,
+                        label: 'Mobile Number *',
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: locationController,
+                        label: 'Location *',
+                        icon: Icons.location_on_outlined,
+                        keyboardType: TextInputType.streetAddress,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: passwordController,
+                        label: 'Password *',
+                        icon: Icons.lock_outline,
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 15),
+
+                      _buildTextField(
+                        controller: confirmPasswordController,
+                        label: 'Confirm Password *',
+                        icon: Icons.lock_outline,
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 25),
+
+                      // Sign Up Button
+                      SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 93, 64, 55),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          onPressed: _isLoading ? null : () {
-                            print("Sign up button pressed!");
-                            _signUpWithEmailAndPassword();
-                          },
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  print("Sign up button pressed!");
+                                  _signUpWithEmailAndPassword();
+                                },
                           child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(
-                                'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : Text(
+                                  'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -414,7 +562,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         children: [
                           const Expanded(child: Divider(thickness: 1)),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8.0),
                             child: Text(
                               'Or sign up with',
                               style: TextStyle(color: Colors.grey.shade600),
@@ -431,15 +580,16 @@ class _SignUpPageState extends State<SignUpPage> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _signUpWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+                          icon: const Icon(Icons.g_mobiledata,
+                              size: 24, color: Colors.white),
                           label: const Text(
                             'Sign up with Google',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w500),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            side: BorderSide(color: Colors.grey.shade300),
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -453,7 +603,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: RichText(
                           text: TextSpan(
                             text: "Already have an account? ",
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.grey),
                             children: [
                               TextSpan(
                                 text: 'Login',
@@ -463,227 +614,16 @@ class _SignUpPageState extends State<SignUpPage> {
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Navigator.pop(context);
+                                  },
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-
-                        // Form Fields
-                        _buildTextField(
-                          controller: nameController,
-                          label: 'Full Name *',
-                          icon: Icons.person_outline,
-                          keyboardType: TextInputType.name,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your full name';
-                            }
-                            if (value.length < 2) {
-                              return 'Name must be at least 2 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: usernameController,
-                          label: 'Username *',
-                          icon: Icons.alternate_email,
-                          keyboardType: TextInputType.text,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a username';
-                            }
-                            if (value.length < 3) {
-                              return 'Username must be at least 3 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: emailController,
-                          label: 'Email *',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: mobileController,
-                          label: 'Mobile Number *',
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your mobile number';
-                            }
-                            if (value.length < 10) {
-                              return 'Please enter a valid mobile number';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: locationController,
-                          label: 'Location *',
-                          icon: Icons.location_on_outlined,
-                          keyboardType: TextInputType.streetAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your location';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: passwordController,
-                          label: 'Password *',
-                          icon: Icons.lock_outline,
-                          obscureText: obscurePassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a password';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscurePassword ? Icons.visibility : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                obscurePassword = !obscurePassword;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        _buildTextField(
-                          controller: confirmPasswordController,
-                          label: 'Confirm Password *',
-                          icon: Icons.lock_outline,
-                          obscureText: obscureConfirmPassword,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your password';
-                            }
-                            if (value != passwordController.text) {
-                              return 'Passwords do not match';
-                            }
-                            return null;
-                          },
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                obscureConfirmPassword = !obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 25),
-
-                        // Sign Up Button
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : _signUpWithEmailPassword,
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    'Sign Up as ${isRetailer ? "Seller" : "Buyer"}',
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Or sign up using
-                        Row(
-                          children: [
-                            const Expanded(child: Divider(thickness: 1)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Text(
-                                'Or sign up with',
-                                style: TextStyle(color: Colors.white.withOpacity(0.8)),
-                              ),
-                            ),
-                            const Expanded(child: Divider(thickness: 1)),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
-
-                        // Google Sign Up Icon
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            onPressed: isLoading ? null : _signUpWithGoogle,
-                            icon: const Icon(Icons.g_mobiledata, color: Colors.white), // Placeholder
-                            label: const Text('Sign up with Google'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade700,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-
-                        // Login Link
-                        Center(
-                          child: RichText(
-                            text: TextSpan(
-                              text: "Already have an account? ",
-                              style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8)),
-                              children: [
-                                TextSpan(
-                                  text: 'Login',
-                                  style: TextStyle(
-                                    decoration: TextDecoration.underline,
-                                    color: Theme.of(context).colorScheme.secondary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = () {
-                                      Navigator.pop(context);
-                                    },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -700,18 +640,20 @@ class _SignUpPageState extends State<SignUpPage> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
-    String? Function(String?)? validator,
-    Widget? suffixIcon,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        suffixIcon: suffixIcon,
+    return SizedBox(
+      height: 50,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          prefixIcon: Icon(icon),
+          fillColor: Colors.white,
+          filled: true,
+        ),
       ),
     );
   }

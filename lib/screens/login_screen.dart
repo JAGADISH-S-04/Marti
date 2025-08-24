@@ -1,14 +1,12 @@
-import 'package:arti/services/auth_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
-import 'package:arti/screens/buyer_screen.dart';
-import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/screens/customer_home_screen.dart';
 import 'package:arti/screens/retailer_home_screen.dart';
+import 'package:arti/screens/seller_screen.dart';
+import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:arti/services/storage_service.dart';
+import 'package:arti/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,11 +21,12 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool isRetailer = false; // false = Customer, true = Retailer
-  bool _isLoading = false;
   final AuthService _authService = AuthService.instance;
+  final FirestoreService _firestoreService = FirestoreService();
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -61,14 +60,70 @@ class _LoginPageState extends State<LoginPage> {
       print("User: ${userCredential.user?.email}");
 
       if (userCredential.user != null) {
-        // Store user type for persistent login
-        await _storeUserType();
-        _navigateToHome();
+        // First check if user exists for the selected type using email
+        final userDataByEmail = await _firestoreService.getUserByEmailAndType(
+            emailController.text.trim(), isRetailer);
+
+        if (userDataByEmail != null) {
+          // User exists for this type, proceed with login
+          await _storeUserType();
+          _navigateToHome();
+          return;
+        }
+
+        // Check if user exists with original UID
+        final userData =
+            await _firestoreService.checkUserExists(userCredential.user!.uid);
+
+        if (userData != null) {
+          // User exists with original UID, check if type matches
+          bool userIsRetailer = userData['isRetailer'] ?? false;
+
+          if (isRetailer == userIsRetailer) {
+            // Type matches, proceed with login
+            await _storeUserType();
+            _navigateToHome();
+            return;
+          } else {
+            // User exists but for different type
+            String correctType = userIsRetailer ? 'Retailer' : 'Customer';
+            String selectedType = isRetailer ? 'Retailer' : 'Customer';
+
+            // Check if they have account for selected type too
+            final selectedTypeData = await _firestoreService
+                .getUserByEmailAndType(emailController.text.trim(), isRetailer);
+
+            if (selectedTypeData != null) {
+              // They have both accounts, proceed with selected type
+              await _storeUserType();
+              _navigateToHome();
+              return;
+            } else {
+              await FirebaseAuth.instance.signOut();
+              _showSnackBar(
+                  'You have a $correctType account but no $selectedType account. Please sign up as $selectedType or login as $correctType.');
+              return;
+            }
+          }
+        } else {
+          // No user data found
+          await FirebaseAuth.instance.signOut();
+          _showSnackBar('User profile not found. Please sign up first.');
+          return;
+        }
       }
     } on FirebaseAuthException catch (e) {
       print("Firebase auth error: ${e.code} - ${e.message}");
-      String message = _authService.messageFromCode(e);
-      _showSnackBar(message);
+
+      if (e.code == 'user-not-found') {
+        _showSnackBar(
+            'No account found with this email. Please sign up first.');
+      } else if (e.code == 'wrong-password') {
+        _showSnackBar('Incorrect password. Please try again.');
+      } else {
+        String message = _authService.messageFromCode(e);
+        _showSnackBar(message);
+      }
     } catch (e) {
       print("Unexpected error: $e");
       _showSnackBar('An unexpected error occurred: $e');
@@ -77,28 +132,76 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ...existing code...
+
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
       // Sign out first to force account selection
       await GoogleSignIn().signOut();
-      
+
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return; // user cancelled sign in
       }
-      
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      
-      // Store user type for persistent login
-      await _storeUserType();
-      _navigateToHome();
+
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        // Check if user exists for the selected type using email
+        final userDataByEmail = await _firestoreService.getUserByEmailAndType(
+            userCredential.user!.email!, isRetailer);
+
+        if (userDataByEmail != null) {
+          // User exists for this type, proceed with login
+          setState(() {
+            isRetailer = userDataByEmail['isRetailer'] ?? false;
+          });
+          await _storeUserType();
+          _navigateToHome();
+          return;
+        }
+
+        // Check if user exists with original UID
+        final userData =
+            await _firestoreService.checkUserExists(userCredential.user!.uid);
+
+        if (userData != null) {
+          // Existing user - check if login type matches
+          bool userIsRetailer = userData['isRetailer'] ?? false;
+
+          if (isRetailer != userIsRetailer) {
+            await FirebaseAuth.instance.signOut();
+            String correctType = userIsRetailer ? 'Retailer' : 'Customer';
+            _showSnackBar(
+                'This Google account is registered as $correctType. Please select $correctType to login or sign up as both types.');
+            return;
+          }
+
+          // Update the toggle to match user's actual type
+          setState(() {
+            isRetailer = userIsRetailer;
+          });
+        } else {
+          // New user trying to login - they should sign up first
+          await FirebaseAuth.instance.signOut();
+          _showSnackBar('No account found. Please sign up first.');
+          return;
+        }
+
+        // Store user type for persistent login
+        await _storeUserType();
+        _navigateToHome();
+      }
     } on FirebaseAuthException catch (e) {
       _showSnackBar(e.message ?? 'Google sign in failed');
     } catch (e) {
@@ -110,13 +213,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _forgotPassword() async {
     final TextEditingController forgotEmailController = TextEditingController();
-    
+
     return showDialog(
       context: context,
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         bool isLoading = false;
-        
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return WillPopScope(
@@ -158,9 +261,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: isLoading ? null : () {
-                      Navigator.of(dialogContext).pop();
-                    },
+                    onPressed: isLoading
+                        ? null
+                        : () {
+                            Navigator.of(dialogContext).pop();
+                          },
                     child: const Text(
                       'Cancel',
                       style: TextStyle(color: Colors.grey),
@@ -171,105 +276,120 @@ class _LoginPageState extends State<LoginPage> {
                       backgroundColor: const Color.fromARGB(255, 93, 64, 55),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: isLoading ? null : () async {
-                      String email = forgotEmailController.text.trim();
-                      
-                      if (email.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter your email address'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                      
-                      setDialogState(() {
-                        isLoading = true;
-                      });
-                      
-                      try {
-                        print("🔄 Attempting to send password reset email to: $email");
-                        
-                        // Configure action code settings with your Firebase app URL
-                        await FirebaseAuth.instance.sendPasswordResetEmail(
-                          email: email,
-                          actionCodeSettings: ActionCodeSettings(
-                            url: 'https://artie-sans-app.firebaseapp.com/__/auth/action',
-                            handleCodeInApp: false,
-                            androidPackageName: 'com.example.arti', // Replace with your actual package name
-                            androidInstallApp: false,
-                            androidMinimumVersion: '21',
-                            iOSBundleId: 'com.example.arti', // Replace with your iOS bundle ID if applicable
-                          ),
-                        );
-                        
-                        print("✅ Password reset email sent successfully!");
-                        
-                        Navigator.of(dialogContext).pop();
-                        
-                        if (mounted) {
-                          _showSnackBar(
-                            'Password reset email sent to $email. Please check your inbox and spam folder.',
-                            isSuccess: true,
-                          );
-                        }
-                      } on FirebaseAuthException catch (e) {
-                        print("❌ Firebase Auth Error: ${e.code} - ${e.message}");
-                        
-                        setDialogState(() {
-                          isLoading = false;
-                        });
-                        
-                        String message = 'Failed to send reset email';
-                        switch (e.code) {
-                          case 'user-not-found':
-                            message = 'No account found with this email. Please check the email or create an account.';
-                            break;
-                          case 'invalid-email':
-                            message = 'Invalid email address format.';
-                            break;
-                          case 'too-many-requests':
-                            message = 'Too many requests. Please try again in a few minutes.';
-                            break;
-                          case 'network-request-failed':
-                            message = 'Network error. Please check your internet connection.';
-                            break;
-                          case 'operation-not-allowed':
-                            message = 'Password reset is not enabled. Please contact support.';
-                            break;
-                          default:
-                            message = 'Error: ${e.message ?? "Unknown error occurred"}';
-                        }
-                        
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(message),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 5),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        print("❌ Unexpected error: $e");
-                        
-                        setDialogState(() {
-                          isLoading = false;
-                        });
-                        
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Unexpected error: $e'),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 5),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    child: isLoading 
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            String email = forgotEmailController.text.trim();
+
+                            if (email.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('Please enter your email address'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            setDialogState(() {
+                              isLoading = true;
+                            });
+
+                            try {
+                              print(
+                                  "🔄 Attempting to send password reset email to: $email");
+
+                              // Configure action code settings with your Firebase app URL
+                              await FirebaseAuth.instance
+                                  .sendPasswordResetEmail(
+                                email: email,
+                                actionCodeSettings: ActionCodeSettings(
+                                  url:
+                                      'https://artie-sans-app.firebaseapp.com/__/auth/action',
+                                  handleCodeInApp: false,
+                                  androidPackageName:
+                                      'com.example.arti', // Replace with your actual package name
+                                  androidInstallApp: false,
+                                  androidMinimumVersion: '21',
+                                  iOSBundleId:
+                                      'com.example.arti', // Replace with your iOS bundle ID if applicable
+                                ),
+                              );
+
+                              print(
+                                  "✅ Password reset email sent successfully!");
+
+                              Navigator.of(dialogContext).pop();
+
+                              if (mounted) {
+                                _showSnackBar(
+                                  'Password reset email sent to $email. Please check your inbox and spam folder.',
+                                  isSuccess: true,
+                                );
+                              }
+                            } on FirebaseAuthException catch (e) {
+                              print(
+                                  "❌ Firebase Auth Error: ${e.code} - ${e.message}");
+
+                              setDialogState(() {
+                                isLoading = false;
+                              });
+
+                              String message = 'Failed to send reset email';
+                              switch (e.code) {
+                                case 'user-not-found':
+                                  message =
+                                      'No account found with this email. Please check the email or create an account.';
+                                  break;
+                                case 'invalid-email':
+                                  message = 'Invalid email address format.';
+                                  break;
+                                case 'too-many-requests':
+                                  message =
+                                      'Too many requests. Please try again in a few minutes.';
+                                  break;
+                                case 'network-request-failed':
+                                  message =
+                                      'Network error. Please check your internet connection.';
+                                  break;
+                                case 'operation-not-allowed':
+                                  message =
+                                      'Password reset is not enabled. Please contact support.';
+                                  break;
+                                default:
+                                  message =
+                                      'Error: ${e.message ?? "Unknown error occurred"}';
+                              }
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(message),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 5),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              print("❌ Unexpected error: $e");
+
+                              setDialogState(() {
+                                isLoading = false;
+                              });
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Unexpected error: $e'),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 5),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -302,12 +422,12 @@ class _LoginPageState extends State<LoginPage> {
       if (isRetailer) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RetailerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const SellerScreen()),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+          MaterialPageRoute(builder: (context) => const BuyerScreen()),
         );
       }
     });
@@ -335,15 +455,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.6),
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.6),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.black.withOpacity(0.3),
           ),
           child: Center(
             child: Padding(
@@ -481,7 +593,7 @@ class _LoginPageState extends State<LoginPage> {
                           obscureText: true,
                         ),
                       ),
-                      
+
                       // Forgot Password Link
                       const SizedBox(height: 10),
                       Align(
@@ -498,13 +610,14 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 15),
                       SizedBox(
                         height: 50,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromARGB(255, 93, 64, 55),
+                            backgroundColor:
+                                const Color.fromARGB(255, 93, 64, 55),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -513,7 +626,8 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed:
                               _isLoading ? null : _signInWithEmailAndPassword,
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
                               : Text(
                                   'Login as ${isRetailer ? "Retailer" : "Customer"}',
                                   style: const TextStyle(
@@ -528,7 +642,8 @@ class _LoginPageState extends State<LoginPage> {
                         children: [
                           const Expanded(child: Divider(thickness: 1)),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8.0),
                             child: Text(
                               'Or sign in with',
                               style: TextStyle(color: Colors.grey.shade600),
@@ -542,7 +657,8 @@ class _LoginPageState extends State<LoginPage> {
                         height: 50,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _signInWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, color: Colors.white),
+                          icon: const Icon(Icons.g_mobiledata,
+                              size: 24, color: Colors.white),
                           label: const Text('Sign in with Google'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade700,
