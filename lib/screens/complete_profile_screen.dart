@@ -1,7 +1,7 @@
+import 'package:arti/screens/buyer_screen.dart';
+import 'package:arti/screens/seller_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:arti/services/firestore_service.dart';
-import 'package:arti/screens/customer_home_screen.dart';
-import 'package:arti/screens/retailer_home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
  
 class CompleteProfileScreen extends StatefulWidget {
@@ -103,8 +103,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => widget.isRetailer
-            ? const RetailerHomeScreen()
-            : const CustomerHomeScreen(),
+            ? const SellerScreen()
+            : const BuyerScreen(),
         ),
         (route) => false,
       );

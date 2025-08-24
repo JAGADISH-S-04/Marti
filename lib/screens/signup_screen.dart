@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:arti/screens/customer_home_screen.dart';
-import 'package:arti/screens/retailer_home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:arti/services/firestore_service.dart';
@@ -30,8 +28,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   Future<void> _signUpWithEmailAndPassword() async {
     print("=== SIGNUP ATTEMPT STARTED ===");
@@ -191,8 +188,6 @@ class _SignUpPageState extends State<SignUpPage> {
       setState(() => _isLoading = false);
     }
   }
-
-  // ...existing code...
 
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
@@ -469,6 +464,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+
                       // Form Fields
                       _buildTextField(
                         controller: nameController,
@@ -526,7 +522,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 25),
 
-                      // Sign Up Button
+                      // Fixed Sign Up Button with proper circular loading indicator
                       SizedBox(
                         height: 50,
                         child: ElevatedButton(
@@ -538,15 +534,16 @@ class _SignUpPageState extends State<SignUpPage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  print("Sign up button pressed!");
-                                  _signUpWithEmailAndPassword();
-                                },
+                          onPressed: _isLoading ? null : _signUpWithEmailAndPassword,
                           child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
                               : Text(
                                   'Sign Up as ${isRetailer ? "Retailer" : "Customer"}',
                                   style: const TextStyle(
@@ -574,19 +571,29 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       const SizedBox(height: 15),
 
-                      // Google Sign Up Button
+                      // Fixed Google Sign Up Button with proper circular loading indicator
                       SizedBox(
                         height: 50,
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _signUpWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata,
-                              size: 24, color: Colors.white),
-                          label: const Text(
-                            'Sign up with Google',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w500),
-                          ),
+                          icon: _isLoading 
+                              ? const SizedBox.shrink()
+                              : const Icon(Icons.g_mobiledata, size: 24, color: Colors.white),
+                          label: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Sign up with Google',
+                                  style: TextStyle(
+                                      fontSize: 16, fontWeight: FontWeight.w500),
+                                ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade700,
                             foregroundColor: Colors.white,

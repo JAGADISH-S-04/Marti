@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'add_product_screen.dart';
 import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
+import 'login_screen.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({super.key});
@@ -56,6 +58,71 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    try {
+      // Show confirmation dialog
+      bool shouldLogout = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Color(0xFF2C1810),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2C1810),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Logout'),
+              ),
+            ],
+          );
+        },
+      ) ?? false;
+
+      if (!shouldLogout) return;
+
+      // Sign out from Firebase Auth
+      await FirebaseAuth.instance.signOut();
+      
+      // Sign out from Google if logged in with Google
+      await GoogleSignIn().signOut();
+      
+      // Navigate back to login screen
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print("Logout error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error logging out: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,7 +144,6 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () {
-                // Navigate to add product
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -86,6 +152,26 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                 );
               },
             ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout();
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: ListTile(
+                    leading: Icon(Icons.logout, color: Color(0xFF2C1810)),
+                    title: Text('Logout'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ];
+            },
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+          ),
         ],
       ),
       body: _isLoading
@@ -449,6 +535,71 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
 class SellerScreen extends StatelessWidget {
   const SellerScreen({super.key});
 
+  Future<void> _logout(BuildContext context) async {
+    try {
+      // Show confirmation dialog
+      bool shouldLogout = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(
+              'Logout',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Logout'),
+              ),
+            ],
+          );
+        },
+      ) ?? false;
+
+      if (!shouldLogout) return;
+
+      // Sign out from Firebase Auth
+      await FirebaseAuth.instance.signOut();
+      
+      // Sign out from Google if logged in with Google
+      await GoogleSignIn().signOut();
+      
+      // Navigate back to login screen
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print("Logout error: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error logging out: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -537,16 +688,35 @@ class SellerScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_outlined,
-                            color: Colors.white,
-                            size: 20,
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'logout') {
+                              _logout(context);
+                            }
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              const PopupMenuItem<String>(
+                                value: 'logout',
+                                child: ListTile(
+                                  leading: Icon(Icons.logout),
+                                  title: Text('Logout'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ];
+                          },
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ],
@@ -582,7 +752,6 @@ class SellerScreen extends StatelessWidget {
                               'My Store',
                               Icons.storefront,
                               () {
-                                // Navigate to My Store View
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -599,7 +768,6 @@ class SellerScreen extends StatelessWidget {
                               'List My Store',
                               Icons.add_business,
                               () {
-                                // Navigate to List Store
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -619,7 +787,6 @@ class SellerScreen extends StatelessWidget {
                           'Product Listing (AI-Powered)',
                           Icons.auto_awesome,
                           () {
-                            // Navigate to Enhanced Product Listing with AI
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -637,7 +804,6 @@ class SellerScreen extends StatelessWidget {
                           'Test Store (No Image)',
                           Icons.science,
                           () {
-                            // Navigate to Test Store Creation
                             Navigator.push(
                               context,
                               MaterialPageRoute(
