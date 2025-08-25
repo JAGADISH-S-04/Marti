@@ -18,6 +18,7 @@ class BuyerScreen extends StatefulWidget {
 
 class _BuyerScreenState extends State<BuyerScreen> {
   String _userAddress = 'Fetching location...';
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -35,53 +36,51 @@ class _BuyerScreenState extends State<BuyerScreen> {
     try {
       // Show confirmation dialog
       bool shouldLogout = await showDialog<bool>(
-        context: context,
-        barrierDismissible: true,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              'Logout',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: const Text('Are you sure you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey),
+            context: context,
+            barrierDismissible: true,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
-              ),
-            ],
-          );
-        },
-      ) ?? false;
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
 
       if (!shouldLogout) return;
 
       // Sign out from Firebase Auth
       await FirebaseAuth.instance.signOut();
-      
+
       // Sign out from Google if logged in with Google
       await GoogleSignIn().signOut();
-      
-      // Navigate back to login screen
+
+      // Navigate back to login screen via named route and clear history
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     } catch (e) {
       print("Logout error: $e");
@@ -133,8 +132,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
       );
 
       // For demo purposes, using a placeholder address
-      final address = 'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}';
-      
+      final address =
+          'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}';
+
       setState(() => _userAddress = address);
     } catch (e) {
       print('Location error: $e');
@@ -145,7 +145,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
   Widget _buildLocationWidget() {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
-    
+
     return Container(
       padding: EdgeInsets.all(isTablet ? 20 : 16),
       margin: EdgeInsets.symmetric(
@@ -180,11 +180,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
               color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              Icons.location_on, 
-              color: Theme.of(context).colorScheme.secondary, 
-              size: isTablet ? 28 : 24
-            ),
+            child: Icon(Icons.location_on,
+                color: Theme.of(context).colorScheme.secondary,
+                size: isTablet ? 28 : 24),
           ),
           SizedBox(width: screenSize.width * 0.03),
           Expanded(
@@ -212,11 +210,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
                 onTap: _fetchUserLocation,
                 child: Container(
                   padding: EdgeInsets.all(isTablet ? 12 : 8),
-                  child: Icon(
-                    Icons.refresh, 
-                    color: Theme.of(context).colorScheme.secondary, 
-                    size: isTablet ? 24 : 20
-                  ),
+                  child: Icon(Icons.refresh,
+                      color: Theme.of(context).colorScheme.secondary,
+                      size: isTablet ? 24 : 20),
                 ),
               ),
             ),
@@ -230,99 +226,129 @@ class _BuyerScreenState extends State<BuyerScreen> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             // Top banner - Responsive header
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
+            // Container(
+            //   width: double.infinity,
+            //   decoration: BoxDecoration(
+            //     gradient: LinearGradient(
+            //       colors: [
+            //         Theme.of(context).colorScheme.primary,
+            //         Theme.of(context).colorScheme.secondary,
+            //       ],
+            //       begin: Alignment.topLeft,
+            //       end: Alignment.bottomRight,
+            //     ),
+            //     borderRadius: const BorderRadius.only(
+            //       bottomLeft: Radius.circular(24),
+            //       bottomRight: Radius.circular(24),
+            //     ),
+            //   ),
+            //   child: Padding(
+            //     padding: EdgeInsets.symmetric(
+            //       horizontal: screenSize.width * 0.06, // 6% of screen width
+            //       vertical: screenSize.height * 0.02, // 2% of screen height
+            //     ),
+            //     child: Column(
+            //       mainAxisSize: MainAxisSize.min,
+            //       children: [
+            //         SizedBox(height: screenSize.height * 0.01),
+            //         Text(
+            //           'Welcome to',
+            //           style: GoogleFonts.playfairDisplay(
+            //               color: Colors.white, fontSize: isTablet ? 20 : 17),
+            //         ),
+            //         SizedBox(height: screenSize.height * 0.005),
+            //         Text(
+            //           'ARTI Marketplace',
+            //           style: GoogleFonts.playfairDisplay(
+            //             color: Colors.white,
+            //             fontSize: isTablet ? 32 : 28,
+            //             fontWeight: FontWeight.bold,
+            //           ),
+            //         ),
+            //         SizedBox(height: screenSize.height * 0.01),
+            //         Row(
+            //           mainAxisAlignment: MainAxisAlignment.end,
+            //           children: [
+            //             IconButton(
+            //               icon: Icon(
+            //                 Icons.shopping_cart,
+            //                 color: Colors.white,
+            //                 size: isTablet ? 28 : 24,
+            //               ),
+            //               onPressed: () {
+            //                 Navigator.push(
+            //                   context,
+            //                   MaterialPageRoute(
+            //                       builder: (context) => const CartScreen()),
+            //                 );
+            //               },
+            //             ),
+            //             PopupMenuButton<String>(
+            //               onSelected: (value) {
+            //                 if (value == 'logout') {
+            //                   _logout();
+            //                 }
+            //               },
+            //               itemBuilder: (BuildContext context) {
+            //                 return [
+            //                   const PopupMenuItem<String>(
+            //                     value: 'logout',
+            //                     child: ListTile(
+            //                       leading: Icon(Icons.logout),
+            //                       title: Text('Logout'),
+            //                       contentPadding: EdgeInsets.zero,
+            //                     ),
+            //                   ),
+            //                 ];
+            //               },
+            //               icon: Icon(
+            //                 Icons.more_vert,
+            //                 color: Colors.white,
+            //                 size: isTablet ? 28 : 24,
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //         SizedBox(height: screenSize.height * 0.01),
+            //       ],
+            //     ),
+            //   ),
+            // ),
+
+            // SearchBar at the top
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: screenSize.width * 0.06,
+                vertical: screenSize.height * 0.015,
               ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenSize.width * 0.06, // 6% of screen width
-                  vertical: screenSize.height * 0.02, // 2% of screen height
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(height: screenSize.height * 0.01),
-                    Text(
-                      'Welcome to',
-                      style: GoogleFonts.playfairDisplay(
-                        color: Colors.white, 
-                        fontSize: isTablet ? 20 : 17
-                      ),
+              child: SizedBox(
+                height: 48,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search artisan stores or products...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
-                    SizedBox(height: screenSize.height * 0.005),
-                    Text(
-                      'ARTI Marketplace',
-                      style: GoogleFonts.playfairDisplay(
-                        color: Colors.white,
-                        fontSize: isTablet ? 32 : 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: screenSize.height * 0.01),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.shopping_cart, 
-                            color: Colors.white,
-                            size: isTablet ? 28 : 24,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const CartScreen()),
-                            );
-                          },
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'logout') {
-                              _logout();
-                            }
-                          },
-                          itemBuilder: (BuildContext context) {
-                            return [
-                              const PopupMenuItem<String>(
-                                value: 'logout',
-                                child: ListTile(
-                                  leading: Icon(Icons.logout),
-                                  title: Text('Logout'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ];
-                          },
-                          icon: Icon(
-                            Icons.more_vert,
-                            color: Colors.white,
-                            size: isTablet ? 28 : 24,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: screenSize.height * 0.01),
-                  ],
+                  ),
+                  style: const TextStyle(fontSize: 16),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                    });
+                  },
                 ),
               ),
             ),
@@ -336,16 +362,20 @@ class _BuyerScreenState extends State<BuyerScreen> {
                     SizedBox(height: screenSize.height * 0.025),
                     _buildLocationWidget(),
                     SizedBox(height: screenSize.height * 0.02),
-
+                    // ...existing code...
                     // Stores header section
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.04),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: screenSize.width * 0.04),
                       child: Row(
                         children: [
                           Container(
                             padding: EdgeInsets.all(isTablet ? 8 : 6),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -368,7 +398,10 @@ class _BuyerScreenState extends State<BuyerScreen> {
                           // Refresh button
                           Container(
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Material(
@@ -388,7 +421,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                                   padding: EdgeInsets.all(isTablet ? 8 : 6),
                                   child: Icon(
                                     Icons.refresh,
-                                    color: Theme.of(context).colorScheme.secondary,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
                                     size: isTablet ? 22 : 18,
                                   ),
                                 ),
@@ -406,10 +440,13 @@ class _BuyerScreenState extends State<BuyerScreen> {
                           .collection('stores')
                           .snapshots(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return Padding(
-                            padding: EdgeInsets.only(top: screenSize.height * 0.05),
-                            child: const Center(child: CircularProgressIndicator()),
+                            padding:
+                                EdgeInsets.only(top: screenSize.height * 0.05),
+                            child: const Center(
+                                child: CircularProgressIndicator()),
                           );
                         }
 
@@ -419,38 +456,36 @@ class _BuyerScreenState extends State<BuyerScreen> {
 
                         final stores = snapshot.data?.docs ?? [];
                         print('Found ${stores.length} stores in database');
-                        
-                        if (stores.isEmpty) {
-                          return Padding(
-                            padding: EdgeInsets.all(screenSize.width * 0.08),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.store_outlined,
-                                    size: isTablet ? 80 : 64,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  SizedBox(height: screenSize.height * 0.02),
-                                  Text(
-                                    'No stores available yet',
-                                    style: TextStyle(
-                                      fontSize: isTablet ? 18 : 16,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
+
+                        // Filter stores by search query
+                        final filteredStores = _searchQuery.isEmpty
+                            ? stores
+                            : stores.where((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final name = (data['storeName'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                final description = (data['description'] ??
+                                        data['storeDescription'] ??
+                                        '')
+                                    .toString()
+                                    .toLowerCase();
+                                final type = (data['storeType'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                return name.contains(_searchQuery) ||
+                                    description.contains(_searchQuery) ||
+                                    type.contains(_searchQuery);
+                              }).toList();
 
                         return ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.04),
-                          itemCount: stores.length,
-                          itemBuilder: (context, index) => _buildStoreCard(stores[index]),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: screenSize.width * 0.04),
+                          itemCount: filteredStores.length,
+                          itemBuilder: (context, index) =>
+                              _buildStoreCard(filteredStores[index]),
                         );
                       },
                     ),
@@ -469,7 +504,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
   Widget _buildStoreCard(DocumentSnapshot doc) {
     final store = doc.data()! as Map<String, dynamic>;
     final name = store['storeName'] ?? 'Unnamed Store';
-    final description = store['description'] ?? store['storeDescription'] ?? 'No description';
+    final description =
+        store['description'] ?? store['storeDescription'] ?? 'No description';
     final image = store['imageUrl'] ?? '';
     final rating = (store['rating'] ?? 4.0).toDouble();
     final storeType = store['storeType'] ?? 'Handicrafts';
@@ -509,11 +545,13 @@ class _BuyerScreenState extends State<BuyerScreen> {
             children: [
               // Store image section
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Container(
                   height: isTablet ? 220 : 180,
                   width: double.infinity,
-                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  color:
+                      Theme.of(context).colorScheme.secondary.withOpacity(0.1),
                   child: image.isNotEmpty
                       ? Stack(
                           children: [
@@ -522,7 +560,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                               height: isTablet ? 220 : 180,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
                                 if (loadingProgress == null) return child;
                                 return Container(
                                   height: isTablet ? 220 : 180,
@@ -530,11 +569,17 @@ class _BuyerScreenState extends State<BuyerScreen> {
                                   color: Colors.grey[100],
                                   child: Center(
                                     child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded / 
-                                            loadingProgress.expectedTotalBytes!
-                                          : null,
-                                      color: Theme.of(context).colorScheme.secondary,
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
                                     ),
                                   ),
                                 );
@@ -543,20 +588,30 @@ class _BuyerScreenState extends State<BuyerScreen> {
                                 return Container(
                                   height: isTablet ? 220 : 180,
                                   width: double.infinity,
-                                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary
+                                      .withOpacity(0.1),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.store,
                                         size: isTablet ? 56 : 48,
-                                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.5),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondary
+                                            .withOpacity(0.5),
                                       ),
-                                      SizedBox(height: screenSize.height * 0.01),
+                                      SizedBox(
+                                          height: screenSize.height * 0.01),
                                       Text(
                                         'Store Image',
                                         style: TextStyle(
-                                          color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .secondary
+                                              .withOpacity(0.7),
                                           fontSize: isTablet ? 14 : 12,
                                         ),
                                       ),
@@ -571,9 +626,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                               left: isTablet ? 16 : 12,
                               child: Container(
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: isTablet ? 12 : 8, 
-                                  vertical: isTablet ? 6 : 4
-                                ),
+                                    horizontal: isTablet ? 12 : 8,
+                                    vertical: isTablet ? 6 : 4),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withOpacity(0.7),
                                   borderRadius: BorderRadius.circular(12),
@@ -593,20 +647,29 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       : Container(
                           height: isTablet ? 220 : 180,
                           width: double.infinity,
-                          color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .secondary
+                              .withOpacity(0.1),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.store,
                                 size: isTablet ? 56 : 48,
-                                color: Theme.of(context).colorScheme.secondary.withOpacity(0.5),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondary
+                                    .withOpacity(0.5),
                               ),
                               SizedBox(height: screenSize.height * 0.01),
                               Text(
                                 'No Store Image',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary
+                                      .withOpacity(0.7),
                                   fontSize: isTablet ? 14 : 12,
                                 ),
                               ),
@@ -615,7 +678,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                         ),
                 ),
               ),
-              
+
               // Store details section
               Padding(
                 padding: EdgeInsets.all(isTablet ? 20 : 16),
@@ -628,7 +691,10 @@ class _BuyerScreenState extends State<BuyerScreen> {
                         Container(
                           padding: EdgeInsets.all(isTablet ? 8 : 6),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondary
+                                .withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -650,9 +716,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                         ),
                         Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: isTablet ? 10 : 8, 
-                            vertical: isTablet ? 6 : 4
-                          ),
+                              horizontal: isTablet ? 10 : 8,
+                              vertical: isTablet ? 6 : 4),
                           decoration: BoxDecoration(
                             color: Colors.amber.shade100,
                             borderRadius: BorderRadius.circular(12),
@@ -680,7 +745,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       ],
                     ),
                     SizedBox(height: screenSize.height * 0.015),
-                    
+
                     // Store description
                     Text(
                       description,
@@ -693,17 +758,17 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: screenSize.height * 0.015),
-                    
+
                     // Store info row
                     Row(
                       children: [
                         // Contact info
-                        if (store['contactNumber'] != null && store['contactNumber'].isNotEmpty)
+                        if (store['contactNumber'] != null &&
+                            store['contactNumber'].isNotEmpty)
                           Container(
                             padding: EdgeInsets.symmetric(
-                              horizontal: isTablet ? 8 : 6, 
-                              vertical: isTablet ? 4 : 3
-                            ),
+                                horizontal: isTablet ? 8 : 6,
+                                vertical: isTablet ? 4 : 3),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
                               borderRadius: BorderRadius.circular(6),
@@ -730,7 +795,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                             ),
                           ),
                         SizedBox(width: screenSize.width * 0.02),
-                        
+
                         // Product count
                         Text(
                           '$totalProducts products',
@@ -740,12 +805,14 @@ class _BuyerScreenState extends State<BuyerScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        
+
                         // Dynamic product count
                         FutureBuilder<int>(
-                          future: _getStoreProductCount(store['ownerId'] ?? doc.id),
+                          future:
+                              _getStoreProductCount(store['ownerId'] ?? doc.id),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
                               return Text(
                                 ' Loading...',
                                 style: TextStyle(
@@ -769,21 +836,20 @@ class _BuyerScreenState extends State<BuyerScreen> {
                           },
                         ),
                         const Spacer(),
-                        
+
                         // Store status
                         Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: isTablet ? 8 : 6, 
-                            vertical: isTablet ? 4 : 3
-                          ),
+                              horizontal: isTablet ? 8 : 6,
+                              vertical: isTablet ? 4 : 3),
                           decoration: BoxDecoration(
-                            color: (store['isActive'] ?? true) 
-                                ? Colors.green.shade50 
+                            color: (store['isActive'] ?? true)
+                                ? Colors.green.shade50
                                 : Colors.red.shade50,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: (store['isActive'] ?? true) 
-                                  ? Colors.green.shade200 
+                              color: (store['isActive'] ?? true)
+                                  ? Colors.green.shade200
                                   : Colors.red.shade200,
                             ),
                           ),
@@ -794,8 +860,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                                 width: isTablet ? 8 : 6,
                                 height: isTablet ? 8 : 6,
                                 decoration: BoxDecoration(
-                                  color: (store['isActive'] ?? true) 
-                                      ? Colors.green 
+                                  color: (store['isActive'] ?? true)
+                                      ? Colors.green
                                       : Colors.red,
                                   shape: BoxShape.circle,
                                 ),
@@ -804,8 +870,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                               Text(
                                 (store['isActive'] ?? true) ? 'Open' : 'Closed',
                                 style: TextStyle(
-                                  color: (store['isActive'] ?? true) 
-                                      ? Colors.green.shade700 
+                                  color: (store['isActive'] ?? true)
+                                      ? Colors.green.shade700
                                       : Colors.red.shade700,
                                   fontSize: isTablet ? 12 : 10,
                                   fontWeight: FontWeight.w600,
@@ -831,9 +897,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => StoreProductsScreen(
-          storeId: storeDoc.id, 
-          storeName: (storeDoc.data() as Map<String, dynamic>)['storeName'] ?? 'Store'
-        ),
+            storeId: storeDoc.id,
+            storeName: (storeDoc.data() as Map<String, dynamic>)['storeName'] ??
+                'Store'),
       ),
     );
   }
