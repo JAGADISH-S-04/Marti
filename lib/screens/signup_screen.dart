@@ -1,13 +1,11 @@
-import 'package:arti/screens/buyer_screen.dart';
-import 'package:arti/screens/seller_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:arti/services/firestore_service.dart';
 import 'package:arti/screens/complete_profile_screen.dart';
+import 'package:arti/navigation/bottom_app_navigator.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
