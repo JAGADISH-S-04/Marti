@@ -317,17 +317,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
     // Add a small delay to show the success message
     Future.delayed(const Duration(seconds: 1), () {
-      if (isRetailer) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const SellerScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BuyerScreen()),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BottomAppNavigator(
+            initialUserType: isRetailer ? 'retailer' : 'customer',
+          ),
+        ),
+      );
     });
   }
 
