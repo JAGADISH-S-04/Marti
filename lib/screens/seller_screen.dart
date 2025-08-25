@@ -33,7 +33,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
             .collection('stores')
             .doc(user.uid)
             .get();
-        
+
         if (storeDoc.exists) {
           setState(() {
             _storeData = storeDoc.data();
@@ -62,47 +62,48 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     try {
       // Show confirmation dialog
       bool shouldLogout = await showDialog<bool>(
-        context: context,
-        barrierDismissible: true,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text(
-              'Logout',
-              style: TextStyle(
-                color: Color(0xFF2C1810),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: const Text('Are you sure you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey),
+            context: context,
+            barrierDismissible: true,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Color(0xFF2C1810),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2C1810),
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
-              ),
-            ],
-          );
-        },
-      ) ?? false;
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C1810),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
 
       if (!shouldLogout) return;
 
       // Sign out from Firebase Auth
       await FirebaseAuth.instance.signOut();
-      
+
       // Sign out from Google if logged in with Google
       await GoogleSignIn().signOut();
-      
+
       // Navigate back to login screen
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -127,53 +128,53 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'My Store',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF2C1810),
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          if (_storeData != null)
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const EnhancedProductListingPage(),
-                  ),
-                );
-              },
-            ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'logout') {
-                _logout();
-              }
-            },
-            itemBuilder: (BuildContext context) {
-              return [
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: ListTile(
-                    leading: Icon(Icons.logout, color: Color(0xFF2C1810)),
-                    title: Text('Logout'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ];
-            },
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: Text(
+      //     'My Store',
+      //     style: GoogleFonts.playfairDisplay(
+      //       fontSize: 22,
+      //       fontWeight: FontWeight.bold,
+      //       color: Colors.white,
+      //     ),
+      //   ),
+      //   backgroundColor: const Color(0xFF2C1810),
+      //   elevation: 0,
+      //   centerTitle: true,
+      //   actions: [
+      //     if (_storeData != null)
+      //       IconButton(
+      //         icon: const Icon(Icons.add),
+      //         onPressed: () {
+      //           Navigator.push(
+      //             context,
+      //             MaterialPageRoute(
+      //               builder: (context) => const EnhancedProductListingPage(),
+      //             ),
+      //           );
+      //         },
+      //       ),
+      //     PopupMenuButton<String>(
+      //       onSelected: (value) {
+      //         if (value == 'logout') {
+      //           _logout();
+      //         }
+      //       },
+      //       itemBuilder: (BuildContext context) {
+      //         return [
+      //           const PopupMenuItem<String>(
+      //             value: 'logout',
+      //             child: ListTile(
+      //               leading: Icon(Icons.logout, color: Color(0xFF2C1810)),
+      //               title: Text('Logout'),
+      //               contentPadding: EdgeInsets.zero,
+      //             ),
+      //           ),
+      //         ];
+      //       },
+      //       icon: const Icon(Icons.more_vert, color: Colors.white),
+      //     ),
+      //   ],
+      // ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _storeData == null
@@ -270,7 +271,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         borderRadius: BorderRadius.circular(12),
                         color: Colors.grey[200],
                       ),
-                      child: _storeData!['imageUrl'] != null && _storeData!['imageUrl'].isNotEmpty
+                      child: _storeData!['imageUrl'] != null &&
+                              _storeData!['imageUrl'].isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: Image.network(
@@ -308,7 +310,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                              Icon(Icons.phone,
+                                  size: 16, color: Colors.grey[600]),
                               const SizedBox(width: 4),
                               Text(
                                 _storeData!['contactNumber'] ?? '',
@@ -336,9 +339,9 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Products Section
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -365,7 +368,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD4AF37),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -374,19 +378,20 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Products List
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('products')
-                .where('artisanId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                .where('artisanId',
+                    isEqualTo: FirebaseAuth.instance.currentUser?.uid)
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(40),
@@ -423,13 +428,14 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: snapshot.data!.docs.length,
                 itemBuilder: (context, index) {
-                  final product = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  final product =
+                      snapshot.data!.docs[index].data() as Map<String, dynamic>;
                   return _buildProductCard(product);
                 },
               );
@@ -466,18 +472,19 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
               borderRadius: BorderRadius.circular(8),
               color: Colors.grey[200],
             ),
-            child: product['imageUrls'] != null && product['imageUrls'].isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      product['imageUrls'][0],
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Icon(
-                    Icons.image,
-                    color: Colors.grey[400],
-                  ),
+            child:
+                product['imageUrls'] != null && product['imageUrls'].isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          product['imageUrls'][0],
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Icon(
+                        Icons.image,
+                        color: Colors.grey[400],
+                      ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -539,47 +546,48 @@ class SellerScreen extends StatelessWidget {
     try {
       // Show confirmation dialog
       bool shouldLogout = await showDialog<bool>(
-        context: context,
-        barrierDismissible: true,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              'Logout',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: const Text('Are you sure you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey),
+            context: context,
+            barrierDismissible: true,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
-              ),
-            ],
-          );
-        },
-      ) ?? false;
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
 
       if (!shouldLogout) return;
 
       // Sign out from Firebase Auth
       await FirebaseAuth.instance.signOut();
-      
+
       // Sign out from Google if logged in with Google
       await GoogleSignIn().signOut();
-      
+
       // Navigate back to login screen
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -619,112 +627,22 @@ class SellerScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              // Rich Top Bar
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20.0),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.secondary,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(25),
-                    bottomRight: Radius.circular(25),
-                  ),
-                ),
-                child: Column(
+              // Top bar with logout button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0, vertical: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFD4AF37),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.store,
-                            color: Color(0xFFD4AF37),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Seller Dashboard',
-                                style: GoogleFonts.playfairDisplay(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'Manage your artisan business',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'logout') {
-                              _logout(context);
-                            }
-                          },
-                          itemBuilder: (BuildContext context) {
-                            return [
-                              const PopupMenuItem<String>(
-                                value: 'logout',
-                                child: ListTile(
-                                  leading: Icon(Icons.logout),
-                                  title: Text('Logout'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ];
-                          },
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.more_vert,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.logout,
+                          color: Colors.white, size: 28),
+                      tooltip: 'Logout',
+                      onPressed: () => _logout(context),
                     ),
                   ],
                 ),
               ),
-              
               // Content Area
               Expanded(
                 child: Padding(
@@ -742,7 +660,7 @@ class SellerScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      
+
                       // Action Buttons
                       Row(
                         children: [
@@ -771,7 +689,8 @@ class SellerScreen extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const AddProductScreen(),
+                                    builder: (context) =>
+                                        const AddProductScreen(),
                                   ),
                                 );
                               },
@@ -790,7 +709,8 @@ class SellerScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const EnhancedProductListingPage(),
+                                builder: (context) =>
+                                    const EnhancedProductListingPage(),
                               ),
                             );
                           },
@@ -807,15 +727,16 @@ class SellerScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const TestStoreCreationScreen(),
+                                builder: (context) =>
+                                    const TestStoreCreationScreen(),
                               ),
                             );
                           },
                         ),
                       ),
-                      
+
                       const SizedBox(height: 30),
-                      
+
                       // Stats Cards
                       Text(
                         'Overview',

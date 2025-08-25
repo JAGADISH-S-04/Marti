@@ -1,3 +1,4 @@
+import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:flutter/material.dart';
@@ -21,39 +22,24 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkAuthState() async {
     await Future.delayed(const Duration(seconds: 2));
-    
-    final user = FirebaseAuth.instance.currentUser;
-    
-    if (user != null && mounted) {
-      final userType = await StorageService.getUserType();
-      
-      print("User is logged in: ${user.email}");
-      print("User type: $userType");
-      
-      if (userType == 'retailer') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const SellerScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BuyerScreen()),
-        );
-      }
-    } else {
-      print("User is not logged in, going to login screen");
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      }
-    }
-  }
 
-  @override
-  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        final userType = await StorageService.getUserType();
+        print('User is authenticated. User type: $userType');
+        if (mounted) {
+        Navigator.pushReplacementNamed(context, '/main', arguments: userType);
+        }
+      } else {
+        if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+        }
+      }
+      }
+
+      @override
+      Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
