@@ -26,7 +26,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Future<void> _signUpWithEmailAndPassword() async {
     print("=== SIGNUP ATTEMPT STARTED ===");
@@ -309,22 +310,22 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _navigateToHome() {
-    print("Navigating to home screen...");
-    _showSnackBar(
-        'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+  print("Navigating to home screen...");
+  _showSnackBar(
+      'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
 
-    // Add a small delay to show the success message
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BottomAppNavigator(
-            initialUserType: isRetailer ? 'retailer' : 'customer',
-          ),
-        ),
-      );
-    });
-  }
+  // Add a small delay to show the success message
+  Future.delayed(const Duration(seconds: 1), () {
+    // Use MaterialPageRoute directly to ensure BottomAppNavigator is used
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BottomAppNavigator(),
+      ),
+      (route) => false,
+    );
+  });
+}
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -529,7 +530,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: _isLoading ? null : _signUpWithEmailAndPassword,
+                          onPressed:
+                              _isLoading ? null : _signUpWithEmailAndPassword,
                           child: _isLoading
                               ? const SizedBox(
                                   width: 20,
@@ -572,9 +574,10 @@ class _SignUpPageState extends State<SignUpPage> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _signUpWithGoogle,
-                          icon: _isLoading 
+                          icon: _isLoading
                               ? const SizedBox.shrink()
-                              : const Icon(Icons.g_mobiledata, size: 24, color: Colors.white),
+                              : const Icon(Icons.g_mobiledata,
+                                  size: 24, color: Colors.white),
                           label: _isLoading
                               ? const SizedBox(
                                   width: 20,
@@ -587,7 +590,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               : const Text(
                                   'Sign up with Google',
                                   style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.w500),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
                                 ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade700,

@@ -1,5 +1,6 @@
 import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
+import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:arti/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -102,9 +103,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => widget.isRetailer
-            ? const SellerScreen()
-            : const BuyerScreen(),
+          builder: (context) => const BottomAppNavigator(),
         ),
         (route) => false,
       );
