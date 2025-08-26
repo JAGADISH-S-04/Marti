@@ -6,6 +6,7 @@ import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/firestore_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -410,25 +411,64 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  void _navigateToHome() {
-    print("Navigating to home screen...");
-    _showSnackBar(
-        'Login successful as ${isRetailer ? "Retailer" : "Customer"}!',
-        isSuccess: true);
+Future<void> _navigateToHome() async {
+  print("Navigating to home screen...");
+  _showSnackBar(
+      'Login successful as ${isRetailer ? "Retailer" : "Customer"}!',
+      isSuccess: true);
 
-    // Add a small delay to show the success message
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
+  // Add a small delay to show the success message
+  await Future.delayed(const Duration(seconds: 1));
+
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      return;
+    }
+
+    // Use the isRetailer toggle state directly
+    if (isRetailer) {
+      // Navigate to seller screen for retailers
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => BottomAppNavigator(
-            initialUserType: isRetailer ? 'retailer' : 'customer',
-          ),
+          builder: (context) => const SellerScreen(),
         ),
+        (route) => false,
       );
-    });
+    } else {
+      // Navigate to customer screen for customers
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomAppNavigator(),
+        ),
+        (route) => false,
+      );
+    }
+  } catch (e) {
+    print('Error during navigation: $e');
+    // Fallback navigation based on the toggle selection
+    if (isRetailer) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SellerScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomAppNavigator(),
+        ),
+        (route) => false,
+      );
+    }
   }
-
+}
   void _showSnackBar(String message, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

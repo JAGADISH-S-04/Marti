@@ -4,7 +4,7 @@ import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:arti/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
- 
+
 class CompleteProfileScreen extends StatefulWidget {
   final String uid;
   final String email;
@@ -14,7 +14,7 @@ class CompleteProfileScreen extends StatefulWidget {
   final String? profileImageUrl;
   final bool isDualAccount;
   final String? customId;
- 
+
   const CompleteProfileScreen({
     super.key,
     required this.uid,
@@ -26,41 +26,42 @@ class CompleteProfileScreen extends StatefulWidget {
     this.isDualAccount = false,
     this.customId,
   });
- 
+
   @override
   State<CompleteProfileScreen> createState() => _CompleteProfileScreenState();
 }
- 
+
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = false;
- 
+
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
- 
+
   @override
   void initState() {
     super.initState();
     usernameController.text = widget.username;
   }
- 
+
   Future<void> _completeProfile() async {
     if (!_validateFields()) {
       return;
     }
- 
+
     // Check username availability if it was changed
     if (usernameController.text.trim() != widget.username) {
-      bool isUsernameAvailable = await _firestoreService.isUsernameAvailable(usernameController.text.trim());
+      bool isUsernameAvailable = await _firestoreService
+          .isUsernameAvailable(usernameController.text.trim());
       if (!isUsernameAvailable) {
         _showSnackBar('Username is already taken. Please choose another one.');
         return;
       }
     }
- 
+
     setState(() => _isLoading = true);
- 
+
     try {
       if (widget.isDualAccount && widget.customId != null) {
         // Create dual account with custom ID
@@ -87,7 +88,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           profileImageUrl: widget.profileImageUrl,
         );
       }
- 
+
       _showSnackBar('Profile completed successfully!', isSuccess: true);
       _navigateToHome();
     } catch (e) {
@@ -97,9 +98,24 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       setState(() => _isLoading = false);
     }
   }
- 
-  void _navigateToHome() {
-    Future.delayed(const Duration(seconds: 1), () {
+  
+void _navigateToHome() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Use the widget.isRetailer property directly since we know what type of account was just created
+    if (widget.isRetailer) {
+      // Navigate to seller screen for retailers
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SellerScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      // Navigate to customer screen for customers
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -107,28 +123,48 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         ),
         (route) => false,
       );
-    });
+    }
+  } catch (e) {
+    print('Navigation error: $e');
+    // Fallback navigation based on widget.isRetailer
+    if (widget.isRetailer) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SellerScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomAppNavigator(),
+        ),
+        (route) => false,
+      );
+    }
   }
- 
+}
   bool _validateFields() {
     if (usernameController.text.trim().isEmpty) {
       _showSnackBar('Username is required');
       return false;
     }
- 
+
     if (mobileController.text.trim().isEmpty) {
       _showSnackBar('Mobile number is required');
       return false;
     }
- 
+
     if (locationController.text.trim().isEmpty) {
       _showSnackBar('Location is required');
       return false;
     }
- 
+
     return true;
   }
- 
+
   void _showSnackBar(String message, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -138,7 +174,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
     );
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -203,27 +239,29 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 30),
- 
+
                         // Profile Image (if available)
                         if (widget.profileImageUrl != null) ...[
                           Center(
                             child: CircleAvatar(
                               radius: 40,
-                              backgroundImage: NetworkImage(widget.profileImageUrl!),
+                              backgroundImage:
+                                  NetworkImage(widget.profileImageUrl!),
                               backgroundColor: Colors.grey.shade300,
                             ),
                           ),
                           const SizedBox(height: 20),
                         ],
- 
+
                         // Pre-filled info
                         _buildInfoCard('Email', widget.email),
                         const SizedBox(height: 15),
                         _buildInfoCard('Full Name', widget.fullName),
                         const SizedBox(height: 15),
-                        _buildInfoCard('Account Type', widget.isRetailer ? 'Retailer' : 'Customer'),
+                        _buildInfoCard('Account Type',
+                            widget.isRetailer ? 'Retailer' : 'Customer'),
                         const SizedBox(height: 25),
- 
+
                         // Editable fields
                         const Text(
                           'Additional Information',
@@ -234,7 +272,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 15),
- 
+
                         _buildTextField(
                           controller: usernameController,
                           label: 'Username *',
@@ -242,7 +280,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           keyboardType: TextInputType.text,
                         ),
                         const SizedBox(height: 15),
- 
+
                         _buildTextField(
                           controller: mobileController,
                           label: 'Mobile Number *',
@@ -250,7 +288,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 15),
- 
+
                         _buildTextField(
                           controller: locationController,
                           label: 'Location *',
@@ -258,13 +296,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           keyboardType: TextInputType.streetAddress,
                         ),
                         const SizedBox(height: 30),
- 
+
                         // Complete Profile Button
                         SizedBox(
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromARGB(255, 93, 64, 55),
+                              backgroundColor:
+                                  const Color.fromARGB(255, 93, 64, 55),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -272,21 +311,25 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                             ),
                             onPressed: _isLoading ? null : _completeProfile,
                             child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text(
-                                  'Complete Profile',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white)
+                                : const Text(
+                                    'Complete Profile',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 20),
- 
+
                         // Sign out option
                         Center(
                           child: TextButton(
                             onPressed: () async {
                               await FirebaseAuth.instance.signOut();
-                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              Navigator.of(context)
+                                  .popUntil((route) => route.isFirst);
                             },
                             child: const Text(
                               'Cancel and Sign Out',
@@ -308,7 +351,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
     );
   }
- 
+
   Widget _buildInfoCard(String label, String value) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -336,7 +379,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
     );
   }
- 
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -358,7 +401,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
     );
   }
- 
+
   @override
   void dispose() {
     mobileController.dispose();

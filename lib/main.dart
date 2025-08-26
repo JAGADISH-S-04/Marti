@@ -89,8 +89,7 @@ class MyApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-                color: Color(0xFFD4AF37), width: 1.6),
+            borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 1.6),
           ),
           labelStyle: TextStyle(color: Colors.brown.shade600),
           prefixIconColor: const Color(0xFF8B5A2B),
@@ -124,6 +123,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       initialRoute: '/',
+
       routes: {
         '/': (context) => const SplashScreen(),
         '/buyer': (context) => const BuyerScreen(),
