@@ -1,4 +1,4 @@
-package com.example.arti
+package com.local.artsisans
 
 import io.flutter.embedding.android.FlutterActivity
 

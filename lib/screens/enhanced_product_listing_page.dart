@@ -7,6 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/gemini_service.dart';
+import '../services/firestore_service.dart';
+import '../test_storage.dart';
+import '../alternative_upload_service.dart';
 import 'package:form_validator/form_validator.dart';
 
 class EnhancedProductListingPage extends StatefulWidget {
@@ -36,6 +39,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   File? _selectedVideo;
   VideoPlayerController? _videoController;
   bool _useVideo = false;
+  File? _buyerDisplayImage; // Image to show on buyer page
 
   // AI Analysis states
   bool _isAnalyzing = false;
@@ -47,7 +51,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   // AI Results
   Map<String, dynamic> _aiAnalysis = {};
   List<String> _titleVariations = [];
-  String _enhancedDescription = '';
+  List<String> _descriptionOptions = [];
   Map<String, dynamic> _pricingAnalysis = {};
 
   // Categories
@@ -73,7 +77,6 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   // Colors (matching the luxury theme)
   static const Color primaryBrown = Color(0xFF2C1810);
   static const Color accentGold = Color(0xFFD4AF37);
-  static const Color lightBrown = Color(0xFF8B5A2B);
 
   @override
   void initState() {
@@ -97,23 +100,75 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
 
   // Pick images from gallery
   Future<void> _pickImages() async {
-    final List<XFile> images = await _imagePicker.pickMultiImage();
-    
-    if (images.isNotEmpty) {
-      setState(() {
-        _selectedImages = images.map((image) => File(image.path)).toList();
-        _useVideo = false;
-        _selectedVideo = null;
-        _videoController?.dispose();
-        _videoController = null;
-        _hasAnalyzed = false;
-        _aiAnalysis.clear();
-      });
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage();
+      
+      if (images.isNotEmpty) {
+        // Limit to maximum 10 images
+        if (images.length > 10) {
+          _showSnackBar('Maximum 10 images allowed. Selected first 10 images.', isError: true);
+          images.removeRange(10, images.length);
+        }
+        
+        // Validate each image
+        List<File> validImages = [];
+        for (int i = 0; i < images.length; i++) {
+          try {
+            final file = File(images[i].path);
+            
+            // Check if file exists
+            if (!await file.exists()) {
+              _showSnackBar('Image ${i + 1} could not be found.', isError: true);
+              continue;
+            }
+            
+            // Check file size (max 10MB)
+            final fileSize = await file.length();
+            if (fileSize > 10 * 1024 * 1024) {
+              _showSnackBar('Image ${i + 1} is too large (max 10MB).', isError: true);
+              continue;
+            }
+            
+            // Check file extension
+            final extension = images[i].path.toLowerCase();
+            if (!extension.endsWith('.jpg') && 
+                !extension.endsWith('.jpeg') && 
+                !extension.endsWith('.png') && 
+                !extension.endsWith('.webp')) {
+              _showSnackBar('Image ${i + 1} has unsupported format.', isError: true);
+              continue;
+            }
+            
+            validImages.add(file);
+          } catch (e) {
+            _showSnackBar('Error processing image ${i + 1}: $e', isError: true);
+          }
+        }
+        
+        if (validImages.isEmpty) {
+          _showSnackBar('No valid images selected.', isError: true);
+          return;
+        }
+        
+        setState(() {
+          _selectedImages = validImages;
+          _useVideo = false;
+          _selectedVideo = null;
+          _videoController?.dispose();
+          _videoController = null;
+          _hasAnalyzed = false;
+          _aiAnalysis.clear();
+        });
 
-      // Auto-analyze if we have enough images
-      if (_selectedImages.length >= 2) {
-        _analyzeWithAI();
+        _showSnackBar('${validImages.length} images selected successfully!');
+
+        // Auto-analyze if we have enough images
+        if (_selectedImages.length >= 2) {
+          _analyzeWithAI();
+        }
       }
+    } catch (e) {
+      _showSnackBar('Error selecting images: $e', isError: true);
     }
   }
 
@@ -196,7 +251,30 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       _analyzePricing();
 
     } catch (e) {
-      _showSnackBar('Error analyzing product: ${e.toString()}', isError: true);
+      String errorMessage = e.toString();
+      
+      // Handle specific error types
+      if (errorMessage.contains('different products')) {
+        _showSnackBar(
+          '❌ Different Products Detected! Please upload images of the SAME product only.',
+          isError: true,
+        );
+        
+        // Show dialog with more detailed explanation
+        _showProductConsistencyDialog();
+      } else if (errorMessage.contains('Unable to parse AI response')) {
+        _showSnackBar(
+          '🤖 AI Analysis Failed. Please try again with clearer, well-lit images.',
+          isError: true,
+        );
+      } else if (errorMessage.contains('Invalid JSON format')) {
+        _showSnackBar(
+          '⚙️ Technical Error. Please try again or contact support if the issue persists.',
+          isError: true,
+        );
+      } else {
+        _showSnackBar('Error analyzing product: $errorMessage', isError: true);
+      }
     } finally {
       setState(() {
         _isAnalyzing = false;
@@ -240,13 +318,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     });
 
     try {
-      final enhanced = await GeminiService.generateEnhancedDescription(
+      final options = await GeminiService.generateDescriptionOptions(
         _descriptionController.text,
         _aiAnalysis
       );
       
       setState(() {
-        _enhancedDescription = enhanced;
+        _descriptionOptions = options;
+        // Options are now stored separately, no single enhanced description
       });
     } catch (e) {
       print('Error enhancing description: $e');
@@ -288,6 +367,156 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     }
   }
 
+  // Show buyer display image dialog
+  Future<void> _showBuyerImageDialog() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.image, color: primaryBrown),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Select Buyer Display Image',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryBrown,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Choose an image that will be displayed to buyers on the marketplace:',
+                      style: GoogleFonts.inter(fontSize: 14),
+                    ),
+                    SizedBox(height: 16),
+                    
+                    // Display current selected image if any
+                    if (_buyerDisplayImage != null) ...[
+                      Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: primaryBrown.withOpacity(0.3)),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            _buyerDisplayImage!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                    ],
+                    
+                    // Upload button
+                    Container(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final ImagePicker picker = ImagePicker();
+                          final XFile? image = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            maxWidth: 1920,
+                            maxHeight: 1080,
+                            imageQuality: 85,
+                          );
+                          
+                          if (image != null) {
+                            setDialogState(() {
+                              _buyerDisplayImage = File(image.path);
+                            });
+                          }
+                        },
+                        icon: Icon(Icons.upload),
+                        label: Text(
+                          _buyerDisplayImage == null ? 'Upload Image' : 'Change Image',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBrown,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info, color: Colors.blue.shade600, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This image will be the main display image for buyers. Choose your best product photo!',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _buyerDisplayImage == null ? null : () {
+                    Navigator.of(context).pop();
+                    _submitProduct();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBrown,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                  ),
+                  child: Text(
+                    'List Product',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Submit product listing
   Future<void> _submitProduct() async {
     if (!_formKey.currentState!.validate()) {
@@ -309,47 +538,227 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         throw Exception('User not authenticated');
       }
 
-      // Upload media files
+      // Upload media files with progress indication
       List<String> imageUrls = [];
       String? videoUrl;
+      String buyerDisplayImageUrl = '';
+
+      // Upload buyer display image first
+      if (_buyerDisplayImage != null) {
+        _showSnackBar('Uploading buyer display image...');
+        try {
+          buyerDisplayImageUrl = await _productService.uploadImage(_buyerDisplayImage!);
+          print('✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
+        } catch (e) {
+          print('❌ Buyer display image upload failed: $e');
+          
+          // Run comprehensive storage diagnostics
+          print('🔧 Running storage diagnostics...');
+          await StorageTest.testStorageConfiguration();
+          await AlternativeUploadService.getStorageInfo();
+          await AlternativeUploadService.testStorageConnectivity();
+          
+          throw Exception('Failed to upload buyer display image. Please check Firebase Storage configuration. Details: $e');
+        }
+      }
 
       if (_useVideo && _selectedVideo != null) {
+        _showSnackBar('Uploading video...');
         videoUrl = await _productService.uploadVideo(_selectedVideo!);
       } else {
+        _showSnackBar('Uploading ${_selectedImages.length} additional images...');
         imageUrls = await _productService.uploadImages(_selectedImages);
       }
 
-      // Create product with AI-enhanced data
+      _showSnackBar('Creating product listing...');
+
+      // Get user data for artisan name
+      final firestoreService = FirestoreService();
+      final userData = await firestoreService.checkUserExists(user.uid);
+      final artisanName = userData?['fullName'] ?? userData?['username'] ?? user.displayName ?? 'Unknown Artisan';
+
+      final currentTime = DateTime.now();
+
+      // Create product with AI-enhanced data and comprehensive details
       final product = Product(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         artisanId: user.uid,
+        artisanName: artisanName,
         name: _nameController.text.trim(),
-        description: _enhancedDescription.isNotEmpty ? _enhancedDescription : _descriptionController.text.trim(),
+        description: _descriptionOptions.isNotEmpty 
+            ? (_descriptionOptions[0].isNotEmpty ? _descriptionOptions[0] : _descriptionController.text.trim())
+            : _descriptionController.text.trim(),
         category: _selectedCategory,
         price: double.parse(_priceController.text),
-        materials: _materialsController.text.split(',').map((m) => m.trim()).toList(),
+        materials: _materialsController.text.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).toList(),
         craftingTime: _craftingTimeController.text.trim(),
         dimensions: _dimensionsController.text.trim(),
-        imageUrl: imageUrls.isNotEmpty ? imageUrls.first : '',
+        imageUrl: buyerDisplayImageUrl.isNotEmpty ? buyerDisplayImageUrl : (imageUrls.isNotEmpty ? imageUrls.first : ''),
         imageUrls: imageUrls,
         videoUrl: videoUrl,
-        createdAt: DateTime.now(),
+        createdAt: currentTime,
+        updatedAt: currentTime,
         stockQuantity: int.tryParse(_stockController.text) ?? 1,
         tags: _generateTags(),
+        careInstructions: _careInstructionsController.text.trim().isNotEmpty ? _careInstructionsController.text.trim() : null,
+        aiAnalysis: _aiAnalysis.isNotEmpty ? Map<String, dynamic>.from(_aiAnalysis) : null,
       );
 
       await _productService.createProduct(product);
       
-      _showSnackBar('🎉 Product listed successfully with AI optimization!');
+      // Show detailed success message
+      _showSnackBar('🎉 Product "${product.name}" listed successfully!');
+      
+      // Show success dialog with product details
+      _showProductCreatedDialog(product);
+      
       _clearForm();
       
     } catch (e) {
-      _showSnackBar('Error creating product: ${e.toString()}', isError: true);
+      String errorMessage = e.toString();
+      print('❌ Product creation error: $errorMessage');
+      
+      if (errorMessage.contains('too large')) {
+        _showSnackBar('Some images are too large. Please use images smaller than 10MB.', isError: true);
+      } else if (errorMessage.contains('unsupported format')) {
+        _showSnackBar('Please use only JPG, PNG, or WebP image formats.', isError: true);
+      } else if (errorMessage.contains('network')) {
+        _showSnackBar('Network error. Please check your connection and try again.', isError: true);
+      } else if (errorMessage.contains('permission')) {
+        _showSnackBar('Permission denied. Please check your account permissions.', isError: true);
+      } else if (errorMessage.contains('quota')) {
+        _showSnackBar('Storage quota exceeded. Please contact support.', isError: true);
+      } else {
+        _showSnackBar('Error creating product: ${errorMessage.replaceAll('Exception: ', '')}', isError: true);
+      }
     } finally {
       setState(() {
         _isSubmitting = false;
       });
     }
+  }
+
+  // Show product created success dialog
+  void _showProductCreatedDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Product Listed Successfully!',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBrown,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Product Details:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      SizedBox(height: 8),
+                      Text('📦 Name: ${product.name}', style: TextStyle(fontSize: 13)),
+                      Text('🏷️ Category: ${product.category}', style: TextStyle(fontSize: 13)),
+                      Text('💰 Price: \$${product.price.toStringAsFixed(2)}', style: TextStyle(fontSize: 13)),
+                      Text('📊 Stock: ${product.stockQuantity}', style: TextStyle(fontSize: 13)),
+                      Text('🏪 Artisan: ${product.artisanName}', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '✨ AI Features Applied:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue.shade700),
+                      ),
+                      SizedBox(height: 8),
+                      if (_titleVariations.isNotEmpty)
+                        Text('• ${_titleVariations.length} Title variations generated', style: TextStyle(fontSize: 12)),
+                      if (_descriptionOptions.isNotEmpty)
+                        Text('• ${_descriptionOptions.length} Description options created', style: TextStyle(fontSize: 12)),
+                      if (_aiAnalysis.isNotEmpty)
+                        Text('• AI analysis data saved', style: TextStyle(fontSize: 12)),
+                      Text('• Search optimization applied', style: TextStyle(fontSize: 12)),
+                      Text('• Price range categorization', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accentGold.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: primaryBrown, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your product is now live on the marketplace and can be discovered by buyers!',
+                          style: TextStyle(fontSize: 12, color: primaryBrown),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to seller dashboard or products list
+              },
+              child: Text('View My Products'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBrown,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Create Another'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Generate tags based on AI analysis and product details
@@ -393,11 +802,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       _videoController?.dispose();
       _videoController = null;
       _useVideo = false;
+      _buyerDisplayImage = null;
       _hasAnalyzed = false;
       _selectedCategory = 'Pottery';
       _aiAnalysis.clear();
       _titleVariations.clear();
-      _enhancedDescription = '';
+      _descriptionOptions.clear();
       _pricingAnalysis.clear();
     });
   }
@@ -409,6 +819,182 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         content: Text(message),
         backgroundColor: isError ? Colors.red : accentGold,
         duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  // Show product consistency dialog
+  void _showProductConsistencyDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Different Products Detected',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Our AI detected that your images show different products. For accurate analysis, please:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                SizedBox(height: 16),
+                
+                // What TO DO section
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '✅ Upload Guidelines:',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                      ),
+                      SizedBox(height: 8),
+                      _buildDialogPoint('✓', 'Multiple images of the SAME product'),
+                      _buildDialogPoint('✓', 'Different angles or views of one item'),
+                      _buildDialogPoint('✓', 'Close-up details of the same product'),
+                      _buildDialogPoint('✓', 'Same item with different lighting'),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 12),
+                
+                // What NOT TO DO section
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '❌ Avoid These:',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                      ),
+                      SizedBox(height: 8),
+                      _buildDialogPoint('✗', 'Don\'t mix images of different products'),
+                      _buildDialogPoint('✗', 'Don\'t include comparison images'),
+                      _buildDialogPoint('✗', 'Don\'t mix product categories'),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '💡 Tip:',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Our AI is very precise. If you believe these images show the same product from different angles, try taking clearer photos with consistent lighting and ensure all key features are visible.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Got it', style: TextStyle(color: Colors.grey.shade600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _pickImages(); // Allow user to pick new images
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBrown,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Select New Images'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDialogPoint(String icon, String text) {
+    final isPositive = icon == '✓';
+    final isNegative = icon == '✗';
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            margin: EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: isPositive 
+                ? Colors.green.shade600 
+                : isNegative 
+                  ? Colors.red.shade600
+                  : Colors.grey.shade600,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                icon,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: isPositive 
+                  ? Colors.green.shade700
+                  : isNegative
+                    ? Colors.red.shade700
+                    : Colors.grey.shade700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -581,16 +1167,48 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     );
   }
 
+  // Remove image from selection
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+      if (_selectedImages.isEmpty) {
+        _hasAnalyzed = false;
+        _aiAnalysis.clear();
+      }
+    });
+    _showSnackBar('Image removed');
+  }
+
   Widget _buildImagePreview() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${_selectedImages.length} Photos Selected',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
-            color: primaryBrown,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${_selectedImages.length} Photos Selected',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: primaryBrown,
+              ),
+            ),
+            if (_selectedImages.isNotEmpty)
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedImages.clear();
+                    _hasAnalyzed = false;
+                    _aiAnalysis.clear();
+                  });
+                },
+                icon: Icon(Icons.clear_all, size: 16),
+                label: Text('Clear All'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red[600],
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -628,22 +1246,47 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     if (_hasAnalyzed && index == 0)
                       Positioned(
                         top: 5,
-                        right: 5,
+                        left: 5,
                         child: Container(
                           padding: EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Icon(Icons.check, color: Colors.white, size: 12),
+                          child: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 12,
+                          ),
                         ),
                       ),
+                    // Remove button
+                    Positioned(
+                      top: 5,
+                      right: 5,
+                      child: GestureDetector(
+                        onTap: () => _removeImage(index),
+                        child: Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
             },
           ),
         ),
+        const SizedBox(height: 10),
       ],
     );
   }
@@ -861,77 +1504,302 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           
           // Title Variations
           if (_titleVariations.isNotEmpty) ...[
-            Text(
-              'AI-Generated Title Suggestions:',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                color: primaryBrown,
-              ),
-            ),
-            SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _titleVariations.map((title) => GestureDetector(
-                onTap: () {
-                  _nameController.text = title;
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            Row(
+              children: [
+                Icon(Icons.title, color: primaryBrown, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Title Options:',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    color: primaryBrown,
+                    fontSize: 16,
+                  ),
+                ),
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: accentGold.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: accentGold.withOpacity(0.3)),
                   ),
                   child: Text(
-                    title,
-                    style: TextStyle(color: primaryBrown, fontSize: 12),
+                    '${_titleVariations.length} options',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: primaryBrown,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              )).toList(),
+              ],
+            ),
+            SizedBox(height: 12),
+            Column(
+              children: _titleVariations.asMap().entries.map((entry) {
+                int index = entry.key;
+                String title = entry.value;
+                return Container(
+                  margin: EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accentGold.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accentGold.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: primaryBrown,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.inter(
+                            color: primaryBrown,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _nameController.text = title;
+                          });
+                          _showSnackBar('✨ Title ${index + 1} applied successfully!');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBrown,
+                          foregroundColor: Colors.white,
+                          minimumSize: Size(70, 30),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Use This',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
             SizedBox(height: 20),
           ],
           
-          // Enhanced Description
-          if (_enhancedDescription.isNotEmpty) ...[
+          // Enhanced Description Options
+          if (_descriptionOptions.isNotEmpty) ...[
             Row(
               children: [
+                Icon(Icons.auto_awesome, color: primaryBrown, size: 18),
+                SizedBox(width: 8),
                 Text(
-                  'Enhanced Description:',
+                  'Description Options:',
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     color: primaryBrown,
+                    fontSize: 16,
                   ),
                 ),
                 Spacer(),
-                TextButton.icon(
-                  onPressed: () {
-                    _descriptionController.text = _enhancedDescription;
-                  },
-                  icon: Icon(Icons.input, size: 16),
-                  label: Text('Use This', style: TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: accentGold),
-                ),
+                if (_isEnhancingDescription)
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
               ],
             ),
-            SizedBox(height: 10),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Text(
-                _enhancedDescription,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                  height: 1.4,
+            SizedBox(height: 12),
+            
+            // Option 1 - Luxury Style
+            if (_descriptionOptions.length > 0) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.diamond, color: Colors.purple.shade600, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Option 1: Luxury & Elegance',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Spacer(),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${_descriptionOptions[0].split(' ').length} words',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.purple.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      _descriptionOptions[0],
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _descriptionController.text = _descriptionOptions[0];
+                          });
+                          _showSnackBar('✨ Luxury description applied!');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade600,
+                          foregroundColor: Colors.white,
+                          minimumSize: Size(80, 32),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Use This',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
+            
+            // Option 2 - Personal Style
+            if (_descriptionOptions.length > 1) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.favorite, color: Colors.teal.shade600, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Option 2: Personal & Emotional',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Spacer(),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${_descriptionOptions[1].split(' ').length} words',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.teal.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      _descriptionOptions[1],
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _descriptionController.text = _descriptionOptions[1];
+                          });
+                          _showSnackBar('✨ Personal description applied!');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade600,
+                          foregroundColor: Colors.white,
+                          minimumSize: Size(80, 32),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Use This',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             SizedBox(height: 20),
           ],
           
@@ -1042,7 +1910,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             label: 'Description',
             hint: 'Describe your product in detail',
             maxLines: 4,
-            validator: ValidationBuilder().minLength(50).maxLength(500).build(),
+            validator: ValidationBuilder().minLength(50).maxLength(800).build(),
           ),
           
           const SizedBox(height: 20),
@@ -1283,7 +2151,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _submitProduct,
+        onPressed: _isSubmitting ? null : _showBuyerImageDialog,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryBrown,
           foregroundColor: Colors.white,
