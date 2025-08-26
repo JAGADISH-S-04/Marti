@@ -41,53 +41,53 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB9mJKlEP22K1i-AU9ID143I_k0osXPccg',
-    appId: '1:388213060628:web:5df3d2ad0bc47b91f0e301',
-    messagingSenderId: '388213060628',
-    projectId: 'artie-sans',
-    authDomain: 'artie-sans.firebaseapp.com',
-    storageBucket: 'artie-sans.firebasestorage.app',
-    measurementId: 'G-F6BK0PFKJM',
+    apiKey: 'AIzaSyCTVZNN8CWaev6S0N3QhXHEa_4I15RwkoE',
+    appId: '1:407125431738:web:b6b197a6c0dfb83e74f983',
+    messagingSenderId: '407125431738',
+    projectId: 'garti-sans',
+    authDomain: 'garti-sans.firebaseapp.com',
+    storageBucket: 'garti-sans.firebasestorage.app',
+    measurementId: 'G-09HMQL8529',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB4Y99wVUB-EVnIBiNEIatXFLGEidPhWLI',
-    appId: '1:388213060628:android:c3ca00ac0a368398f0e301',
-    messagingSenderId: '388213060628',
-    projectId: 'artie-sans',
-    storageBucket: 'artie-sans.firebasestorage.app',
+    apiKey: 'AIzaSyBBK1IFyhN7D2Z0AkOwduDONaU1pAqyp4A',
+    appId: '1:407125431738:android:6ea65fc0b3f3f7d574f983',
+    messagingSenderId: '407125431738',
+    projectId: 'garti-sans',
+    storageBucket: 'garti-sans.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAUPPsQCN9a9YiHJlhXJNTbhjjrUSvsdWQ',
-    appId: '1:388213060628:ios:7fb022603aafea30f0e301',
-    messagingSenderId: '388213060628',
-    projectId: 'artie-sans',
-    storageBucket: 'artie-sans.firebasestorage.app',
-    androidClientId: '388213060628-37k5155bocoipa4iv2k10kka8qfaumvo.apps.googleusercontent.com',
-    iosClientId: '388213060628-vm3l9q8mba2pd4cgu7nt2idcn0fv3p5v.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCtFTafqLYFdrwozGLIexJOjAwWvC7KRFI',
+    appId: '1:407125431738:ios:f2d1fe6bc81b3c2474f983',
+    messagingSenderId: '407125431738',
+    projectId: 'garti-sans',
+    storageBucket: 'garti-sans.firebasestorage.app',
+    androidClientId: '407125431738-1ra99k19cn38aj7j30e2kvfr6anae43j.apps.googleusercontent.com',
+    iosClientId: '407125431738-s9qb7uees3gkusbl440tgs85mh1o6rnn.apps.googleusercontent.com',
     iosBundleId: 'com.example.arti',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAUPPsQCN9a9YiHJlhXJNTbhjjrUSvsdWQ',
-    appId: '1:388213060628:ios:7fb022603aafea30f0e301',
-    messagingSenderId: '388213060628',
-    projectId: 'artie-sans',
-    storageBucket: 'artie-sans.firebasestorage.app',
-    androidClientId: '388213060628-37k5155bocoipa4iv2k10kka8qfaumvo.apps.googleusercontent.com',
-    iosClientId: '388213060628-vm3l9q8mba2pd4cgu7nt2idcn0fv3p5v.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCtFTafqLYFdrwozGLIexJOjAwWvC7KRFI',
+    appId: '1:407125431738:ios:f2d1fe6bc81b3c2474f983',
+    messagingSenderId: '407125431738',
+    projectId: 'garti-sans',
+    storageBucket: 'garti-sans.firebasestorage.app',
+    androidClientId: '407125431738-1ra99k19cn38aj7j30e2kvfr6anae43j.apps.googleusercontent.com',
+    iosClientId: '407125431738-s9qb7uees3gkusbl440tgs85mh1o6rnn.apps.googleusercontent.com',
     iosBundleId: 'com.example.arti',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyB9mJKlEP22K1i-AU9ID143I_k0osXPccg',
-    appId: '1:388213060628:web:e700181fec5d9375f0e301',
-    messagingSenderId: '388213060628',
-    projectId: 'artie-sans',
-    authDomain: 'artie-sans.firebaseapp.com',
-    storageBucket: 'artie-sans.firebasestorage.app',
-    measurementId: 'G-9ZFYV09VBF',
+    apiKey: 'AIzaSyCTVZNN8CWaev6S0N3QhXHEa_4I15RwkoE',
+    appId: '1:407125431738:web:19972b0fd05fd04e74f983',
+    messagingSenderId: '407125431738',
+    projectId: 'garti-sans',
+    authDomain: 'garti-sans.firebaseapp.com',
+    storageBucket: 'garti-sans.firebasestorage.app',
+    measurementId: 'G-MPZDLV3L7C',
   );
 
 }

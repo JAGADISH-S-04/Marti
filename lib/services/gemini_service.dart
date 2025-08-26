@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyD9tZLBazZi2SDHotY_F028kNIjYD8cxyk';
+  static const String _apiKey = 'AIzaSyCFSE7TVEwIEA-OdVrxeeHmD9aUkbAyGko';
   static late GenerativeModel _model;
   static late GenerativeModel _visionModel;
 
@@ -39,6 +39,119 @@ class GeminiService {
     );
   }
 
+  /// Validate that all images are of the same product
+  static Future<Map<String, dynamic>> validateProductConsistency(List<File> images) async {
+    if (images.isEmpty) {
+      throw Exception('No images provided for analysis');
+    }
+
+    if (images.length == 1) {
+      return {'isConsistent': true, 'message': 'Single image provided'};
+    }
+
+    try {
+      // Prepare images for analysis
+      List<DataPart> imageParts = [];
+      for (File image in images) {
+        final bytes = await image.readAsBytes();
+        imageParts.add(DataPart('image/jpeg', bytes));
+      }
+
+      final prompt = '''
+You are an expert product analyst. Analyze these ${images.length} images to determine if they show the SAME PHYSICAL PRODUCT from different angles/perspectives or if they show completely different products.
+
+**CRITICAL ANALYSIS GUIDELINES:**
+
+**SAME PRODUCT INDICATORS (Should return TRUE):**
+- Same object photographed from different angles (front, back, side, top, bottom)
+- Different lighting conditions of the same item
+- Close-up vs full view of the same product
+- Same product with different backgrounds
+- Same materials, textures, and surface patterns
+- Consistent proportions and scale relationships
+- Same wear patterns, scratches, or unique markings
+- Identical design elements, decorative patterns, or features
+- Same color scheme and finish quality
+
+**DIFFERENT PRODUCTS (Should return FALSE):**
+- Completely different object types (e.g., pottery vs jewelry)
+- Same type but clearly different items (e.g., two different pottery pieces)
+- Different sizes when they should be the same
+- Different materials (e.g., wood vs ceramic)
+- Different color schemes or finishes
+- Different decorative patterns or designs
+- Different artistic styles or techniques
+
+**SPECIAL CONSIDERATIONS:**
+- Handcrafted items may have slight natural variations - this is NORMAL
+- Different camera angles can make items look different - focus on key identifying features
+- Lighting differences can change color appearance - look for consistent material properties
+- Be LENIENT with angle differences - prioritize consistent design elements
+- For pottery: same shape, rim style, base, decorative patterns, glaze finish
+- For jewelry: same gemstones, metal type, design pattern, clasp style
+- For textiles: same weave, pattern, color scheme, material texture
+
+**JSON OUTPUT FORMAT:**
+{
+  "isConsistent": true/false,
+  "confidence": numeric_percentage_0_to_100,
+  "message": "Brief explanation focusing on key identifying features",
+  "productType": "Specific product type identified",
+  "keyIdentifiers": ["List of matching features found"],
+  "differences": ["List any concerning differences if found"],
+  "recommendation": "Action recommendation for user",
+  "analysisDetails": {
+    "shapeConsistency": true/false,
+    "materialConsistency": true/false, 
+    "colorConsistency": true/false,
+    "sizeConsistency": true/false,
+    "designConsistency": true/false
+  }
+}
+
+**ANALYSIS APPROACH:**
+1. Identify the main product type in first image
+2. Look for consistent design DNA across all images
+3. Account for photographic differences (lighting, angle, distance)
+4. Focus on permanent physical characteristics
+5. Be permissive with natural handcraft variations
+6. Only flag as inconsistent if you're 80%+ certain they're different products
+
+**DECISION RULE:**
+Return isConsistent: false ONLY if you are highly confident (80%+) that the images show completely different physical objects. When in doubt about angle/lighting differences, lean towards isConsistent: true.
+
+Analyze with expertise and nuance - handcrafted products photographed from different angles should typically be considered consistent.''';
+
+      final content = [Content.multi([TextPart(prompt), ...imageParts])];
+      final response = await _visionModel.generateContent(content);
+
+      if (response.text == null || response.text!.isEmpty) {
+        throw Exception('Empty response from Gemini API');
+      }
+
+      String jsonString = response.text!;
+      int startIndex = jsonString.indexOf('{');
+      int endIndex = jsonString.lastIndexOf('}') + 1;
+      
+      if (startIndex == -1 || endIndex == 0) {
+        throw Exception('No valid JSON found in response');
+      }
+      
+      jsonString = jsonString.substring(startIndex, endIndex);
+      return _parseJsonSafely(jsonString);
+
+    } catch (e) {
+      print('Error in consistency validation: $e');
+      // If validation fails, assume images are consistent to avoid blocking users
+      return {
+        'isConsistent': true,
+        'message': 'Validation service unavailable - proceeding with analysis',
+        'confidence': 50,
+        'recommendation': 'Continue with product analysis'
+      };
+    }
+  }
+
   /// Analyze product images and extract detailed information
   static Future<Map<String, dynamic>> extractProductDetails(List<File> images) async {
     if (images.isEmpty) {
@@ -46,6 +159,14 @@ class GeminiService {
     }
 
     try {
+      // First validate that all images are of the same product
+      if (images.length > 1) {
+        final consistencyCheck = await validateProductConsistency(images);
+        if (consistencyCheck['isConsistent'] != true) {
+          throw Exception('Images show different products. ${consistencyCheck['message']} Please upload images of the same product only.');
+        }
+      }
+
       // Prepare images for analysis
       List<DataPart> imageParts = [];
       for (File image in images) {
@@ -210,6 +331,7 @@ Requirements:
 - Optimize for search discovery
 - Maintain authenticity and artisan appeal
 - Focus on unique selling propositions
+- Variety in style (descriptive, emotional, benefit-focused, artistic)
 
 Provide titles as a simple JSON array:
 ["Title 1", "Title 2", "Title 3", "Title 4", "Title 5"]''';
@@ -241,23 +363,23 @@ Provide titles as a simple JSON array:
   static Future<String> generateEnhancedDescription(String baseDescription, Map<String, dynamic> productData) async {
     try {
       final prompt = '''
-Transform this product description into a compelling, story-driven narrative that sells the artisan experience.
+Transform this product description into a compelling, catchy narrative that instantly grabs attention and drives sales.
 
 Base Description: "$baseDescription"
 Product Data: ${productData.toString()}
 
 Requirements:
-- 180-220 words
-- Lead with emotional hook
-- Tell the artisan's story
-- Highlight uniqueness and craftsmanship
-- Include sensory details (texture, appearance, feel)
-- Create desire and urgency
-- End with value proposition
-- Use power words and emotional triggers
-- Maintain authenticity and cultural respect
+- 60-100 words MAXIMUM (keep under 600 characters!)
+- Start with an attention-grabbing hook
+- Use short, impactful sentences
+- Focus on emotional benefits, not just features
+- Include 2-3 sensory words (texture, feel, look)
+- End with a compelling reason to buy NOW
+- Use power words that create urgency
+- Sound conversational and authentic
+- Make every word count
 
-Write a description that makes customers feel they're not just buying a product, but a piece of art with soul and story.''';
+Write a description that makes customers think "I NEED this!" within the first sentence. Be concise, catchy, and irresistible.''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
       
@@ -265,6 +387,70 @@ Write a description that makes customers feel they're not just buying a product,
     } catch (e) {
       print('Error generating enhanced description: $e');
       return baseDescription;
+    }
+  }
+
+  /// Generate multiple description options
+  static Future<List<String>> generateDescriptionOptions(String baseDescription, Map<String, dynamic> productData) async {
+    try {
+      final prompt = '''
+Create 2 DISTINCTLY DIFFERENT compelling product descriptions with completely different styles for the same product.
+
+Base Description: "$baseDescription"
+Product Data: ${productData.toString()}
+
+CRITICAL: The two descriptions must be COMPLETELY DIFFERENT in tone, style, and approach.
+
+Requirements for BOTH descriptions:
+- 60-100 words MAXIMUM each (keep under 600 characters)
+- Start with attention-grabbing hooks
+- Use short, impactful sentences
+- Focus on emotional benefits
+- Include sensory words
+- End with compelling call-to-action
+
+OPTION 1 - "Luxury & Premium" Style:
+- Sophisticated, elegant, high-end tone
+- Focus on craftsmanship, artistry, and exclusivity
+- Use words like: exquisite, masterfully, refined, prestigious, artisan-crafted
+- Target affluent customers who value quality and status
+- Emphasize heritage, tradition, and superior materials
+
+OPTION 2 - "Warm & Personal" Style:
+- Friendly, emotional, relatable tone
+- Focus on personal connection, story, and meaning
+- Use words like: cherish, heartwarming, treasured, meaningful, special
+- Target customers who value sentiment and personal connection
+- Emphasize comfort, memories, and emotional value
+
+IMPORTANT: Make sure the descriptions sound completely different - one should feel premium/luxury, the other should feel warm/personal.
+
+Respond with JSON format:
+{
+  "option1": "Luxury premium description here using sophisticated language...",
+  "option2": "Warm personal description here using emotional language..."
+}''';
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      
+      if (response.text == null) {
+        return [baseDescription, baseDescription];
+      }
+
+      final jsonString = response.text!;
+      final parsed = _parseJsonSafely(jsonString);
+      
+      if (parsed is Map<String, dynamic>) {
+        return [
+          parsed['option1']?.toString() ?? baseDescription,
+          parsed['option2']?.toString() ?? baseDescription,
+        ];
+      }
+      
+      return [baseDescription, baseDescription];
+    } catch (e) {
+      print('Error generating description options: $e');
+      return [baseDescription, baseDescription];
     }
   }
 
@@ -317,16 +503,83 @@ Consider material costs, labor time, skill premium, market demand, and artisan m
   }
 
   /// Helper method to safely parse JSON
-  static Map<String, dynamic> _parseJsonSafely(String jsonString) {
+  static dynamic _parseJsonSafely(String jsonString) {
     try {
-      return Map<String, dynamic>.from(
-        json.decode(jsonString)
-      );
+      // Clean up the JSON string
+      String cleanJson = jsonString.trim();
+      
+      // Remove markdown code blocks if present
+      if (cleanJson.startsWith('```json')) {
+        cleanJson = cleanJson.substring(7);
+      }
+      if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson.substring(3);
+      }
+      if (cleanJson.endsWith('```')) {
+        cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+      }
+      
+      cleanJson = cleanJson.trim();
+      
+      // Fix common JSON issues
+      cleanJson = cleanJson
+          .replaceAll('\\n', '\n')
+          .replaceAll('\\"', '"')
+          .replaceAll('True', 'true')
+          .replaceAll('False', 'false')
+          .replaceAll('None', 'null');
+      
+      // Try to find valid JSON boundaries
+      int startIndex = cleanJson.indexOf('{');
+      if (startIndex == -1) startIndex = cleanJson.indexOf('[');
+      
+      int endIndex = cleanJson.lastIndexOf('}');
+      if (endIndex == -1) endIndex = cleanJson.lastIndexOf(']');
+      
+      if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+        cleanJson = cleanJson.substring(startIndex, endIndex + 1);
+      }
+      
+      return json.decode(cleanJson);
     } catch (e) {
       print('JSON parsing error: $e');
       print('Failed JSON string: $jsonString');
-      throw Exception('Invalid JSON format received from AI');
+      
+      // Try to extract key information manually as fallback
+      try {
+        return _extractBasicInfoFromText(jsonString);
+      } catch (fallbackError) {
+        throw Exception('Unable to parse AI response. Please try again with different images.');
+      }
     }
+  }
+
+  /// Fallback method to extract basic information from text
+  static Map<String, dynamic> _extractBasicInfoFromText(String text) {
+    Map<String, dynamic> fallback = {
+      'name': 'Handcrafted Product',
+      'description': 'Beautiful handcrafted artisan product made with traditional techniques.',
+      'category': 'Other',
+      'materials': ['Mixed materials'],
+      'craftingTime': '1-2 weeks',
+      'dimensions': 'Standard size',
+      'suggestedPrice': 50.0,
+      'careInstructions': 'Handle with care, clean gently.',
+    };
+
+    // Try to extract some basic info from the text
+    if (text.toLowerCase().contains('pottery') || text.toLowerCase().contains('ceramic')) {
+      fallback['category'] = 'Pottery';
+      fallback['materials'] = ['Clay', 'Ceramic'];
+    } else if (text.toLowerCase().contains('wood')) {
+      fallback['category'] = 'Woodwork';
+      fallback['materials'] = ['Wood'];
+    } else if (text.toLowerCase().contains('metal')) {
+      fallback['category'] = 'Metalwork';
+      fallback['materials'] = ['Metal'];
+    }
+
+    return fallback;
   }
 
   /// Validate and enhance analysis results

@@ -37,7 +37,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('products')
-            .where('storeId', isEqualTo: widget.storeId)
+            .where('artisanId', isEqualTo: widget.storeId)
+            .where('isActive', isEqualTo: true)
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -68,22 +70,12 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             itemBuilder: (context, index) {
               final productData =
                   products[index].data() as Map<String, dynamic>;
-              final product = Product(
-                id: products[index].id,
-                name: productData['name'] ?? 'Unnamed Product',
-                description: productData['description'] ?? 'No description',
-                price: (productData['price'] ?? 0.0).toDouble(),
-                imageUrl: productData['imageUrl'] ?? '',
-                artisanId: '',
-                category: '',
-                materials: [],
-                craftingTime: '',
-                dimensions: '',
-                imageUrls: [],
-                createdAt: DateTime.now(),
-                stockQuantity: 0,
-                tags: [],
-              );
+              
+              // Create Product using fromMap method for proper data handling
+              final product = Product.fromMap({
+                'id': products[index].id,
+                ...productData,
+              });
 
               return GestureDetector(
                 onTap: () {
@@ -116,6 +108,17 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                                 ? Image.network(
                                     product.imageUrl,
                                     fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      );
+                                    },
                                     errorBuilder: (context, error, stackTrace) {
                                       return Icon(
                                         Icons.image_not_supported,
@@ -143,15 +146,35 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16.0,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4.0),
                             Text(
-                              '₹${product.price.toStringAsFixed(2)}',
+                              '\$${product.price.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.secondary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                            if (product.stockQuantity <= 5 && product.stockQuantity > 0)
+                              Text(
+                                'Only ${product.stockQuantity} left!',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              )
+                            else if (product.stockQuantity == 0)
+                              Text(
+                                'Out of Stock',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -166,3 +189,4 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     );
   }
 }
+ 
