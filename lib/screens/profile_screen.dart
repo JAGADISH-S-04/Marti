@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -27,7 +26,7 @@ class ProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 60,
                 backgroundImage: photoUrl != null
-                    ? NetworkImage(photoUrl!)
+                    ? NetworkImage(photoUrl)
                     : const AssetImage('assets/images/profile_placeholder.png')
                         as ImageProvider,
               ),

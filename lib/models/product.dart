@@ -24,6 +24,9 @@ class Product {
   final int views; // Track product views
   final double rating; // Average rating
   final int reviewCount; // Number of reviews
+  final String? audioStoryUrl; // URL of uploaded audio story
+  final String? audioStoryTranscription; // Transcribed text of audio story
+  final Map<String, String>? audioStoryTranslations; // Multi-language translations
 
   Product({
     required this.id,
@@ -49,6 +52,9 @@ class Product {
     this.views = 0,
     this.rating = 0.0,
     this.reviewCount = 0,
+    this.audioStoryUrl,
+    this.audioStoryTranscription,
+    this.audioStoryTranslations,
   });
 
   // Convert Product to Map for Firestore
@@ -77,6 +83,9 @@ class Product {
       'views': views,
       'rating': rating,
       'reviewCount': reviewCount,
+      'audioStoryUrl': audioStoryUrl,
+      'audioStoryTranscription': audioStoryTranscription,
+      'audioStoryTranslations': audioStoryTranslations,
       // Add search fields for better querying
       'searchTerms': _generateSearchTerms(),
       'priceRange': _getPriceRange(),
@@ -132,6 +141,11 @@ class Product {
       views: map['views'] ?? 0,
       rating: (map['rating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
+      audioStoryUrl: map['audioStoryUrl'],
+      audioStoryTranscription: map['audioStoryTranscription'],
+      audioStoryTranslations: map['audioStoryTranslations'] != null 
+          ? Map<String, String>.from(map['audioStoryTranslations']) 
+          : null,
     );
   }
 }

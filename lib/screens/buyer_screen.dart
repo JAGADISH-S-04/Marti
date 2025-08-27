@@ -1,11 +1,8 @@
-import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/store_product_screen.dart';
-import 'package:arti/screens/login_screen.dart';
+import 'package:arti/widgets/store_audio_story_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -30,68 +27,65 @@ class _BuyerScreenState extends State<BuyerScreen> {
       ),
     );
     _fetchUserLocation();
+    // Create sample data if needed (for development)
+    _createSampleStoresIfNeeded();
   }
 
-  Future<void> _logout() async {
+  // Helper method to create sample stores for testing
+  Future<void> _createSampleStoresIfNeeded() async {
     try {
-      // Show confirmation dialog
-      bool shouldLogout = await showDialog<bool>(
-            context: context,
-            barrierDismissible: true,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: Text(
-                  'Logout',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                content: const Text('Are you sure you want to logout?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Logout'),
-                  ),
-                ],
-              );
-            },
-          ) ??
-          false;
-
-      if (!shouldLogout) return;
-
-      // Sign out from Firebase Auth
-      await FirebaseAuth.instance.signOut();
-
-      // Sign out from Google if logged in with Google
-      await GoogleSignIn().signOut();
-
-      // Navigate back to login screen via named route and clear history
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      final stores = await FirebaseFirestore.instance
+          .collection('stores')
+          .limit(1)
+          .get();
+      
+      if (stores.docs.isEmpty) {
+        // Create sample stores for development
+        final batch = FirebaseFirestore.instance.batch();
+        
+        final sampleStores = [
+          {
+            'storeName': 'Artisan Gallery',
+            'storeImage': 'https://via.placeholder.com/300x200?text=Gallery',
+            'location': 'Downtown District',
+            'rating': 4.8,
+            'isOnline': true,
+            'description': 'Premium handcrafted artwork and stories',
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+          {
+            'storeName': 'Creative Corner',
+            'storeImage': 'https://via.placeholder.com/300x200?text=Creative',
+            'location': 'Arts Quarter',
+            'rating': 4.6,
+            'isOnline': false,
+            'description': 'Local artists and storytellers',
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+          {
+            'storeName': 'Story Haven',
+            'storeImage': 'https://via.placeholder.com/300x200?text=Stories',
+            'location': 'Cultural District',
+            'rating': 4.9,
+            'isOnline': true,
+            'description': 'Audio stories and visual art',
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        ];
+        
+        for (int i = 0; i < sampleStores.length; i++) {
+          batch.set(
+            FirebaseFirestore.instance.collection('stores').doc(),
+            sampleStores[i],
+          );
+        }
+        
+        await batch.commit();
+        print('Sample stores created successfully');
       }
     } catch (e) {
-      print("Logout error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error logging out: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print('Failed to create sample stores: $e');
+      // This is not critical, just for development
     }
   }
 
@@ -106,6 +100,59 @@ class _BuyerScreenState extends State<BuyerScreen> {
     } catch (e) {
       print('Error getting product count: $e');
       return 0;
+    }
+  }
+
+  // God-level Firestore query with multiple fallback strategies
+  Future<QuerySnapshot> _fetchStoresWithFallback() async {
+    try {
+      // Strategy 1: Try the basic query first
+      final result = await FirebaseFirestore.instance
+          .collection('stores')
+          .get();
+      
+      // If collection is empty, check if we need to create sample data
+      if (result.docs.isEmpty) {
+        print('Stores collection is empty. This might be expected for a new app.');
+      }
+      
+      return result;
+    } catch (e) {
+      print('Primary stores query failed: $e');
+      
+      try {
+        // Strategy 2: Try with ordering (in case the issue is with ordering)
+        return await FirebaseFirestore.instance
+            .collection('stores')
+            .orderBy('storeName')
+            .get();
+      } catch (e2) {
+        print('Ordered stores query failed: $e2');
+        
+        try {
+          // Strategy 3: Try with limit (in case there are too many documents)
+          return await FirebaseFirestore.instance
+              .collection('stores')
+              .limit(50)
+              .get();
+        } catch (e3) {
+          print('Limited stores query failed: $e3');
+          
+          try {
+            // Strategy 4: Check if we can access Firestore at all
+            await FirebaseFirestore.instance
+                .collection('test')
+                .limit(1)
+                .get();
+            
+            // If we reach here, Firestore works but stores collection has issues
+            throw Exception('Stores collection access denied. Please check Firestore security rules.');
+          } catch (e4) {
+            // Complete Firestore failure
+            throw Exception('Firestore connection failed. Please check your internet connection and Firebase configuration.');
+          }
+        }
+      }
     }
   }
 
@@ -434,11 +481,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
                     ),
                     SizedBox(height: screenSize.height * 0.015),
 
-                    // Stores list
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('stores')
-                          .snapshots(),
+                    // Stores list with enhanced error handling
+                    FutureBuilder<QuerySnapshot>(
+                      future: _fetchStoresWithFallback(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -452,10 +497,103 @@ class _BuyerScreenState extends State<BuyerScreen> {
 
                         if (snapshot.hasError) {
                           print('Firestore error: ${snapshot.error}');
+                          
+                          // Enhanced error handling with user-friendly messages
+                          return Padding(
+                            padding: EdgeInsets.all(screenSize.width * 0.04),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red.shade600,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Database Connection Issue',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Unable to load stores. Please check your internet connection and try again.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {});
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red.shade600,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
                         }
 
                         final stores = snapshot.data?.docs ?? [];
                         print('Found ${stores.length} stores in database');
+
+                        // Show empty state if no stores
+                        if (stores.isEmpty) {
+                          return Padding(
+                            padding: EdgeInsets.all(screenSize.width * 0.04),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.store_outlined,
+                                    color: Colors.blue.shade600,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No Stores Available',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No artisan stores found. New stores will appear here when they register.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
 
                         // Filter stores by search query
                         final filteredStores = _searchQuery.isEmpty
@@ -758,6 +896,13 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: screenSize.height * 0.015),
+
+                    // Store Audio Story Section
+                    StoreAudioStorySection(
+                      storeData: store,
+                      primaryColor: Theme.of(context).colorScheme.primary,
+                      accentColor: Theme.of(context).colorScheme.secondary,
+                    ),
 
                     // Store info row
                     Row(

@@ -91,8 +91,9 @@ Future<void> signOutFromAll() async {
 
   // Human-friendly error messages
   String messageFromCode(Object error) {
-    if (error is! FirebaseAuthException)
+    if (error is! FirebaseAuthException) {
       return 'Something went wrong. Please try again.';
+    }
     switch (error.code) {
       case 'invalid-email':
         return 'The email address is not valid.';

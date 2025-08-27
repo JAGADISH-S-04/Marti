@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import '../vr_workshop_experience.dart'; // Ensure this file exports the VRWorkshopExperience class
+// Ensure this file exports the VRWorkshopExperience class
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CreateVRWorkshopScreen extends StatefulWidget {
@@ -215,7 +215,7 @@ class VRWorkshopExperience {
     // saving metadata to Firestore, etc.
     
     // Simulate async operation
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2));
     
     // For now, just print the workshop details
     print('Creating VR Workshop: $workshopTitle');

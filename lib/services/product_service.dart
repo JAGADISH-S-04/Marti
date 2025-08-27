@@ -1,9 +1,9 @@
 import 'dart:io';
+import '../ref/alternative_upload_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
-import '../alternative_upload_service.dart';
 import 'package:path/path.dart' as path;
 
 class ProductService {
@@ -187,6 +187,67 @@ class ProductService {
     final downloadUrl = await uploadTask.ref.getDownloadURL();
     
     return downloadUrl;
+  }
+
+  // Upload audio story to Firebase Storage
+  Future<String> uploadAudioStory(File audioFile) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    try {
+      // Validate file size (max 25MB for audio)
+      final fileSize = await audioFile.length();
+      if (fileSize > 25 * 1024 * 1024) {
+        throw Exception('Audio file is too large. Maximum size is 25MB.');
+      }
+      
+      // Validate file type
+      final extension = path.extension(audioFile.path).toLowerCase();
+      if (!['.wav', '.mp3', '.aac', '.m4a', '.ogg', '.flac'].contains(extension)) {
+        throw Exception('Audio file has unsupported format. Use WAV, MP3, AAC, M4A, OGG, or FLAC.');
+      }
+      
+      final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}_audio_story$extension';
+      final ref = _storage.ref().child('products').child('audio_stories').child(fileName);
+      
+      // Upload with metadata
+      final metadata = SettableMetadata(
+        contentType: _getAudioContentType(extension),
+        customMetadata: {
+          'uploadedBy': user.uid,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'fileType': 'audio_story',
+        },
+      );
+      
+      final uploadTask = await ref.putFile(audioFile, metadata);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading audio story: $e');
+      throw Exception('Failed to upload audio story: $e');
+    }
+  }
+
+  // Get audio content type based on extension
+  String _getAudioContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case '.wav':
+        return 'audio/wav';
+      case '.mp3':
+        return 'audio/mpeg';
+      case '.aac':
+        return 'audio/aac';
+      case '.m4a':
+        return 'audio/mp4';
+      case '.ogg':
+        return 'audio/ogg';
+      case '.flac':
+        return 'audio/flac';
+      default:
+        return 'audio/wav';
+    }
   }
 
   // Create a new product with comprehensive data handling

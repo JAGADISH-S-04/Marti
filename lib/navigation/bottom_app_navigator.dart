@@ -37,7 +37,7 @@ class _BottomAppNavigatorState extends State<BottomAppNavigator> {
       const BuyerScreen(),
       const CartScreen(),
       const ProfileScreen(),
-      Center(child: Text('More Screen')), // Replace with actual screen
+      const Center(child: Text('More Screen')), // Replace with actual screen
     ];
 
     return Scaffold(

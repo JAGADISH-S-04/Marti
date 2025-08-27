@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyCg_QTLywts1FE9UdraxFONCWM2yMFe_lo';
+  static const String _apiKey = 'AIzaSyCFSE7TVEwIEA-OdVrxeeHmD9aUkbAyGko';
   static late GenerativeModel _model;
   static late GenerativeModel _visionModel;
 
@@ -174,10 +175,17 @@ Analyze with expertise and nuance - handcrafted products photographed from diffe
       }
 
       const prompt = '''
-CRITICAL: Respond ONLY with valid JSON. No explanatory text before or after the JSON.
+Analyze these handcrafted artisan product images with extreme precision and provide detailed information in JSON format. Focus on:
 
-Analyze these handcrafted artisan product images and provide detailed information in the EXACT JSON format shown below:
+**CRITICAL ANALYSIS REQUIREMENTS:**
+1. Product identification with 95%+ accuracy
+2. Cultural and regional craft identification
+3. Technical craftsmanship assessment
+4. Material composition analysis
+5. Market positioning and pricing strategy
+6. SEO-optimized descriptions
 
+**JSON OUTPUT FORMAT:**
 {
   "name": "Precise product name (2-4 words)",
   "description": "Compelling 150-200 word description highlighting uniqueness, craftsmanship, cultural significance, and emotional appeal",
@@ -185,7 +193,7 @@ Analyze these handcrafted artisan product images and provide detailed informatio
   "materials": ["Primary material", "Secondary materials"],
   "craftingTime": "Estimated time (e.g., '2-3 weeks', '5 days', '1 month')",
   "dimensions": "Approximate size (length x width x height or diameter)",
-  "suggestedPrice": 50.0,
+  "suggestedPrice": numeric_price_in_dollars,
   "careInstructions": "Specific care and maintenance instructions",
   "craftingTechnique": "Traditional technique used",
   "culturalOrigin": "Regional or cultural origin",
@@ -196,24 +204,20 @@ Analyze these handcrafted artisan product images and provide detailed informatio
   "aestheticStyle": "Style description (modern, traditional, contemporary, rustic, etc.)",
   "colorPalette": ["Primary color", "Secondary colors"],
   "textureDescription": "Detailed texture analysis",
-  "rarityScore": 5,
+  "rarityScore": numeric_score_1_to_10,
   "giftPotential": "High/Medium/Low with reason",
   "seasonalAppeal": "Year-round/Seasonal with details"
 }
 
-REQUIREMENTS:
+**ACCURACY REQUIREMENTS:**
 - Use only visible elements in the images
 - Provide realistic price estimates based on materials, complexity, and time
 - Ensure cultural sensitivity in descriptions
 - Focus on authentic craft terminology
-- Create emotionally engaging descriptions
+- Create emotionally engaging descriptions that sell the story, not just the product
 - Include technical details that showcase artisan expertise
-- Numbers must be numeric values, not strings
-- Strings must be properly quoted
-- No trailing commas
-- Valid JSON syntax only
 
-RESPOND WITH VALID JSON ONLY - NO OTHER TEXT.''';
+Analyze each image comprehensively and provide the most accurate assessment possible.''';
 
       final content = [Content.multi([TextPart(prompt), ...imageParts])];
       final response = await _visionModel.generateContent(content);
@@ -222,11 +226,21 @@ RESPOND WITH VALID JSON ONLY - NO OTHER TEXT.''';
         throw Exception('Empty response from Gemini API');
       }
 
-      print('🔍 Raw Gemini Response: ${response.text}');
-
-      // Extract JSON from response with improved method
+      // Extract JSON from response
       String jsonString = response.text!;
-      Map<String, dynamic> analysis = _extractAndParseJson(jsonString);
+      
+      // Clean up the response to extract valid JSON
+      int startIndex = jsonString.indexOf('{');
+      int endIndex = jsonString.lastIndexOf('}') + 1;
+      
+      if (startIndex == -1 || endIndex == 0) {
+        throw Exception('No valid JSON found in response');
+      }
+      
+      jsonString = jsonString.substring(startIndex, endIndex);
+
+      // Parse JSON and validate required fields
+      final Map<String, dynamic> analysis = _parseJsonSafely(jsonString);
       
       // Validate and provide defaults for required fields
       return _validateAndEnhanceAnalysis(analysis);
@@ -488,308 +502,6 @@ Consider material costs, labor time, skill premium, market demand, and artisan m
     }
   }
 
-  /// Transcribe audio file to text
-  static Future<Map<String, dynamic>> transcribeAudio(File audioFile, {String? sourceLanguage}) async {
-    try {
-      final bytes = await audioFile.readAsBytes();
-      final audioPart = DataPart('audio/wav', bytes);
-
-      final prompt = '''
-Transcribe this audio recording to text with high accuracy. 
-
-**TRANSCRIPTION REQUIREMENTS:**
-1. Provide exact spoken words without interpretation
-2. Include proper punctuation and formatting
-3. Identify speaker changes if multiple speakers
-4. Note unclear or inaudible sections as [inaudible]
-5. Preserve the natural flow and pauses
-6. Detect the primary language being spoken
-
-${sourceLanguage != null ? 'Expected Language: $sourceLanguage' : 'Detect language automatically'}
-
-**JSON OUTPUT FORMAT:**
-{
-  "transcription": "Full transcribed text here",
-  "detectedLanguage": "Language code (e.g., 'en', 'es', 'fr', 'hi')",
-  "languageName": "Full language name (e.g., 'English', 'Spanish')",
-  "confidence": numeric_percentage_0_to_100,
-  "duration": "Estimated audio duration",
-  "speakerCount": number_of_speakers_detected,
-  "clarity": "Excellent/Good/Fair/Poor",
-  "notes": "Any transcription notes or observations",
-  "timestamps": [
-    {"time": "0:00-0:15", "text": "First segment"},
-    {"time": "0:15-0:30", "text": "Second segment"}
-  ]
-}
-
-Provide the most accurate transcription possible.''';
-
-      final content = [Content.multi([TextPart(prompt), audioPart])];
-      final response = await _model.generateContent(content);
-
-      if (response.text == null || response.text!.isEmpty) {
-        throw Exception('Empty response from Gemini API');
-      }
-
-      String jsonString = response.text!;
-      int startIndex = jsonString.indexOf('{');
-      int endIndex = jsonString.lastIndexOf('}') + 1;
-      
-      if (startIndex == -1 || endIndex == 0) {
-        throw Exception('No valid JSON found in response');
-      }
-      
-      jsonString = jsonString.substring(startIndex, endIndex);
-      return _parseJsonSafely(jsonString);
-
-    } catch (e) {
-      print('Error in audio transcription: $e');
-      throw Exception('Failed to transcribe audio: $e');
-    }
-  }
-
-  /// Translate text to target language
-  static Future<Map<String, dynamic>> translateText(String text, String targetLanguage, {String? sourceLanguage}) async {
-    try {
-      final prompt = '''
-Translate the following text to $targetLanguage with high accuracy and cultural sensitivity.
-
-**TRANSLATION REQUIREMENTS:**
-1. Maintain the original meaning and tone
-2. Use appropriate cultural context for target language
-3. Preserve formatting and structure
-4. Handle technical terms appropriately
-5. Provide natural, fluent translation
-6. Maintain any emotional nuance
-
-${sourceLanguage != null ? 'Source Language: $sourceLanguage' : 'Detect source language automatically'}
-Target Language: $targetLanguage
-
-**TEXT TO TRANSLATE:**
-"$text"
-
-**JSON OUTPUT FORMAT:**
-{
-  "translatedText": "Accurately translated text here",
-  "sourceLanguage": "Detected or provided source language code",
-  "targetLanguage": "$targetLanguage",
-  "sourceLanguageName": "Full source language name",
-  "targetLanguageName": "Full target language name",
-  "confidence": numeric_percentage_0_to_100,
-  "translationQuality": "Excellent/Good/Fair/Poor",
-  "culturalNotes": "Any cultural adaptation notes",
-  "alternativeTranslations": ["Alternative 1", "Alternative 2"],
-  "technicalTerms": ["Term 1: explanation", "Term 2: explanation"],
-  "context": "Brief context about the translation choices"
-}
-
-Provide the most accurate and culturally appropriate translation possible.''';
-
-      final response = await _model.generateContent([Content.text(prompt)]);
-      
-      if (response.text == null || response.text!.isEmpty) {
-        throw Exception('Empty response from Gemini API');
-      }
-
-      String jsonString = response.text!;
-      int startIndex = jsonString.indexOf('{');
-      int endIndex = jsonString.lastIndexOf('}') + 1;
-      
-      if (startIndex == -1 || endIndex == 0) {
-        throw Exception('No valid JSON found in response');
-      }
-      
-      jsonString = jsonString.substring(startIndex, endIndex);
-      return _parseJsonSafely(jsonString);
-
-    } catch (e) {
-      print('Error in text translation: $e');
-      throw Exception('Failed to translate text: $e');
-    }
-  }
-
-  /// Transcribe audio and translate in one step
-  static Future<Map<String, dynamic>> transcribeAndTranslate(File audioFile, String targetLanguage, {String? sourceLanguage}) async {
-    try {
-      // First transcribe the audio
-      final transcription = await transcribeAudio(audioFile, sourceLanguage: sourceLanguage);
-      
-      if (transcription['transcription'] == null || transcription['transcription'].toString().isEmpty) {
-        throw Exception('No text found in audio transcription');
-      }
-
-      // Then translate the transcribed text
-      final translation = await translateText(
-        transcription['transcription'].toString(),
-        targetLanguage,
-        sourceLanguage: transcription['detectedLanguage']?.toString() ?? sourceLanguage,
-      );
-
-      // Combine results
-      return {
-        'transcription': transcription,
-        'translation': translation,
-        'originalText': transcription['transcription'],
-        'translatedText': translation['translatedText'],
-        'sourceLanguage': transcription['detectedLanguage'] ?? sourceLanguage,
-        'targetLanguage': targetLanguage,
-        'processingTime': 'Audio transcribed and translated successfully',
-        'overallConfidence': ((transcription['confidence'] ?? 80) + (translation['confidence'] ?? 80)) / 2,
-      };
-
-    } catch (e) {
-      print('Error in transcribe and translate: $e');
-      throw Exception('Failed to transcribe and translate audio: $e');
-    }
-  }
-
-  /// Detect language of text
-  static Future<Map<String, dynamic>> detectLanguage(String text) async {
-    try {
-      final prompt = '''
-Analyze this text and detect its language with high accuracy.
-
-**TEXT TO ANALYZE:**
-"$text"
-
-**JSON OUTPUT FORMAT:**
-{
-  "detectedLanguage": "Language code (e.g., 'en', 'es', 'fr', 'hi', 'ta')",
-  "languageName": "Full language name (e.g., 'English', 'Spanish', 'French')",
-  "confidence": numeric_percentage_0_to_100,
-  "script": "Script type (e.g., 'Latin', 'Devanagari', 'Arabic')",
-  "region": "Regional variant if applicable (e.g., 'US', 'UK', 'Mexico')",
-  "alternativePossibilities": [
-    {"language": "code", "name": "name", "confidence": percentage}
-  ],
-  "textCharacteristics": "Brief analysis of text characteristics"
-}
-
-Provide accurate language detection with high confidence.''';
-
-      final response = await _model.generateContent([Content.text(prompt)]);
-      
-      if (response.text == null || response.text!.isEmpty) {
-        throw Exception('Empty response from Gemini API');
-      }
-
-      String jsonString = response.text!;
-      int startIndex = jsonString.indexOf('{');
-      int endIndex = jsonString.lastIndexOf('}') + 1;
-      
-      if (startIndex == -1 || endIndex == 0) {
-        throw Exception('No valid JSON found in response');
-      }
-      
-      jsonString = jsonString.substring(startIndex, endIndex);
-      return _parseJsonSafely(jsonString);
-
-    } catch (e) {
-      print('Error in language detection: $e');
-      return {
-        'detectedLanguage': 'unknown',
-        'languageName': 'Unknown',
-        'confidence': 0,
-        'error': 'Failed to detect language'
-      };
-    }
-  }
-
-  /// Get supported languages for translation
-  static Map<String, String> getSupportedLanguages() {
-    return {
-      'en': 'English',
-      'es': 'Spanish',
-      'fr': 'French',
-      'de': 'German',
-      'it': 'Italian',
-      'pt': 'Portuguese',
-      'ru': 'Russian',
-      'ja': 'Japanese',
-      'ko': 'Korean',
-      'zh': 'Chinese (Simplified)',
-      'zh-TW': 'Chinese (Traditional)',
-      'ar': 'Arabic',
-      'hi': 'Hindi',
-      'bn': 'Bengali',
-      'ta': 'Tamil',
-      'te': 'Telugu',
-      'ml': 'Malayalam',
-      'kn': 'Kannada',
-      'gu': 'Gujarati',
-      'pa': 'Punjabi',
-      'mr': 'Marathi',
-      'ne': 'Nepali',
-      'si': 'Sinhala',
-      'th': 'Thai',
-      'vi': 'Vietnamese',
-      'id': 'Indonesian',
-      'ms': 'Malay',
-      'fil': 'Filipino',
-      'sw': 'Swahili',
-      'tr': 'Turkish',
-      'pl': 'Polish',
-      'nl': 'Dutch',
-      'sv': 'Swedish',
-      'da': 'Danish',
-      'no': 'Norwegian',
-      'fi': 'Finnish',
-      'cs': 'Czech',
-      'sk': 'Slovak',
-      'hu': 'Hungarian',
-      'ro': 'Romanian',
-      'bg': 'Bulgarian',
-      'hr': 'Croatian',
-      'sr': 'Serbian',
-      'sl': 'Slovenian',
-      'et': 'Estonian',
-      'lv': 'Latvian',
-      'lt': 'Lithuanian',
-      'uk': 'Ukrainian',
-      'he': 'Hebrew',
-      'fa': 'Persian',
-      'ur': 'Urdu',
-    };
-  }
-
-  /// Validate audio file format
-  static bool isValidAudioFormat(File audioFile) {
-    final extension = audioFile.path.toLowerCase().split('.').last;
-    final supportedFormats = ['wav', 'mp3', 'aac', 'm4a', 'ogg', 'flac'];
-    return supportedFormats.contains(extension);
-  }
-
-  /// Get audio file info
-  static Future<Map<String, dynamic>> getAudioInfo(File audioFile) async {
-    try {
-      final stats = await audioFile.stat();
-      final extension = audioFile.path.toLowerCase().split('.').last;
-      
-      return {
-        'fileName': audioFile.path.split('/').last,
-        'fileSize': stats.size,
-        'fileSizeReadable': _formatFileSize(stats.size),
-        'format': extension.toUpperCase(),
-        'isSupported': isValidAudioFormat(audioFile),
-        'lastModified': stats.modified.toIso8601String(),
-      };
-    } catch (e) {
-      return {
-        'error': 'Failed to get audio file info: $e',
-        'isSupported': false,
-      };
-    }
-  }
-
-  /// Format file size to readable string
-  static String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
   /// Helper method to safely parse JSON
   static dynamic _parseJsonSafely(String jsonString) {
     try {
@@ -842,87 +554,11 @@ Provide accurate language detection with high confidence.''';
     }
   }
 
-  /// Enhanced JSON extraction and parsing method
-  static Map<String, dynamic> _extractAndParseJson(String responseText) {
-    try {
-      print('🔍 Processing response text...');
-      
-      // Clean the response text more thoroughly
-      String cleanText = responseText.trim();
-      
-      // Remove control characters and clean the text
-      cleanText = cleanText
-          .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ') // Remove control characters
-          .replaceAll(RegExp(r'\n+'), ' ') // Replace newlines with spaces
-          .replaceAll(RegExp(r'\s+'), ' ') // Normalize whitespace
-          .replaceAll('Here\'s the analysis:', '')
-          .replaceAll('Based on the images:', '')
-          .replaceAll('Analysis:', '')
-          .trim();
-      
-      // Try multiple JSON extraction strategies
-      Map<String, dynamic>? result;
-      
-      // Strategy 1: Look for complete JSON object
-      RegExp jsonPattern = RegExp(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', dotAll: true);
-      Iterable<Match> matches = jsonPattern.allMatches(cleanText);
-      
-      for (Match match in matches) {
-        try {
-          String jsonCandidate = match.group(0)!;
-          result = json.decode(jsonCandidate) as Map<String, dynamic>;
-          if (result.containsKey('name') || result.containsKey('description')) {
-            print('✅ Successfully parsed JSON with Strategy 1');
-            return result;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      
-      // Strategy 2: Find JSON boundaries manually
-      int startIndex = cleanText.indexOf('{');
-      int endIndex = cleanText.lastIndexOf('}');
-      
-      if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-        try {
-          String jsonCandidate = cleanText.substring(startIndex, endIndex + 1);
-          result = json.decode(jsonCandidate) as Map<String, dynamic>;
-          print('✅ Successfully parsed JSON with Strategy 2');
-          return result;
-        } catch (e) {
-          print('❌ Strategy 2 failed: $e');
-        }
-      }
-      
-      // Strategy 3: Parse with _parseJsonSafely (legacy method)
-      try {
-        result = _parseJsonSafely(cleanText) as Map<String, dynamic>?;
-        if (result != null) {
-          print('✅ Successfully parsed JSON with Strategy 3');
-          return result;
-        }
-      } catch (e) {
-        print('❌ Strategy 3 failed: $e');
-      }
-      
-      // Strategy 4: Extract information manually from text
-      print('⚠️ All JSON parsing failed, using text extraction fallback');
-      return _extractBasicInfoFromText(cleanText);
-      
-    } catch (e) {
-      print('❌ Critical error in JSON extraction: $e');
-      throw Exception('Failed to extract product information from AI response');
-    }
-  }
-
   /// Fallback method to extract basic information from text
   static Map<String, dynamic> _extractBasicInfoFromText(String text) {
-    print('🔧 Using text extraction fallback...');
-    
     Map<String, dynamic> fallback = {
-      'name': 'Handcrafted Artisan Product',
-      'description': 'Beautiful handcrafted artisan product made with traditional techniques and high-quality materials.',
+      'name': 'Handcrafted Product',
+      'description': 'Beautiful handcrafted artisan product made with traditional techniques.',
       'category': 'Other',
       'materials': ['Mixed materials'],
       'craftingTime': '1-2 weeks',
@@ -931,72 +567,18 @@ Provide accurate language detection with high confidence.''';
       'careInstructions': 'Handle with care, clean gently.',
     };
 
-    String lowerText = text.toLowerCase();
-    
-    // Try to extract product name from common patterns
-    RegExp namePattern = RegExp(r'(name|title)[\s":]+([^,\n.]+)', caseSensitive: false);
-    Match? nameMatch = namePattern.firstMatch(text);
-    if (nameMatch != null) {
-      fallback['name'] = nameMatch.group(2)?.trim() ?? fallback['name'];
-    }
-    
-    // Try to extract description
-    RegExp descPattern = RegExp(r'(description)[\s":]+([^,\n.]{20,})', caseSensitive: false);
-    Match? descMatch = descPattern.firstMatch(text);
-    if (descMatch != null) {
-      fallback['description'] = descMatch.group(2)?.trim() ?? fallback['description'];
-    }
-    
-    // Detect category based on keywords
-    if (lowerText.contains('pottery') || lowerText.contains('ceramic') || lowerText.contains('clay')) {
+    // Try to extract some basic info from the text
+    if (text.toLowerCase().contains('pottery') || text.toLowerCase().contains('ceramic')) {
       fallback['category'] = 'Pottery';
       fallback['materials'] = ['Clay', 'Ceramic'];
-      fallback['name'] = 'Handcrafted Ceramic Pottery';
-    } else if (lowerText.contains('wood') || lowerText.contains('timber')) {
+    } else if (text.toLowerCase().contains('wood')) {
       fallback['category'] = 'Woodwork';
       fallback['materials'] = ['Wood'];
-      fallback['name'] = 'Handcrafted Wooden Item';
-    } else if (lowerText.contains('metal') || lowerText.contains('brass') || lowerText.contains('copper')) {
+    } else if (text.toLowerCase().contains('metal')) {
       fallback['category'] = 'Metalwork';
       fallback['materials'] = ['Metal'];
-      fallback['name'] = 'Handcrafted Metal Artwork';
-    } else if (lowerText.contains('jewelry') || lowerText.contains('jewellery') || lowerText.contains('necklace') || lowerText.contains('earring')) {
-      fallback['category'] = 'Jewelry';
-      fallback['materials'] = ['Mixed metals', 'Gemstones'];
-      fallback['name'] = 'Handcrafted Jewelry Piece';
-    } else if (lowerText.contains('textile') || lowerText.contains('fabric') || lowerText.contains('cotton')) {
-      fallback['category'] = 'Textiles';
-      fallback['materials'] = ['Cotton', 'Fabric'];
-      fallback['name'] = 'Handwoven Textile';
-    } else if (lowerText.contains('leather')) {
-      fallback['category'] = 'Leather Goods';
-      fallback['materials'] = ['Leather'];
-      fallback['name'] = 'Handcrafted Leather Item';
-    } else if (lowerText.contains('glass')) {
-      fallback['category'] = 'Glass Art';
-      fallback['materials'] = ['Glass'];
-      fallback['name'] = 'Handblown Glass Art';
-    } else if (lowerText.contains('stone') || lowerText.contains('marble')) {
-      fallback['category'] = 'Stone Carving';
-      fallback['materials'] = ['Stone'];
-      fallback['name'] = 'Hand-carved Stone Sculpture';
-    } else if (lowerText.contains('basket') || lowerText.contains('woven')) {
-      fallback['category'] = 'Basketry';
-      fallback['materials'] = ['Natural fibers'];
-      fallback['name'] = 'Handwoven Basket';
     }
-    
-    // Try to extract price if mentioned
-    RegExp pricePattern = RegExp(r'(\$|price|cost)[\s:]*(\d+\.?\d*)', caseSensitive: false);
-    Match? priceMatch = pricePattern.firstMatch(text);
-    if (priceMatch != null) {
-      double? extractedPrice = double.tryParse(priceMatch.group(2) ?? '');
-      if (extractedPrice != null && extractedPrice > 0) {
-        fallback['suggestedPrice'] = extractedPrice;
-      }
-    }
-    
-    print('✅ Extracted fallback data: ${fallback['name']} - ${fallback['category']}');
+
     return fallback;
   }
 
