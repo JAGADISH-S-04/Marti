@@ -15,6 +15,19 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024; // 5MB limit
     }
     
+    // Allow authenticated users to upload craft request images organized by user
+    match /craft_requests/{userId}/{allPaths=**} {
+      allow read: if request.auth != null; // Anyone can read
+      allow write: if request.auth != null && userId == request.auth.uid
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    // Fallback for craft_requests without user organization (current code)
+    match /craft_requests/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
     // Test uploads for debugging - anyone can upload small files
     match /test_uploads/{allPaths=**} {
       allow read, write: if request.auth != null

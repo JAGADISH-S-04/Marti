@@ -1,3 +1,4 @@
+import 'package:arti/screens/seller_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:arti/services/auth_service.dart';
@@ -6,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:arti/services/firestore_service.dart';
 import 'package:arti/screens/complete_profile_screen.dart';
 import 'package:arti/navigation/bottom_app_navigator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -26,7 +28,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   Future<void> _signUpWithEmailAndPassword() async {
     print("=== SIGNUP ATTEMPT STARTED ===");
@@ -308,25 +311,65 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  void _navigateToHome() {
-    print("Navigating to home screen...");
-    _showSnackBar(
-        'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+  // Replace the _navigateToHome method with this:
 
-    // Add a small delay to show the success message
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
+void _navigateToHome() async {
+  print("Navigating to home screen...");
+  _showSnackBar(
+      'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
+
+  // Add a small delay to show the success message
+  await Future.delayed(const Duration(seconds: 1));
+
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      return;
+    }
+
+    // Use the isRetailer variable directly from the signup form
+    if (isRetailer) {
+      // Navigate to seller screen for retailers
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => BottomAppNavigator(
-            initialUserType: isRetailer ? 'retailer' : 'customer',
-          ),
+          builder: (context) => const SellerScreen(),
         ),
+        (route) => false,
       );
-    });
+    } else {
+      // Navigate to customer screen for customers
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomAppNavigator(),
+        ),
+        (route) => false,
+      );
+    }
+  } catch (e) {
+    print('Navigation error: $e');
+    // Fallback navigation based on isRetailer
+    if (isRetailer) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SellerScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomAppNavigator(),
+        ),
+        (route) => false,
+      );
+    }
   }
-
-  void _showSnackBar(String message) {
+}  void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -529,7 +572,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          onPressed: _isLoading ? null : _signUpWithEmailAndPassword,
+                          onPressed:
+                              _isLoading ? null : _signUpWithEmailAndPassword,
                           child: _isLoading
                               ? const SizedBox(
                                   width: 20,
@@ -572,9 +616,10 @@ class _SignUpPageState extends State<SignUpPage> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _signUpWithGoogle,
-                          icon: _isLoading 
+                          icon: _isLoading
                               ? const SizedBox.shrink()
-                              : const Icon(Icons.g_mobiledata, size: 24, color: Colors.white),
+                              : const Icon(Icons.g_mobiledata,
+                                  size: 24, color: Colors.white),
                           label: _isLoading
                               ? const SizedBox(
                                   width: 20,
@@ -587,7 +632,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               : const Text(
                                   'Sign up with Google',
                                   style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.w500),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500),
                                 ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade700,

@@ -8,6 +8,7 @@ import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'store_audio_management_page.dart';
+import 'craft_it/seller_view.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({super.key});
@@ -129,53 +130,6 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      // appBar: AppBar(
-      //   title: Text(
-      //     'My Store',
-      //     style: GoogleFonts.playfairDisplay(
-      //       fontSize: 22,
-      //       fontWeight: FontWeight.bold,
-      //       color: Colors.white,
-      //     ),
-      //   ),
-      //   backgroundColor: const Color(0xFF2C1810),
-      //   elevation: 0,
-      //   centerTitle: true,
-      //   actions: [
-      //     if (_storeData != null)
-      //       IconButton(
-      //         icon: const Icon(Icons.add),
-      //         onPressed: () {
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(
-      //               builder: (context) => const EnhancedProductListingPage(),
-      //             ),
-      //           );
-      //         },
-      //       ),
-      //     PopupMenuButton<String>(
-      //       onSelected: (value) {
-      //         if (value == 'logout') {
-      //           _logout();
-      //         }
-      //       },
-      //       itemBuilder: (BuildContext context) {
-      //         return [
-      //           const PopupMenuItem<String>(
-      //             value: 'logout',
-      //             child: ListTile(
-      //               leading: Icon(Icons.logout, color: Color(0xFF2C1810)),
-      //               title: Text('Logout'),
-      //               contentPadding: EdgeInsets.zero,
-      //             ),
-      //           ),
-      //         ];
-      //       },
-      //       icon: const Icon(Icons.more_vert, color: Colors.white),
-      //     ),
-      //   ],
-      // ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _storeData == null
@@ -687,7 +641,7 @@ class SellerScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // Action Buttons
+                      // Action Buttons Row 1
                       Row(
                         children: [
                           Expanded(
@@ -709,6 +663,28 @@ class SellerScreen extends StatelessWidget {
                           Expanded(
                             child: _buildActionButton(
                               context,
+                              'Requests',
+                              Icons.assignment,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SellerRequestsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Action Buttons Row 2
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              context,
                               'List My Store',
                               Icons.add_business,
                               () {
@@ -722,27 +698,28 @@ class SellerScreen extends StatelessWidget {
                               },
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildActionButton(
+                              context,
+                              'Product Listing',
+                              Icons.auto_awesome,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const EnhancedProductListingPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildActionButton(
-                          context,
-                          'Product Listing (AI-Powered)',
-                          Icons.auto_awesome,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const EnhancedProductListingPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                      
+                      // Full width button
                       SizedBox(
                         width: double.infinity,
                         child: _buildActionButton(
@@ -809,9 +786,9 @@ class SellerScreen extends StatelessWidget {
                           Expanded(
                             child: _buildStatsCard(
                               context,
-                              'Reviews',
+                              'Requests',
                               '0',
-                              Icons.star,
+                              Icons.assignment,
                             ),
                           ),
                         ],
@@ -823,6 +800,22 @@ class SellerScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      // Floating Action Button for quick access to requests
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SellerRequestsScreen(),
+            ),
+          );
+        },
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.assignment),
+        label: const Text('View Requests'),
+        tooltip: 'View Craft Requests',
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:arti/screens/login_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
+import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/screens/splash_home_screen.dart';
 import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/cart_screen.dart';
@@ -88,8 +89,7 @@ class MyApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-                color: Color(0xFFD4AF37), width: 1.6),
+            borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 1.6),
           ),
           labelStyle: TextStyle(color: Colors.brown.shade600),
           prefixIconColor: const Color(0xFF8B5A2B),
@@ -123,6 +123,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       initialRoute: '/',
+
       routes: {
         '/': (context) => const SplashScreen(),
         '/buyer': (context) => const BuyerScreen(),
@@ -132,6 +133,8 @@ class MyApp extends StatelessWidget {
         '/product-detail': (context) => const ProductDetailScreen(),
         '/add-product': (context) => const AddProductScreen(),
         '/login': (context) => const LoginPage(),
+        '/signup': (context) => const SignUpPage(),
+        '/home': (context) => const BottomAppNavigator(),
       },
     );
   }
