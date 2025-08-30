@@ -7,6 +7,7 @@ import 'add_product_screen.dart';
 import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
+import 'store_audio_management_page.dart';
 import 'craft_it/seller_view.dart';
 
 class MyStoreScreen extends StatefulWidget {
@@ -308,26 +309,51 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   color: const Color(0xFF2C1810),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EnhancedProductListingPage(),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StoreAudioManagementPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.record_voice_over, size: 18),
+                    label: const Text('Audio Story'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C1810),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Product'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EnhancedProductListingPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Product'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37),
+                      foregroundColor: Colors.white,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -800,7 +826,7 @@ class SellerScreen extends StatelessWidget {
     IconData icon,
     VoidCallback onPressed,
   ) {
-    return Container(
+    return SizedBox(
       height: 100,
       child: ElevatedButton(
         onPressed: onPressed,

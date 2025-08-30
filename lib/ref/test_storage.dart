@@ -45,7 +45,7 @@ class StorageTest {
       }
 
       // Create a simple test file
-      final testData = 'Test data for Firebase Storage';
+      const testData = 'Test data for Firebase Storage';
       final fileName = 'test_${DateTime.now().millisecondsSinceEpoch}.txt';
       
       final ref = _storage

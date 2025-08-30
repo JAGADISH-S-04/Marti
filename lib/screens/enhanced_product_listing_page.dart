@@ -1,19 +1,23 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/gemini_service.dart';
 import '../services/firestore_service.dart';
-import '../test_storage.dart';
-import '../alternative_upload_service.dart';
+import '../widgets/audio_story_recorder.dart';
+import '../widgets/enhanced_audio_story_section.dart';
 import 'package:form_validator/form_validator.dart';
 
 class EnhancedProductListingPage extends StatefulWidget {
-  const EnhancedProductListingPage({Key? key}) : super(key: key);
+  final Product? product; // For editing existing products
+  
+  const EnhancedProductListingPage({Key? key, this.product}) : super(key: key);
 
   @override
   State<EnhancedProductListingPage> createState() => _EnhancedProductListingPageState();
@@ -41,10 +45,21 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   bool _useVideo = false;
   File? _buyerDisplayImage; // Image to show on buyer page
 
+  // Audio story handling
+  File? _audioStoryFile;
+  String? _audioStoryTranscription;
+  Map<String, String> _audioStoryTranslations = {};
+
+  // Audio player for preview
+  AudioPlayer? _previewAudioPlayer;
+  bool _isPlaying = false;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+  bool _isEditingTranscription = false;
+
   // AI Analysis states
   bool _isAnalyzing = false;
   bool _hasAnalyzed = false;
-  bool _isGeneratingVariations = false;
   bool _isEnhancingDescription = false;
   bool _isAnalyzingPrice = false;
 
@@ -82,11 +97,36 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   void initState() {
     super.initState();
     GeminiService.initialize();
+    _initializeFormData();
+  }
+
+  void _initializeFormData() {
+    if (widget.product != null) {
+      final product = widget.product!;
+      _nameController.text = product.name;
+      _priceController.text = product.price.toString();
+      _stockController.text = '0'; // Default value for new products
+      _descriptionController.text = product.description;
+      _materialsController.text = (product.materials as String?) ?? '';
+      _dimensionsController.text = (product.dimensions as String?) ?? '';
+      _craftingTimeController.text = (product.craftingTime as String?) ?? '';
+      _careInstructionsController.text = product.careInstructions ?? '';
+      _selectedCategory = product.category;
+      
+      // Initialize audio story data if it exists
+      if (product.audioStoryTranscription != null) {
+        _audioStoryTranscription = product.audioStoryTranscription;
+      }
+      if (product.audioStoryTranslations != null) {
+        _audioStoryTranslations = Map<String, String>.from(product.audioStoryTranslations!);
+      }
+    }
   }
 
   @override
   void dispose() {
     _videoController?.dispose();
+    _previewAudioPlayer?.dispose();
     _nameController.dispose();
     _priceController.dispose();
     _stockController.dispose();
@@ -286,10 +326,6 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   Future<void> _generateTitleVariations() async {
     if (_nameController.text.isEmpty) return;
 
-    setState(() {
-      _isGeneratingVariations = true;
-    });
-
     try {
       final variations = await GeminiService.generateTitleVariations(
         _nameController.text,
@@ -302,10 +338,6 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       });
     } catch (e) {
       print('Error generating title variations: $e');
-    } finally {
-      setState(() {
-        _isGeneratingVariations = false;
-      });
     }
   }
 
@@ -367,8 +399,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     }
   }
 
+  // Audio Recording Methods
   // Show buyer display image dialog
   Future<void> _showBuyerImageDialog() async {
+    // Auto-select first image if available and no buyer display image is set
+    if (_selectedImages.isNotEmpty && _buyerDisplayImage == null) {
+      _buyerDisplayImage = _selectedImages.first;
+    }
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -376,10 +414,11 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              contentPadding: const EdgeInsets.all(20),
               title: Row(
                 children: [
-                  Icon(Icons.image, color: primaryBrown),
-                  SizedBox(width: 8),
+                  const Icon(Icons.image, color: primaryBrown),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Select Buyer Display Image',
@@ -392,25 +431,113 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              content: SizedBox(
+                width: double.maxFinite,
+                height: MediaQuery.of(context).size.height * 0.7, // Constrain height
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     Text(
                       'Choose an image that will be displayed to buyers on the marketplace:',
                       style: GoogleFonts.inter(fontSize: 14),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                    
+                    // Show uploaded product images for selection
+                    if (_selectedImages.isNotEmpty) ...[
+                      Text(
+                        'Select from uploaded images:',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: primaryBrown,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 120,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            final isSelected = _buyerDisplayImage != null && 
+                                _buyerDisplayImage!.path == _selectedImages[index].path;
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _buyerDisplayImage = _selectedImages[index];
+                                });
+                              },
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected ? accentGold : Colors.grey.shade300,
+                                    width: isSelected ? 3 : 1,
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        _selectedImages[index],
+                                        fit: BoxFit.cover,
+                                        width: 120,
+                                        height: 120,
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: accentGold,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                    ],
                     
                     // Display current selected image if any
                     if (_buyerDisplayImage != null) ...[
+                      Text(
+                        'Selected buyer display image:',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: primaryBrown,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Container(
                         height: 200,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: primaryBrown.withOpacity(0.3)),
+                          border: Border.all(color: accentGold, width: 2),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -420,11 +547,11 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                           ),
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                     ],
                     
-                    // Upload button
-                    Container(
+                    // Upload different image button (optional)
+                    SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () async {
@@ -442,15 +569,17 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                             });
                           }
                         },
-                        icon: Icon(Icons.upload),
+                        icon: const Icon(Icons.upload),
                         label: Text(
-                          _buyerDisplayImage == null ? 'Upload Image' : 'Change Image',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                          _selectedImages.isEmpty 
+                              ? 'Upload Display Image' 
+                              : 'Upload Different Image',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryBrown,
+                          backgroundColor: Colors.grey.shade600,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -458,9 +587,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       ),
                     ),
                     
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Container(
-                      padding: EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -468,10 +597,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       child: Row(
                         children: [
                           Icon(Icons.info, color: Colors.blue.shade600, size: 16),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'This image will be the main display image for buyers. Choose your best product photo!',
+                              _selectedImages.isNotEmpty 
+                                  ? 'Select one of your uploaded images or upload a different one. If you skip, the first uploaded image will be used.'
+                                  : 'This image will be the main display image for buyers. You can skip this if you want to use your uploaded images.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue.shade700,
@@ -481,30 +612,31 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         ],
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
+                    _submitProduct(); // Allow skipping buyer image
                   },
                   child: Text(
-                    'Cancel',
+                    'Skip & Continue',
                     style: TextStyle(color: Colors.grey.shade600),
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: _buyerDisplayImage == null ? null : () {
+                  onPressed: () {
                     Navigator.of(context).pop();
                     _submitProduct();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBrown,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
                   ),
-                  child: Text(
+                  child: const Text(
                     'List Product',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
@@ -523,10 +655,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       return;
     }
 
-    if (_selectedImages.length < 3 && _selectedVideo == null) {
-      _showSnackBar('Please upload at least 3 images or 1 video', isError: true);
-      return;
-    }
+    // No minimum media requirement - allow product creation without images/video
 
     setState(() {
       _isSubmitting = true;
@@ -543,7 +672,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       String? videoUrl;
       String buyerDisplayImageUrl = '';
 
-      // Upload buyer display image first
+      // Upload buyer display image if selected (optional)
       if (_buyerDisplayImage != null) {
         _showSnackBar('Uploading buyer display image...');
         try {
@@ -551,23 +680,36 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           print('✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
         } catch (e) {
           print('❌ Buyer display image upload failed: $e');
-          
-          // Run comprehensive storage diagnostics
-          print('🔧 Running storage diagnostics...');
-          await StorageTest.testStorageConfiguration();
-          await AlternativeUploadService.getStorageInfo();
-          await AlternativeUploadService.testStorageConnectivity();
-          
-          throw Exception('Failed to upload buyer display image. Please check Firebase Storage configuration. Details: $e');
+          // Don't throw error for buyer display image - it's optional
+          _showSnackBar('Warning: Buyer display image upload failed. Using uploaded images instead.', isError: true);
         }
       }
+
+      // Upload media if available
 
       if (_useVideo && _selectedVideo != null) {
         _showSnackBar('Uploading video...');
         videoUrl = await _productService.uploadVideo(_selectedVideo!);
-      } else {
+      } else if (_selectedImages.isNotEmpty) {
         _showSnackBar('Uploading ${_selectedImages.length} additional images...');
         imageUrls = await _productService.uploadImages(_selectedImages);
+      } else {
+        _showSnackBar('Creating product without media...');
+        // No media to upload - proceed with product creation
+      }
+
+      // Upload audio story if available
+      String? audioStoryUrl;
+      if (_audioStoryFile != null) {
+        _showSnackBar('Uploading audio story...');
+        try {
+          audioStoryUrl = await _productService.uploadAudioStory(_audioStoryFile!);
+          print('✅ Audio story uploaded successfully: $audioStoryUrl');
+        } catch (e) {
+          print('❌ Audio story upload failed: $e');
+          // Audio story upload failure is not critical, continue with product creation
+          _showSnackBar('Warning: Audio story upload failed. Product will be created without audio.', isError: true);
+        }
       }
 
       _showSnackBar('Creating product listing...');
@@ -602,6 +744,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         tags: _generateTags(),
         careInstructions: _careInstructionsController.text.trim().isNotEmpty ? _careInstructionsController.text.trim() : null,
         aiAnalysis: _aiAnalysis.isNotEmpty ? Map<String, dynamic>.from(_aiAnalysis) : null,
+        audioStoryUrl: audioStoryUrl,
+        audioStoryTranscription: _audioStoryTranscription,
+        audioStoryTranslations: _audioStoryTranslations.isNotEmpty ? Map<String, String>.from(_audioStoryTranslations) : null,
       );
 
       await _productService.createProduct(product);
@@ -646,8 +791,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 24),
-              SizedBox(width: 8),
+              const Icon(Icons.check_circle, color: Colors.green, size: 24),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Product Listed Successfully!',
@@ -666,7 +811,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -675,22 +820,22 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Product Details:',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
-                      SizedBox(height: 8),
-                      Text('📦 Name: ${product.name}', style: TextStyle(fontSize: 13)),
-                      Text('🏷️ Category: ${product.category}', style: TextStyle(fontSize: 13)),
-                      Text('💰 Price: \$${product.price.toStringAsFixed(2)}', style: TextStyle(fontSize: 13)),
-                      Text('📊 Stock: ${product.stockQuantity}', style: TextStyle(fontSize: 13)),
-                      Text('🏪 Artisan: ${product.artisanName}', style: TextStyle(fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Text('📦 Name: ${product.name}', style: const TextStyle(fontSize: 13)),
+                      Text('🏷️ Category: ${product.category}', style: const TextStyle(fontSize: 13)),
+                      Text('💰 Price: \$${product.price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                      Text('📊 Stock: ${product.stockQuantity}', style: const TextStyle(fontSize: 13)),
+                      Text('🏪 Artisan: ${product.artisanName}', style: const TextStyle(fontSize: 13)),
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -702,26 +847,26 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         '✨ AI Features Applied:',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue.shade700),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       if (_titleVariations.isNotEmpty)
-                        Text('• ${_titleVariations.length} Title variations generated', style: TextStyle(fontSize: 12)),
+                        Text('• ${_titleVariations.length} Title variations generated', style: const TextStyle(fontSize: 12)),
                       if (_descriptionOptions.isNotEmpty)
-                        Text('• ${_descriptionOptions.length} Description options created', style: TextStyle(fontSize: 12)),
+                        Text('• ${_descriptionOptions.length} Description options created', style: const TextStyle(fontSize: 12)),
                       if (_aiAnalysis.isNotEmpty)
-                        Text('• AI analysis data saved', style: TextStyle(fontSize: 12)),
-                      Text('• Search optimization applied', style: TextStyle(fontSize: 12)),
-                      Text('• Price range categorization', style: TextStyle(fontSize: 12)),
+                        const Text('• AI analysis data saved', style: TextStyle(fontSize: 12)),
+                      const Text('• Search optimization applied', style: TextStyle(fontSize: 12)),
+                      const Text('• Price range categorization', style: TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: accentGold.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
                       Icon(Icons.info, color: primaryBrown, size: 16),
                       SizedBox(width: 8),
@@ -743,7 +888,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 Navigator.of(context).pop();
                 // Navigate to seller dashboard or products list
               },
-              child: Text('View My Products'),
+              child: const Text('View My Products'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -753,7 +898,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 backgroundColor: primaryBrown,
                 foregroundColor: Colors.white,
               ),
-              child: Text('Create Another'),
+              child: const Text('Create Another'),
             ),
           ],
         );
@@ -809,6 +954,16 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       _titleVariations.clear();
       _descriptionOptions.clear();
       _pricingAnalysis.clear();
+      _audioStoryFile = null;
+      _audioStoryTranscription = null;
+      _audioStoryTranslations.clear();
+      // Reset audio player state
+      _previewAudioPlayer?.dispose();
+      _previewAudioPlayer = null;
+      _isPlaying = false;
+      _audioDuration = Duration.zero;
+      _audioPosition = Duration.zero;
+      _isEditingTranscription = false;
     });
   }
 
@@ -818,7 +973,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : accentGold,
-        duration: Duration(seconds: 4),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -829,7 +984,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
               SizedBox(width: 8),
@@ -846,15 +1001,15 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   'Our AI detected that your images show different products. For accurate analysis, please:',
                   style: TextStyle(fontSize: 14),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 
                 // What TO DO section
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -867,7 +1022,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         '✅ Upload Guidelines:',
                         style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       _buildDialogPoint('✓', 'Multiple images of the SAME product'),
                       _buildDialogPoint('✓', 'Different angles or views of one item'),
                       _buildDialogPoint('✓', 'Close-up details of the same product'),
@@ -876,11 +1031,11 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   ),
                 ),
                 
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 
                 // What NOT TO DO section
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -893,7 +1048,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         '❌ Avoid These:',
                         style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       _buildDialogPoint('✗', 'Don\'t mix images of different products'),
                       _buildDialogPoint('✗', 'Don\'t include comparison images'),
                       _buildDialogPoint('✗', 'Don\'t mix product categories'),
@@ -901,9 +1056,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   ),
                 ),
                 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -915,7 +1070,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         '💡 Tip:',
                         style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Our AI is very precise. If you believe these images show the same product from different angles, try taking clearer photos with consistent lighting and ensure all key features are visible.',
                         style: TextStyle(fontSize: 12, color: Colors.blue.shade600),
@@ -940,7 +1095,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 backgroundColor: primaryBrown,
                 foregroundColor: Colors.white,
               ),
-              child: Text('Select New Images'),
+              child: const Text('Select New Images'),
             ),
           ],
         );
@@ -953,14 +1108,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     final isNegative = icon == '✗';
     
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 16,
             height: 16,
-            margin: EdgeInsets.only(top: 2),
+            margin: const EdgeInsets.only(top: 2),
             decoration: BoxDecoration(
               color: isPositive 
                 ? Colors.green.shade600 
@@ -972,7 +1127,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             child: Center(
               child: Text(
                 icon,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
@@ -980,7 +1135,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
@@ -1015,7 +1170,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         backgroundColor: primaryBrown,
         elevation: 0,
         centerTitle: true,
-        actions: [
+        actions: const [
           Icon(Icons.auto_awesome, color: accentGold),
           SizedBox(width: 16),
         ],
@@ -1065,7 +1220,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         children: [
           Row(
             children: [
-              Icon(Icons.camera_alt, color: primaryBrown),
+              const Icon(Icons.camera_alt, color: primaryBrown),
               const SizedBox(width: 8),
               Text(
                 'Product Media',
@@ -1075,9 +1230,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   color: primaryBrown,
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               if (_isAnalyzing)
-                SizedBox(
+                const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -1103,12 +1258,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _pickImages,
-                  icon: Icon(Icons.photo_library),
-                  label: Text('Upload Images'),
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Upload Images'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _useVideo ? Colors.grey[300] : primaryBrown,
                     foregroundColor: _useVideo ? Colors.grey[600] : Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1119,12 +1274,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _pickVideo,
-                  icon: Icon(Icons.videocam),
-                  label: Text('Upload Video'),
+                  icon: const Icon(Icons.videocam),
+                  label: const Text('Upload Video'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _useVideo ? primaryBrown : Colors.grey[300],
                     foregroundColor: _useVideo ? Colors.white : Colors.grey[600],
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -1140,23 +1295,23 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           if (_selectedImages.isNotEmpty) _buildImagePreview(),
           if (_selectedVideo != null && _useVideo) _buildVideoPreview(),
           
-          // Validation message
-          if (_selectedImages.length < 3 && _selectedVideo == null)
+          // Optional media message
+          if (_selectedImages.isEmpty && _selectedVideo == null)
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange[50],
+                color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange[200]!),
+                border: Border.all(color: Colors.blue[200]!),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.orange[600], size: 16),
-                  SizedBox(width: 8),
+                  Icon(Icons.info, color: Colors.blue[600], size: 16),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Upload at least 3 images or 1 video for best results',
-                      style: TextStyle(color: Colors.orange[800], fontSize: 12),
+                      'Optional: Add images or video to enable AI analysis features',
+                      style: TextStyle(color: Colors.blue[800], fontSize: 12),
                     ),
                   ),
                 ],
@@ -1202,8 +1357,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     _aiAnalysis.clear();
                   });
                 },
-                icon: Icon(Icons.clear_all, size: 16),
-                label: Text('Clear All'),
+                icon: const Icon(Icons.clear_all, size: 16),
+                label: const Text('Clear All'),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[600],
                 ),
@@ -1220,7 +1375,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               return Container(
                 width: 100,
                 height: 100,
-                margin: EdgeInsets.only(right: 10),
+                margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   image: DecorationImage(
@@ -1236,7 +1391,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                           borderRadius: BorderRadius.circular(8),
                           color: Colors.black54,
                         ),
-                        child: Center(
+                        child: const Center(
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -1248,12 +1403,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         top: 5,
                         left: 5,
                         child: Container(
-                          padding: EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.green,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.check,
                             color: Colors.white,
                             size: 12,
@@ -1267,12 +1422,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       child: GestureDetector(
                         onTap: () => _removeImage(index),
                         child: Container(
-                          padding: EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.red.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.close,
                             color: Colors.white,
                             size: 12,
@@ -1319,7 +1474,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       if (_isAnalyzing)
                         Container(
                           color: Colors.black54,
-                          child: Center(
+                          child: const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -1337,12 +1492,12 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                           top: 10,
                           right: 10,
                           child: Container(
-                            padding: EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.green,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.check, color: Colors.white, size: 16),
@@ -1373,7 +1528,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     ],
                   ),
                 )
-              : Center(
+              : const Center(
                   child: Icon(Icons.video_library, size: 50, color: Colors.grey),
                 ),
         ),
@@ -1397,8 +1552,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, color: accentGold),
-              SizedBox(width: 8),
+              const Icon(Icons.auto_awesome, color: accentGold),
+              const SizedBox(width: 8),
               Text(
                 'AI Product Analysis',
                 style: GoogleFonts.playfairDisplay(
@@ -1411,7 +1566,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           ),
           const SizedBox(height: 10),
           Text(
-            'Our AI will analyze your media to automatically fill product details with high accuracy.',
+            'Optional: Upload media and let our AI automatically fill product details with high accuracy.',
             style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.grey[600],
@@ -1419,32 +1574,56 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isAnalyzing ? null : _analyzeWithAI,
-              icon: _isAnalyzing 
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Icon(Icons.psychology),
-              label: Text(_isAnalyzing ? 'Analyzing...' : 'Analyze with AI'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accentGold,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          if (_selectedImages.isNotEmpty || _selectedVideo != null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isAnalyzing ? null : _analyzeWithAI,
+                icon: _isAnalyzing 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.psychology),
+                label: Text(_isAnalyzing ? 'Analyzing...' : 'Analyze with AI'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentGold,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.psychology_outlined, color: Colors.grey[600], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Upload media to enable AI analysis',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           if (_hasAnalyzed)
             Container(
-              margin: EdgeInsets.only(top: 15),
-              padding: EdgeInsets.all(12),
+              margin: const EdgeInsets.only(top: 15),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.green[50],
                 borderRadius: BorderRadius.circular(8),
@@ -1453,7 +1632,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               child: Row(
                 children: [
                   Icon(Icons.check_circle, color: Colors.green[600], size: 20),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Analysis complete! Form fields have been filled automatically.',
@@ -1488,8 +1667,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         children: [
           Row(
             children: [
-              Icon(Icons.auto_fix_high, color: primaryBrown),
-              SizedBox(width: 8),
+              const Icon(Icons.auto_fix_high, color: primaryBrown),
+              const SizedBox(width: 8),
               Text(
                 'AI Enhancements',
                 style: GoogleFonts.playfairDisplay(
@@ -1506,8 +1685,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           if (_titleVariations.isNotEmpty) ...[
             Row(
               children: [
-                Icon(Icons.title, color: primaryBrown, size: 18),
-                SizedBox(width: 8),
+                const Icon(Icons.title, color: primaryBrown, size: 18),
+                const SizedBox(width: 8),
                 Text(
                   'Title Options:',
                   style: GoogleFonts.inter(
@@ -1516,9 +1695,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     fontSize: 16,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: accentGold.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -1526,7 +1705,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                   ),
                   child: Text(
                     '${_titleVariations.length} options',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       color: primaryBrown,
                       fontWeight: FontWeight.w500,
@@ -1535,14 +1714,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Column(
               children: _titleVariations.asMap().entries.map((entry) {
                 int index = entry.key;
                 String title = entry.value;
                 return Container(
-                  margin: EdgeInsets.only(bottom: 8),
-                  padding: EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: accentGold.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
@@ -1553,14 +1732,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       Container(
                         width: 24,
                         height: 24,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: primaryBrown,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Text(
                             '${index + 1}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -1568,7 +1747,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           title,
@@ -1579,7 +1758,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () {
                           setState(() {
@@ -1590,14 +1769,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryBrown,
                           foregroundColor: Colors.white,
-                          minimumSize: Size(70, 30),
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: const Size(70, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 2,
                         ),
-                        child: Text(
+                        child: const Text(
                           'Use This',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                         ),
@@ -1607,15 +1786,15 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 );
               }).toList(),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
           
           // Enhanced Description Options
           if (_descriptionOptions.isNotEmpty) ...[
             Row(
               children: [
-                Icon(Icons.auto_awesome, color: primaryBrown, size: 18),
-                SizedBox(width: 8),
+                const Icon(Icons.auto_awesome, color: primaryBrown, size: 18),
+                const SizedBox(width: 8),
                 Text(
                   'Description Options:',
                   style: GoogleFonts.inter(
@@ -1624,22 +1803,22 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     fontSize: 16,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 if (_isEnhancingDescription)
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             
             // Option 1 - Luxury Style
-            if (_descriptionOptions.length > 0) ...[
+            if (_descriptionOptions.isNotEmpty) ...[
               Container(
-                margin: EdgeInsets.only(bottom: 12),
-                padding: EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.purple.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -1651,7 +1830,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     Row(
                       children: [
                         Icon(Icons.diamond, color: Colors.purple.shade600, size: 16),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           'Option 1: Luxury & Elegance',
                           style: TextStyle(
@@ -1660,9 +1839,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                             fontSize: 14,
                           ),
                         ),
-                        Spacer(),
+                        const Spacer(),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.purple.shade100,
                             borderRadius: BorderRadius.circular(8),
@@ -1678,7 +1857,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _descriptionOptions[0],
                       style: GoogleFonts.inter(
@@ -1687,7 +1866,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         height: 1.4,
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
@@ -1700,14 +1879,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.purple.shade600,
                           foregroundColor: Colors.white,
-                          minimumSize: Size(80, 32),
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(80, 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 2,
                         ),
-                        child: Text(
+                        child: const Text(
                           'Use This',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
@@ -1721,8 +1900,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             // Option 2 - Personal Style
             if (_descriptionOptions.length > 1) ...[
               Container(
-                margin: EdgeInsets.only(bottom: 12),
-                padding: EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.teal.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -1734,7 +1913,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     Row(
                       children: [
                         Icon(Icons.favorite, color: Colors.teal.shade600, size: 16),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           'Option 2: Personal & Emotional',
                           style: TextStyle(
@@ -1743,9 +1922,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                             fontSize: 14,
                           ),
                         ),
-                        Spacer(),
+                        const Spacer(),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.teal.shade100,
                             borderRadius: BorderRadius.circular(8),
@@ -1761,7 +1940,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _descriptionOptions[1],
                       style: GoogleFonts.inter(
@@ -1770,7 +1949,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         height: 1.4,
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
@@ -1783,14 +1962,14 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal.shade600,
                           foregroundColor: Colors.white,
-                          minimumSize: Size(80, 32),
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(80, 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 2,
                         ),
-                        child: Text(
+                        child: const Text(
                           'Use This',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
@@ -1800,7 +1979,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                 ),
               ),
             ],
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
           
           // Pricing Analysis
@@ -1814,18 +1993,18 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                     color: primaryBrown,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 if (_isAnalyzingPrice)
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
               ],
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: accentGold.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -1840,7 +2019,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   if (_pricingAnalysis['valueJustification'] != null) ...[
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _pricingAnalysis['valueJustification'],
                       style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
@@ -1875,8 +2054,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         children: [
           Row(
             children: [
-              Icon(Icons.inventory, color: primaryBrown),
-              SizedBox(width: 8),
+              const Icon(Icons.inventory, color: primaryBrown),
+              const SizedBox(width: 8),
               Text(
                 'Product Details',
                 style: GoogleFonts.playfairDisplay(
@@ -1904,14 +2083,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           
           const SizedBox(height: 20),
           
-          // Description
-          _buildTextField(
-            controller: _descriptionController,
-            label: 'Description',
-            hint: 'Describe your product in detail',
-            maxLines: 4,
-            validator: ValidationBuilder().minLength(50).maxLength(800).build(),
-          ),
+          // Description with Audio Recording
+          _buildDescriptionFieldWithAudioRecorder(),
           
           const SizedBox(height: 20),
           
@@ -1995,8 +2168,8 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         children: [
           Row(
             children: [
-              Icon(Icons.attach_money, color: primaryBrown),
-              SizedBox(width: 8),
+              const Icon(Icons.attach_money, color: primaryBrown),
+              const SizedBox(width: 8),
               Text(
                 'Pricing',
                 style: GoogleFonts.playfairDisplay(
@@ -2013,7 +2186,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             controller: _priceController,
             label: 'Price (USD)',
             hint: 'Enter price in dollars',
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter price';
@@ -2027,9 +2200,9 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
           ),
           
           if (_pricingAnalysis['priceRange'] != null) ...[
-            SizedBox(height: 15),
+            const SizedBox(height: 15),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
@@ -2038,7 +2211,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
               child: Row(
                 children: [
                   Icon(Icons.info, color: Colors.blue[600], size: 16),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Suggested range: \$${_pricingAnalysis['priceRange']['min']} - \$${_pricingAnalysis['priceRange']['max']}',
@@ -2091,12 +2264,75 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: accentGold, width: 2),
+              borderSide: const BorderSide(color: accentGold, width: 2),
             ),
             filled: true,
             fillColor: Colors.grey[50],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionFieldWithAudioRecorder() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Description',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            color: primaryBrown,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _descriptionController,
+          maxLines: 4,
+          validator: ValidationBuilder().minLength(50).maxLength(800).build(),
+          decoration: InputDecoration(
+            hintText: 'Describe your product in detail, or record your story below!',
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: accentGold, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Show existing audio story with edit/delete controls if editing product
+        if (widget.product?.audioStoryUrl != null)
+          _buildAudioStoryReadyBox()
+        else if (_audioStoryFile != null || _audioStoryTranscription != null)
+          _buildAudioStoryReadyBox()
+        else
+          // Show recorder for new products or if no audio exists
+          AudioStoryRecorder(
+            textController: _descriptionController,
+            primaryColor: primaryBrown,
+            accentColor: accentGold,
+            showAsButton: true,
+            buttonText: widget.product != null ? 'Add Audio Story' : 'Record Your Story',
+            buttonIcon: Icons.mic,
+            onAudioDataChanged: (audioFile, transcription, translations) {
+              setState(() {
+                _audioStoryFile = audioFile;
+                _audioStoryTranscription = transcription;
+                _audioStoryTranslations = translations ?? {};
+              });
+            },
+          ),
       ],
     );
   }
@@ -2126,7 +2362,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: accentGold, width: 2),
+              borderSide: const BorderSide(color: accentGold, width: 2),
             ),
             filled: true,
             fillColor: Colors.grey[50],
@@ -2147,6 +2383,949 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
     );
   }
 
+  Widget _buildAudioStoryReadyBox() {
+    final String displayText = _audioStoryTranscription ?? 'Audio Story Ready';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade300, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Audio Story Ready',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade700,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Preview button
+                  TextButton.icon(
+                    onPressed: _showAudioStoryPreview,
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text('Preview'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: accentGold,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Edit button
+                  TextButton.icon(
+                    onPressed: _editAudioStory,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryBrown,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Delete button
+                  TextButton.icon(
+                    onPressed: _deleteAudioStory,
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (displayText.length > 20) ...[
+            const SizedBox(height: 8),
+            Text(
+              displayText.length > 100 
+                  ? '${displayText.substring(0, 100)}...'
+                  : displayText,
+              style: GoogleFonts.inter(
+                color: Colors.grey.shade600,
+                fontSize: 13,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Show audio story preview dialog
+  void _showAudioStoryPreview() {
+    // Check if we have existing product with audio or new audio data
+    if (widget.product?.audioStoryUrl != null) {
+      // Show preview dialog with existing audio story
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: primaryBrown,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.audiotrack, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Audio Story Preview',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      child: EnhancedAudioStorySection(
+                        product: widget.product!,
+                        isOwner: false, // Read-only preview
+                        primaryColor: primaryBrown,
+                        accentColor: accentGold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else if (_audioStoryTranscription != null || _audioStoryFile != null) {
+      // Show preview for new audio data with audio player and editable transcription
+      _showAdvancedAudioPreview();
+    } else {
+      _showSnackBar('No audio story available for preview', isError: true);
+    }
+  }
+
+  // Advanced audio preview with player and editable transcription
+  void _showAdvancedAudioPreview() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.8,
+            constraints: const BoxConstraints(
+              maxWidth: 500,
+              maxHeight: 700,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryBrown,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.audiotrack, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Audio Story Preview',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+                // Scrollable Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildAdvancedPreviewContent(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Build advanced preview content with audio player and editable transcription
+  Widget _buildAdvancedPreviewContent() {
+    final transcriptionController = TextEditingController(text: _audioStoryTranscription ?? '');
+    
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Audio Player Section
+            if (_audioStoryFile != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.audiotrack, color: Colors.green.shade600, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'New Audio Recording',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Audio Player Widget
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: _buildAudioPlayerWidget(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            
+            // Editable Transcription Section
+            if (_audioStoryTranscription != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Transcription:',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        color: primaryBrown,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      if (_isEditingTranscription) {
+                        // Save changes
+                        setState(() {
+                          _audioStoryTranscription = transcriptionController.text.trim();
+                        });
+                      }
+                      setDialogState(() {
+                        _isEditingTranscription = !_isEditingTranscription;
+                      });
+                    },
+                    icon: Icon(
+                      _isEditingTranscription ? Icons.check : Icons.edit,
+                      size: 16,
+                      color: _isEditingTranscription ? Colors.green : primaryBrown,
+                    ),
+                    label: Text(
+                      _isEditingTranscription ? 'Save' : 'Edit',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: _isEditingTranscription ? Colors.green : primaryBrown,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(60, 28),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 80, maxHeight: 120),
+                child: _isEditingTranscription
+                    ? TextFormField(
+                        controller: transcriptionController,
+                        maxLines: null,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: accentGold, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                          hintText: 'Edit your transcription...',
+                        ),
+                        onFieldSubmitted: (value) {
+                          setState(() {
+                            _audioStoryTranscription = value.trim();
+                          });
+                          setDialogState(() {
+                            _isEditingTranscription = false;
+                          });
+                        },
+                      )
+                    : Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          _audioStoryTranscription!,
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade700,
+                            height: 1.4,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              // Character count
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${_audioStoryTranscription?.length ?? 0} characters',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            
+            // Compact Translations Section
+            if (_audioStoryTranslations.isNotEmpty) ...[
+              Text(
+                'Available Translations:',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: primaryBrown,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Grid layout for translations to save space
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _audioStoryTranslations.length,
+                itemBuilder: (context, index) {
+                  final entry = _audioStoryTranslations.entries.elementAt(index);
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: accentGold.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accentGold.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          entry.key.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            color: primaryBrown,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Text(
+                            entry.value,
+                            style: GoogleFonts.inter(
+                              color: Colors.grey.shade700,
+                              height: 1.2,
+                              fontSize: 11,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  // Edit audio story
+  void _editAudioStory() {
+    if (widget.product?.audioStoryUrl != null) {
+      // Show edit dialog with EnhancedAudioStorySection for existing product
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: primaryBrown,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Edit Audio Story',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      child: EnhancedAudioStorySection(
+                        product: widget.product!,
+                        isOwner: true, // Edit mode
+                        primaryColor: primaryBrown,
+                        accentColor: accentGold,
+                        onProductUpdated: (updatedProduct) {
+                          setState(() {
+                            _audioStoryTranscription = updatedProduct.audioStoryTranscription;
+                            _audioStoryTranslations = updatedProduct.audioStoryTranslations ?? {};
+                          });
+                          Navigator.of(context).pop();
+                          _showSnackBar('Audio story updated successfully!');
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else if (_audioStoryTranscription != null || _audioStoryFile != null) {
+      // Show edit dialog for new audio data
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: primaryBrown,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Edit Audio Story',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content - Custom edit interface for new audio
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      child: _buildNewAudioEditInterface(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      _showSnackBar('No audio story available to edit', isError: true);
+    }
+  }
+
+  // Build edit interface for new audio data
+  Widget _buildNewAudioEditInterface() {
+    final transcriptionController = TextEditingController(text: _audioStoryTranscription ?? '');
+    
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Audio file info
+            if (_audioStoryFile != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.audiotrack, color: Colors.green.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Audio Recording Ready',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            
+            // Transcription editor
+            Text(
+              'Edit Transcription:',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: primaryBrown,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(minHeight: 120),
+              child: TextFormField(
+                controller: transcriptionController,
+                maxLines: null,
+                decoration: InputDecoration(
+                  hintText: 'Enter your audio story transcription here...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: accentGold, width: 2),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Character count
+            Text(
+              '${transcriptionController.text.length} characters',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _audioStoryTranscription = transcriptionController.text.trim();
+                    });
+                    Navigator.of(context).pop();
+                    _showSnackBar('Audio story transcription updated!');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBrown,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Delete audio story
+  void _deleteAudioStory() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red.shade600),
+              const SizedBox(width: 12),
+              const Text('Delete Audio Story'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to delete this audio story? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _performDeleteAudioStory();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Perform actual audio story deletion
+  Future<void> _performDeleteAudioStory() async {
+    try {
+      _showSnackBar('Deleting audio story...');
+      
+      if (widget.product != null) {
+        // Update product to remove audio story
+        final updatedProduct = Product(
+          id: widget.product!.id,
+          artisanId: widget.product!.artisanId,
+          artisanName: widget.product!.artisanName,
+          name: widget.product!.name,
+          description: widget.product!.description,
+          category: widget.product!.category,
+          price: widget.product!.price,
+          materials: widget.product!.materials,
+          craftingTime: widget.product!.craftingTime,
+          dimensions: widget.product!.dimensions,
+          imageUrl: widget.product!.imageUrl,
+          imageUrls: widget.product!.imageUrls,
+          videoUrl: widget.product!.videoUrl,
+          createdAt: widget.product!.createdAt,
+          updatedAt: DateTime.now(),
+          stockQuantity: widget.product!.stockQuantity,
+          tags: widget.product!.tags,
+          careInstructions: widget.product!.careInstructions,
+          aiAnalysis: widget.product!.aiAnalysis,
+          audioStoryUrl: null, // Remove audio story
+          audioStoryTranscription: null, // Remove transcription
+          audioStoryTranslations: null, // Remove translations
+        );
+        
+        await _productService.updateProduct(updatedProduct);
+        
+        // Update local state
+        setState(() {
+          _audioStoryFile = null;
+          _audioStoryTranscription = null;
+          _audioStoryTranslations.clear();
+        });
+        
+        _showSnackBar('Audio story deleted successfully!');
+      } else {
+        // Just clear local state for new products
+        setState(() {
+          _audioStoryFile = null;
+          _audioStoryTranscription = null;
+          _audioStoryTranslations.clear();
+        });
+        
+        _showSnackBar('Audio story removed!');
+      }
+    } catch (e) {
+      _showSnackBar('Error deleting audio story: $e', isError: true);
+    }
+  }
+
+  // Build audio player widget for preview
+  Widget _buildAudioPlayerWidget() {
+    return StatefulBuilder(
+      builder: (context, setPlayerState) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Main player controls
+            Row(
+              children: [
+                // Play/Pause button
+                GestureDetector(
+                  onTap: () async {
+                    if (_audioStoryFile != null) {
+                      await _toggleAudioPlayback(setPlayerState);
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: accentGold,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                
+                // Track info and progress
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Audio Story',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Progress bar
+                      LinearProgressIndicator(
+                        value: _audioDuration.inMilliseconds > 0
+                            ? _audioPosition.inMilliseconds / _audioDuration.inMilliseconds
+                            : 0.0,
+                        backgroundColor: Colors.grey.shade300,
+                        valueColor: AlwaysStoppedAnimation<Color>(accentGold),
+                        minHeight: 3,
+                      ),
+                      const SizedBox(height: 2),
+                      // Time display
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatDuration(_audioPosition),
+                            style: GoogleFonts.inter(
+                              color: Colors.grey.shade600,
+                              fontSize: 10,
+                            ),
+                          ),
+                          Text(
+                            _formatDuration(_audioDuration),
+                            style: GoogleFonts.inter(
+                              color: Colors.grey.shade600,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Volume icon
+                Icon(Icons.volume_up, color: Colors.grey.shade500, size: 18),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Toggle audio playback
+  Future<void> _toggleAudioPlayback(StateSetter setPlayerState) async {
+    try {
+      if (_previewAudioPlayer == null) {
+        _previewAudioPlayer = AudioPlayer();
+        
+        // Setup listeners
+        _previewAudioPlayer!.onDurationChanged.listen((duration) {
+          setPlayerState(() {
+            _audioDuration = duration;
+          });
+        });
+        
+        _previewAudioPlayer!.onPositionChanged.listen((position) {
+          setPlayerState(() {
+            _audioPosition = position;
+          });
+        });
+        
+        _previewAudioPlayer!.onPlayerComplete.listen((_) {
+          setPlayerState(() {
+            _isPlaying = false;
+            _audioPosition = Duration.zero;
+          });
+        });
+      }
+
+      if (_isPlaying) {
+        await _previewAudioPlayer!.pause();
+        setPlayerState(() {
+          _isPlaying = false;
+        });
+      } else {
+        if (_audioStoryFile != null) {
+          await _previewAudioPlayer!.play(DeviceFileSource(_audioStoryFile!.path));
+          setPlayerState(() {
+            _isPlaying = true;
+          });
+        }
+      }
+    } catch (e) {
+      _showSnackBar('Error playing audio: $e', isError: true);
+    }
+  }
+
+  // Format duration for display
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
@@ -2155,7 +3334,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryBrown,
           foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -2165,7 +3344,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -2173,15 +3352,15 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Text('Creating Product...', style: GoogleFonts.inter(fontSize: 16)),
                 ],
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.rocket_launch),
-                  SizedBox(width: 8),
+                  const Icon(Icons.rocket_launch),
+                  const SizedBox(width: 8),
                   Text(
                     'List Product with AI Power',
                     style: GoogleFonts.inter(
