@@ -1,0 +1,524 @@
+{
+  "name": "arti-ai-artisan-platform",
+  "displayName": "Arti - AI-Powered Global Artisan Platform",
+  "description": "Revolutionary AI-powered platform transforming local artisans into global businesses through Google Cloud technologies and Firebase Extensions",
+  "version": "1.0.0",
+  "engines": {
+    "node": "18"
+  },
+  "extensions": {
+    "storage-resize-images": {
+      "name": "storage-resize-images",
+      "publisher": "firebase",
+      "version": "^0.1.37",
+      "params": {
+        "IMG_BUCKET": "${param:STORAGE_BUCKET}",
+        "IMG_SIZES": "200x200,400x400,800x800,1200x1200",
+        "IMG_QUALITY": "90",
+        "IMG_TYPE": "webp",
+        "CACHE_CONTROL_HEADER": "max-age=31536000",
+        "RESIZED_IMAGES_PATH": "resized",
+        "DELETE_ORIGINAL_FILE": "false",
+        "INCLUDE_PATH_LIST": "products/,artisans/,gallery/"
+      },
+      "config": {
+        "description": "Automatically creates optimized product images in multiple sizes for better performance across all devices and platforms"
+      }
+    },
+    "translate-text": {
+      "name": "translate-text",
+      "publisher": "firebase",
+      "version": "^0.1.17",
+      "params": {
+        "COLLECTION_PATH": "translations",
+        "INPUT_FIELD_NAME": "text",
+        "OUTPUT_FIELD_NAME": "translated",
+        "LANGUAGES": "en,es,fr,de,it,pt,zh,ja,ko,ar,hi,ru,tr,pl,nl,sv,da,no,fi",
+        "TRANSLATE_TO_MULTIPLE_LANGUAGES": "yes"
+      },
+      "config": {
+        "description": "Enables real-time translation of product descriptions, artisan stories, and user content to reach global audiences"
+      }
+    },
+    "firestore-bigquery-export": {
+      "name": "firestore-bigquery-export",
+      "publisher": "firebase",
+      "version": "^0.1.49",
+      "params": {
+        "COLLECTION_PATH": "products,orders,users,marketIntelligence,revenueMetrics",
+        "DATASET_ID": "arti_analytics",
+        "TABLE_ID": "firestore_export",
+        "DATASET_LOCATION": "us-central1",
+        "BACKUP_COLLECTION": "yes",
+        "CLUSTER_FIELD": "_timestamp",
+        "PARTITION_FIELD": "_timestamp",
+        "WILDCARD_IDS": "yes"
+      },
+      "config": {
+        "description": "Exports Firestore data to BigQuery for advanced analytics, ML model training, and business intelligence"
+      }
+    },
+    "firestore-send-email": {
+      "name": "firestore-send-email",
+      "publisher": "firebase",
+      "version": "^0.1.32",
+      "params": {
+        "MAIL_COLLECTION": "mail",
+        "SMTP_CONNECTION_URI": "${param:SMTP_CONNECTION_URI}",
+        "DEFAULT_FROM": "noreply@arti-platform.com",
+        "DEFAULT_REPLY_TO": "support@arti-platform.com",
+        "USERS_COLLECTION": "users",
+        "TEMPLATES_COLLECTION": "emailTemplates"
+      },
+      "config": {
+        "description": "Automated email system for order confirmations, artisan notifications, and marketing campaigns"
+      }
+    },
+    "auth-mailchimp-sync": {
+      "name": "auth-mailchimp-sync",
+      "publisher": "firebase",
+      "version": "^0.1.10",
+      "params": {
+        "MAILCHIMP_API_KEY": "${param:MAILCHIMP_API_KEY}",
+        "MAILCHIMP_AUDIENCE_ID": "${param:MAILCHIMP_AUDIENCE_ID}",
+        "MAILCHIMP_CONTACT_STATUS": "subscribed",
+        "LOCATION": "us-central1"
+      },
+      "config": {
+        "description": "Synchronizes user authentication with Mailchimp for targeted marketing campaigns and newsletter management"
+      }
+    },
+    "storage-extract-image-text": {
+      "name": "storage-extract-image-text",
+      "publisher": "firebase",
+      "version": "^0.1.8",
+      "params": {
+        "IMG_BUCKET": "${param:STORAGE_BUCKET}",
+        "OUTPUT_COLLECTION_PATH": "extractedText",
+        "INCLUDE_PATH_LIST": "products/,certificates/,documents/",
+        "LANGUAGES": "en,es,fr,de,it,pt,zh,ja,ko,ar,hi"
+      },
+      "config": {
+        "description": "Extracts text from uploaded images using OCR for automatic content generation and accessibility"
+      }
+    }
+  },
+  "customExtensions": {
+    "ai-product-analyzer": {
+      "name": "ai-product-analyzer",
+      "description": "Custom extension that analyzes product images using Google Cloud Vision API and generates comprehensive product insights",
+      "sourceCode": "./extensions/ai-product-analyzer",
+      "params": {
+        "GOOGLE_CLOUD_PROJECT_ID": "${param:GOOGLE_CLOUD_PROJECT_ID}",
+        "VISION_API_KEY": "${param:VISION_API_KEY}",
+        "COLLECTION_PATH": "productAnalysis",
+        "TRIGGER_COLLECTION": "products",
+        "TRIGGER_FIELD": "imageUrls",
+        "OUTPUT_FIELDS": "aiAnalysis,culturalSignificance,qualityScore,suggestedTags,priceRecommendation"
+      },
+      "triggers": [
+        {
+          "eventType": "providers/cloud.firestore/eventTypes/document.write",
+          "resource": "projects/${param:PROJECT_ID}/databases/(default)/documents/products/{productId}"
+        }
+      ]
+    },
+    "global-market-intelligence": {
+      "name": "global-market-intelligence",
+      "description": "Custom extension that provides real-time market intelligence and competitive analysis for artisan products",
+      "sourceCode": "./extensions/global-market-intelligence",
+      "params": {
+        "MARKET_DATA_API_KEY": "${param:MARKET_DATA_API_KEY}",
+        "COLLECTION_PATH": "marketIntelligence",
+        "UPDATE_FREQUENCY": "daily",
+        "ANALYSIS_REGIONS": "US,EU,ASIA,LATAM,MENA",
+        "PRODUCT_CATEGORIES": "pottery,textiles,jewelry,woodwork,metalwork,glasswork"
+      },
+      "schedule": "0 2 * * *"
+    },
+    "revenue-optimization-engine": {
+      "name": "revenue-optimization-engine",
+      "description": "Custom extension that uses ML to optimize pricing, predict demand, and suggest revenue growth strategies",
+      "sourceCode": "./extensions/revenue-optimization-engine",
+      "params": {
+        "VERTEX_AI_PROJECT": "${param:GOOGLE_CLOUD_PROJECT_ID}",
+        "MODEL_ENDPOINT": "${param:VERTEX_AI_ENDPOINT}",
+        "COLLECTION_PATH": "revenueOptimization",
+        "TRIGGER_EVENTS": "order_completed,product_updated,market_data_updated",
+        "OPTIMIZATION_FREQUENCY": "weekly"
+      }
+    },
+    "cultural-heritage-validator": {
+      "name": "cultural-heritage-validator",
+      "description": "Custom extension that validates and scores cultural authenticity and heritage significance of artisan products",
+      "sourceCode": "./extensions/cultural-heritage-validator",
+      "params": {
+        "CULTURAL_DATABASE_API": "${param:CULTURAL_DATABASE_API}",
+        "COLLECTION_PATH": "culturalValidation",
+        "VALIDATION_CRITERIA": "authenticity,heritage_significance,cultural_accuracy,traditional_techniques",
+        "EXPERT_NETWORK_API": "${param:EXPERT_NETWORK_API}"
+      }
+    },
+    "sustainable-impact-tracker": {
+      "name": "sustainable-impact-tracker",
+      "description": "Custom extension that tracks and reports environmental and social impact of artisan businesses",
+      "sourceCode": "./extensions/sustainable-impact-tracker",
+      "params": {
+        "IMPACT_METRICS_API": "${param:IMPACT_METRICS_API}",
+        "COLLECTION_PATH": "impactMetrics",
+        "TRACKING_CATEGORIES": "carbon_footprint,fair_trade,community_impact,material_sustainability",
+        "REPORTING_FREQUENCY": "monthly",
+        "SDG_ALIGNMENT": "yes"
+      }
+    }
+  },
+  "cloudfunctions": {
+    "revenueIntelligence": {
+      "source": "./functions/src/revenue-intelligence",
+      "runtime": "nodejs18",
+      "memory": "1GB",
+      "timeout": "540s",
+      "environmentVariables": {
+        "VERTEX_AI_PROJECT": "${param:GOOGLE_CLOUD_PROJECT_ID}",
+        "BIGQUERY_DATASET": "arti_analytics"
+      },
+      "schedule": "0 */6 * * *"
+    },
+    "marketTrendAnalysis": {
+      "source": "./functions/src/market-trends",
+      "runtime": "nodejs18",
+      "memory": "512MB",
+      "timeout": "300s",
+      "environmentVariables": {
+        "MARKET_DATA_API": "${param:MARKET_DATA_API_KEY}",
+        "GOOGLE_TRANSLATE_API": "${param:GOOGLE_TRANSLATE_API_KEY}"
+      },
+      "schedule": "0 1 * * *"
+    },
+    "aiContentGeneration": {
+      "source": "./functions/src/ai-content",
+      "runtime": "nodejs18",
+      "memory": "1GB",
+      "timeout": "300s",
+      "environmentVariables": {
+        "PALM_API_KEY": "${param:PALM_API_KEY}",
+        "VERTEX_AI_PROJECT": "${param:GOOGLE_CLOUD_PROJECT_ID}"
+      },
+      "triggers": [
+        {
+          "eventType": "providers/cloud.firestore/eventTypes/document.create",
+          "resource": "projects/${param:PROJECT_ID}/databases/(default)/documents/products/{productId}"
+        }
+      ]
+    },
+    "globalTranslationPipeline": {
+      "source": "./functions/src/translation-pipeline",
+      "runtime": "nodejs18",
+      "memory": "512MB",
+      "timeout": "180s",
+      "environmentVariables": {
+        "GOOGLE_TRANSLATE_API": "${param:GOOGLE_TRANSLATE_API_KEY}",
+        "CULTURAL_ADAPTATION_API": "${param:CULTURAL_ADAPTATION_API}"
+      },
+      "triggers": [
+        {
+          "eventType": "providers/cloud.firestore/eventTypes/document.write",
+          "resource": "projects/${param:PROJECT_ID}/databases/(default)/documents/products/{productId}"
+        }
+      ]
+    }
+  },
+  "parameters": {
+    "GOOGLE_CLOUD_PROJECT_ID": {
+      "type": "string",
+      "description": "Google Cloud Project ID for AI services",
+      "required": true
+    },
+    "STORAGE_BUCKET": {
+      "type": "string",
+      "description": "Firebase Storage bucket for images",
+      "default": "${param:PROJECT_ID}.appspot.com"
+    },
+    "VISION_API_KEY": {
+      "type": "secret",
+      "description": "Google Cloud Vision API key for image analysis"
+    },
+    "VERTEX_AI_ENDPOINT": {
+      "type": "string",
+      "description": "Vertex AI model endpoint for ML predictions"
+    },
+    "PALM_API_KEY": {
+      "type": "secret",
+      "description": "PaLM API key for content generation"
+    },
+    "GOOGLE_TRANSLATE_API_KEY": {
+      "type": "secret",
+      "description": "Google Translate API key"
+    },
+    "MARKET_DATA_API_KEY": {
+      "type": "secret",
+      "description": "Market data API key for trend analysis"
+    },
+    "CULTURAL_DATABASE_API": {
+      "type": "secret",
+      "description": "Cultural heritage database API key"
+    },
+    "EXPERT_NETWORK_API": {
+      "type": "secret",
+      "description": "Expert network API for cultural validation"
+    },
+    "IMPACT_METRICS_API": {
+      "type": "secret",
+      "description": "Sustainability metrics API key"
+    },
+    "CULTURAL_ADAPTATION_API": {
+      "type": "secret",
+      "description": "Cultural adaptation service API key"
+    },
+    "SMTP_CONNECTION_URI": {
+      "type": "secret",
+      "description": "SMTP connection URI for email service"
+    },
+    "MAILCHIMP_API_KEY": {
+      "type": "secret",
+      "description": "Mailchimp API key for marketing automation"
+    },
+    "MAILCHIMP_AUDIENCE_ID": {
+      "type": "string",
+      "description": "Mailchimp audience ID for user sync"
+    }
+  },
+  "apis": [
+    "vision.googleapis.com",
+    "translate.googleapis.com",
+    "aiplatform.googleapis.com",
+    "bigquery.googleapis.com",
+    "storage.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "firebase.googleapis.com",
+    "firestore.googleapis.com",
+    "cloudscheduler.googleapis.com"
+  ],
+  "roles": [
+    "roles/cloudsql.client",
+    "roles/bigquery.dataEditor",
+    "roles/bigquery.jobUser",
+    "roles/storage.objectViewer",
+    "roles/storage.objectCreator",
+    "roles/aiplatform.user",
+    "roles/translate.user",
+    "roles/vision.user"
+  ],
+  "resources": {
+    "bigquery": {
+      "datasets": [
+        {
+          "id": "arti_analytics",
+          "location": "us-central1",
+          "description": "Analytics dataset for Arti platform",
+          "tables": [
+            {
+              "id": "firestore_export",
+              "description": "Exported Firestore data for analysis"
+            },
+            {
+              "id": "revenue_intelligence",
+              "description": "Revenue optimization and forecasting data"
+            },
+            {
+              "id": "market_trends",
+              "description": "Market intelligence and trend analysis"
+            },
+            {
+              "id": "cultural_impact",
+              "description": "Cultural heritage and impact metrics"
+            }
+          ]
+        }
+      ]
+    },
+    "cloudscheduler": {
+      "jobs": [
+        {
+          "name": "daily-market-analysis",
+          "schedule": "0 2 * * *",
+          "timezone": "UTC",
+          "target": "revenueIntelligence"
+        },
+        {
+          "name": "weekly-revenue-optimization", 
+          "schedule": "0 0 * * 0",
+          "timezone": "UTC",
+          "target": "revenue-optimization-engine"
+        },
+        {
+          "name": "monthly-impact-report",
+          "schedule": "0 0 1 * *",
+          "timezone": "UTC",
+          "target": "sustainable-impact-tracker"
+        }
+      ]
+    },
+    "storage": {
+      "buckets": [
+        {
+          "name": "${param:PROJECT_ID}-product-images",
+          "location": "us-central1",
+          "storageClass": "STANDARD",
+          "lifecycle": {
+            "rules": [
+              {
+                "action": {
+                  "type": "SetStorageClass",
+                  "storageClass": "NEARLINE"
+                },
+                "condition": {
+                  "age": 30
+                }
+              },
+              {
+                "action": {
+                  "type": "SetStorageClass", 
+                  "storageClass": "COLDLINE"
+                },
+                "condition": {
+                  "age": 365
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "${param:PROJECT_ID}-ml-models",
+          "location": "us-central1",
+          "storageClass": "STANDARD"
+        }
+      ]
+    }
+  },
+  "monitoring": {
+    "alertPolicies": [
+      {
+        "displayName": "High Function Error Rate",
+        "conditions": [
+          {
+            "displayName": "Function error rate > 5%",
+            "conditionThreshold": {
+              "filter": "resource.type=\"cloud_function\"",
+              "comparison": "COMPARISON_GREATER_THAN",
+              "thresholdValue": 0.05
+            }
+          }
+        ]
+      },
+      {
+        "displayName": "High API Quota Usage",
+        "conditions": [
+          {
+            "displayName": "API quota usage > 80%",
+            "conditionThreshold": {
+              "filter": "metric.type=\"serviceruntime.googleapis.com/quota/rate/net_usage\"",
+              "comparison": "COMPARISON_GREATER_THAN",
+              "thresholdValue": 0.8
+            }
+          }
+        ]
+      }
+    ],
+    "dashboards": [
+      {
+        "displayName": "Arti Platform Overview",
+        "widgets": [
+          {
+            "title": "Active Users",
+            "type": "scorecard"
+          },
+          {
+            "title": "Revenue Trends",
+            "type": "chart"
+          },
+          {
+            "title": "AI Analysis Success Rate",
+            "type": "scorecard"
+          },
+          {
+            "title": "Global Market Reach",
+            "type": "chart"
+          }
+        ]
+      }
+    ]
+  },
+  "security": {
+    "firestore": {
+      "rules": "firestore.rules"
+    },
+    "storage": {
+      "rules": "storage.rules"
+    }
+  },
+  "deployment": {
+    "environments": {
+      "development": {
+        "projectId": "${param:PROJECT_ID}-dev",
+        "extensions": {
+          "storage-resize-images": {
+            "params": {
+              "IMG_QUALITY": "80"
+            }
+          }
+        }
+      },
+      "staging": {
+        "projectId": "${param:PROJECT_ID}-staging",
+        "extensions": {
+          "storage-resize-images": {
+            "params": {
+              "IMG_QUALITY": "85"
+            }
+          }
+        }
+      },
+      "production": {
+        "projectId": "${param:PROJECT_ID}",
+        "extensions": {
+          "storage-resize-images": {
+            "params": {
+              "IMG_QUALITY": "90"
+            }
+          }
+        }
+      }
+    }
+  },
+  "costs": {
+    "budgets": [
+      {
+        "displayName": "Monthly Platform Budget",
+        "budgetFilter": {
+          "projects": ["projects/${param:PROJECT_ID}"]
+        },
+        "amount": {
+          "specifiedAmount": {
+            "currencyCode": "USD",
+            "units": "500"
+          }
+        },
+        "thresholdRules": [
+          {
+            "thresholdPercent": 0.5,
+            "spendBasis": "CURRENT_SPEND"
+          },
+          {
+            "thresholdPercent": 0.8,
+            "spendBasis": "CURRENT_SPEND"
+          },
+          {
+            "thresholdPercent": 1.0,
+            "spendBasis": "CURRENT_SPEND"
+          }
+        ]
+      }
+    ]
+  }
+}

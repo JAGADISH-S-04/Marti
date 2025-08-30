@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/gemini_service.dart';
@@ -97,7 +98,31 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
   void initState() {
     super.initState();
     GeminiService.initialize();
+    _clearSharedPreferencesIfUserChanged();
     _initializeFormData();
+  }
+
+  // Clear SharedPreferences if user has changed to prevent cross-contamination
+  Future<void> _clearSharedPreferencesIfUserChanged() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+      final lastUserId = prefs.getString('last_active_user_id');
+      
+      if (lastUserId != null && lastUserId != currentUserId) {
+        // Clear all audio story related data from previous user
+        await prefs.remove('audio_story_path_$lastUserId');
+        await prefs.remove('audio_story_transcription_$lastUserId');
+        await prefs.remove('audio_story_translations_$lastUserId');
+        await prefs.remove('audio_story_last_$lastUserId');
+        print('Cleared previous user audio data: $lastUserId');
+      }
+      
+      // Update current user
+      await prefs.setString('last_active_user_id', currentUserId);
+    } catch (e) {
+      print('Error clearing previous user data: $e');
+    }
   }
 
   void _initializeFormData() {
@@ -2325,6 +2350,7 @@ class _EnhancedProductListingPageState extends State<EnhancedProductListingPage>
             showAsButton: true,
             buttonText: widget.product != null ? 'Add Audio Story' : 'Record Your Story',
             buttonIcon: Icons.mic,
+            hidePreview: true, // Hide recorder's own preview to avoid duplicates
             onAudioDataChanged: (audioFile, transcription, translations) {
               setState(() {
                 _audioStoryFile = audioFile;

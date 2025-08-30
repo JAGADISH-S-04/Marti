@@ -1,7 +1,8 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow authenticated users to read and write their own customer/retailer profile
+    // Users can read/write their own data
     match /customers/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
@@ -13,6 +14,7 @@ service cloud.firestore {
     
     match /retailers/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null; // Allow reading for marketplace discovery
       
       // Allow access to subcollections
       match /{subcollection=**} {
@@ -20,10 +22,69 @@ service cloud.firestore {
       }
     }
     
-    // Allow authenticated users to read and write product listings
+    // Products - sellers can CRUD their own, buyers can read
     match /products/{productId} {
-      allow read: if true; // Anyone can read products
-      allow write: if request.auth != null; // Only authenticated users can create/update products
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.artisanId;
+      
+      // Ensure required fields for AI processing
+      allow create, update: if validateProductData(request.resource.data);
+    }
+    
+    // Stores - sellers can manage their own, buyers can read
+    match /stores/{storeId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.sellerId || 
+         request.auth.uid == resource.data.ownerId);
+    }
+    
+    // Orders - buyers can read/write their own, sellers can read orders for their products
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.customerId;
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.artisanId;
+    }
+    
+    // Cart items - users can only access their own cart
+    match /cartItems/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Revenue metrics - only the artisan can access their metrics
+    match /revenueMetrics/{artisanId} {
+      allow read, write: if request.auth != null && request.auth.uid == artisanId;
+    }
+    
+    // Product metrics - artisan can read their product metrics
+    match /productMetrics/{productId} {
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/products/$(productId)) &&
+        get(/databases/$(database)/documents/products/$(productId)).data.artisanId == request.auth.uid;
+    }
+    
+    // Market insights - artisan can read their insights
+    match /marketInsights/{artisanId} {
+      allow read: if request.auth != null && request.auth.uid == artisanId;
+    }
+    
+    // Revenue optimization logs - artisan can read their logs
+    match /revenueOptimizationLogs/{logId} {
+      allow read: if request.auth != null && 
+        resource.data.artisanId == request.auth.uid;
+    }
+    
+    // Global translations - read-only for all authenticated users
+    match /globalTranslations/{translationId} {
+      allow read: if request.auth != null;
+    }
+    
+    // AI analysis results - artisan can read their analysis
+    match /aiAnalysis/{analysisId} {
+      allow read, write: if request.auth != null && 
+        resource.data.artisanId == request.auth.uid;
     }
     
     // Allow access to analytics for authenticated users
@@ -34,6 +95,23 @@ service cloud.firestore {
     // Allow authenticated users to read and write other collections
     match /{document=**} {
       allow read, write: if request.auth != null;
+    }
+    
+    // Helper functions
+    function validateProductData(data) {
+      return data.keys().hasAll(['name', 'description', 'price', 'category', 'artisanId']) &&
+             data.price is number && data.price > 0 &&
+             data.name is string && data.name.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.category is string && data.category.size() > 0;
+    }
+    
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null;
     }
   }
 }

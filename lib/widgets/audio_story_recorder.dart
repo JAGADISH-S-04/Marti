@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/gemini_service.dart';
 
 class AudioStoryRecorder extends StatefulWidget {
@@ -20,6 +21,7 @@ class AudioStoryRecorder extends StatefulWidget {
   final bool showAsButton;
   final String buttonText;
   final IconData buttonIcon;
+  final bool hidePreview; // New parameter to hide the recorder's own preview
 
   const AudioStoryRecorder({
     Key? key,
@@ -32,6 +34,7 @@ class AudioStoryRecorder extends StatefulWidget {
     this.showAsButton = false,
     this.buttonText = 'Record Story',
     this.buttonIcon = Icons.mic,
+    this.hidePreview = false, // Default to false for backward compatibility
   }) : super(key: key);
 
   @override
@@ -70,30 +73,43 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
     _loadPersistedAudioData();
   }
 
-  // Persistence methods
+  // Get user-specific persistence keys
+  String _getUserSpecificKey(String baseKey) {
+    // Use Firebase Auth current user ID or fallback to a default
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userId = user?.uid ?? 'anonymous_user';
+      return '${baseKey}_$userId';
+    } catch (e) {
+      print('Error getting user ID for persistence: $e');
+      return '${baseKey}_anonymous';
+    }
+  }
+
+  // Persistence methods with user-specific keys
   Future<void> _saveAudioDataToPersistence() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       // Save audio file path if exists
       if (_recordedAudioFile != null) {
-        await prefs.setString('audio_story_path', _recordedAudioFile!.path);
+        await prefs.setString(_getUserSpecificKey('audio_story_path'), _recordedAudioFile!.path);
       }
       
       // Save transcription
       if (_audioTranscription != null) {
-        await prefs.setString('audio_story_transcription', _audioTranscription!);
+        await prefs.setString(_getUserSpecificKey('audio_story_transcription'), _audioTranscription!);
       }
       
       // Save translations
       if (_audioTranslations.isNotEmpty) {
         final translationsJson = json.encode(_audioTranslations);
-        await prefs.setString('audio_story_translations', translationsJson);
+        await prefs.setString(_getUserSpecificKey('audio_story_translations'), translationsJson);
       }
       
       // Save last audio story
       if (_lastAudioStory.isNotEmpty) {
-        await prefs.setString('audio_story_last', _lastAudioStory);
+        await prefs.setString(_getUserSpecificKey('audio_story_last'), _lastAudioStory);
       }
       
     } catch (e) {
@@ -105,24 +121,24 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Load audio file path
-      final audioPath = prefs.getString('audio_story_path');
+      // Load audio file path with user-specific key
+      final audioPath = prefs.getString(_getUserSpecificKey('audio_story_path'));
       if (audioPath != null && await File(audioPath).exists()) {
         _recordedAudioFile = File(audioPath);
       }
       
-      // Load transcription
-      _audioTranscription = prefs.getString('audio_story_transcription');
+      // Load transcription with user-specific key
+      _audioTranscription = prefs.getString(_getUserSpecificKey('audio_story_transcription'));
       
-      // Load translations
-      final translationsJson = prefs.getString('audio_story_translations');
+      // Load translations with user-specific key
+      final translationsJson = prefs.getString(_getUserSpecificKey('audio_story_translations'));
       if (translationsJson != null) {
         final Map<String, dynamic> decoded = json.decode(translationsJson);
         _audioTranslations = decoded.cast<String, String>();
       }
       
-      // Load last audio story
-      _lastAudioStory = prefs.getString('audio_story_last') ?? '';
+      // Load last audio story with user-specific key
+      _lastAudioStory = prefs.getString(_getUserSpecificKey('audio_story_last')) ?? '';
       
       // Update UI if we have persisted data
       if (mounted && (_audioTranscription != null || _lastAudioStory.isNotEmpty)) {
@@ -137,10 +153,10 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
   Future<void> _clearPersistedAudioData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('audio_story_path');
-      await prefs.remove('audio_story_transcription');
-      await prefs.remove('audio_story_translations');
-      await prefs.remove('audio_story_last');
+      await prefs.remove(_getUserSpecificKey('audio_story_path'));
+      await prefs.remove(_getUserSpecificKey('audio_story_transcription'));
+      await prefs.remove(_getUserSpecificKey('audio_story_translations'));
+      await prefs.remove(_getUserSpecificKey('audio_story_last'));
     } catch (e) {
       print('Error clearing persisted audio data: $e');
     }
@@ -857,7 +873,8 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
           _buildRecordingButton(),
           if (_buildDurationDisplay() != null) _buildDurationDisplay()!,
           if (_buildProcessingIndicator() != null) _buildProcessingIndicator()!,
-          if (_buildStoryPreview() != null) _buildStoryPreview()!,
+          // Only show story preview if hidePreview is false
+          if (!widget.hidePreview && _buildStoryPreview() != null) _buildStoryPreview()!,
         ],
       );
     }
@@ -866,6 +883,9 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
       children: [
         _buildRecordingButton(),
         if (_buildDurationDisplay() != null) _buildDurationDisplay()!,
+        // Only show story preview if hidePreview is false
+        if (!widget.hidePreview && _buildProcessingIndicator() != null) _buildProcessingIndicator()!,
+        if (!widget.hidePreview && _buildStoryPreview() != null) _buildStoryPreview()!,
       ],
     );
   }

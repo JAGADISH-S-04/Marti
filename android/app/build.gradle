@@ -50,3 +50,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
 }
+
+// Exclude deprecated firebase-iid to avoid conflicts
+configurations.all {
+    exclude group: 'com.google.firebase', module: 'firebase-iid'
+}
