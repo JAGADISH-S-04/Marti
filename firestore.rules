@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own customer/retailer profile
+    match /customers/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow access to subcollections
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    match /retailers/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow access to subcollections
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Allow authenticated users to read and write product listings
+    match /products/{productId} {
+      allow read: if true; // Anyone can read products
+      allow write: if request.auth != null; // Only authenticated users can create/update products
+    }
+    
+    // Allow access to analytics for authenticated users
+    match /analytics/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write other collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,50 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and read product images
+    match /products/{allPaths=**} {
+      allow read, write: if request.auth != null 
+        && (resource == null || resource.metadata.uploadedBy == request.auth.uid)
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    // Allow authenticated users to upload profile images
+    match /profile_images/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null 
+        && (userId == request.auth.uid || resource == null)
+        && request.resource.size < 5 * 1024 * 1024; // 5MB limit
+    }
+    
+    // Allow authenticated users to upload craft request images organized by user
+    match /craft_requests/{userId}/{allPaths=**} {
+      allow read: if request.auth != null; // Anyone can read
+      allow write: if request.auth != null && userId == request.auth.uid
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    // Fallback for craft_requests without user organization (current code)
+    match /craft_requests/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    // Test uploads for debugging - anyone can upload small files
+    match /test_uploads/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.resource.size < 1 * 1024 * 1024; // 1MB limit
+    }
+    
+    // General uploads folder - broad access for authenticated users
+    match /uploads/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    // Root level - only allow read for public content
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+  }
+}

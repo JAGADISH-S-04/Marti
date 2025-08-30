@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and read images in products folder
+    match /products/{allPaths=**} {
+      allow read: if true; // Anyone can read product images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Allow authenticated users to upload and read their own profile images
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to upload and read images in general uploads folder
+    match /uploads/{allPaths=**} {
+      allow read: if true; // Anyone can read uploaded images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+  }
+}
