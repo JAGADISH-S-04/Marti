@@ -3,6 +3,7 @@ import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/craft_it/craft_it_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
+import 'package:arti/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,32 +40,14 @@ class _BottomAppNavigatorState extends State<BottomAppNavigator> {
 
   Future<void> _checkUserType() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Check if user is a retailer
-        final retailerDoc = await FirebaseFirestore.instance
-            .collection('retailers')
-            .doc(user.uid)
-            .get();
-
-        if (retailerDoc.exists) {
-          // User is a retailer, redirect to seller screen
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SellerScreen(),
-            ),
-            (route) => false,
-          );
-          return;
-        }
-      }
+      // Save that user is currently on buyer screen
+      await StorageService.saveCurrentScreen('buyer');
       
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error checking user type: $e');
+      print('Error saving current screen: $e');
       setState(() {
         _isLoading = false;
       });

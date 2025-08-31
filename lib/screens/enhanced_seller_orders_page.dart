@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:arti/models/order.dart';
 import 'package:arti/services/order_service.dart';
 import 'package:arti/services/user_profile_service.dart';
+import 'package:arti/services/revenue_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class SellerOrdersPage extends StatefulWidget {
   const SellerOrdersPage({Key? key}) : super(key: key);
@@ -28,12 +30,18 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
   // Statistics
   Map<String, dynamic> _orderStats = {};
   bool _isLoadingStats = true;
+  
+  // Revenue Data
+  List<RevenueData> _revenueData = [];
+  Map<String, dynamic> _revenueAnalytics = {};
+  bool _isLoadingRevenue = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadOrderStatistics();
+    _loadRevenueData();
     _trackSellerActivity();
   }
 
@@ -54,6 +62,52 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
       print('❌ Error loading seller statistics: $e');
       setState(() {
         _isLoadingStats = false;
+      });
+    }
+  }
+
+  Future<void> _loadRevenueData() async {
+    try {
+      setState(() {
+        _isLoadingRevenue = true;
+      });
+
+      print('🔄 Loading revenue data...');
+      
+      // First recalculate revenue from existing orders
+      await RevenueService.recalculateAllRevenue();
+      
+      // Then get the revenue data
+      final revenueData = await RevenueService.getDailyRevenue(days: 30);
+      final analytics = await RevenueService.getRevenueAnalytics();
+
+      // If no data exists, create sample data for testing
+      if (revenueData.every((data) => data.revenue == 0)) {
+        print('📝 No revenue data found, creating sample data for testing...');
+        await RevenueService.createSampleRevenueData();
+        
+        // Reload data after creating samples
+        final newRevenueData = await RevenueService.getDailyRevenue(days: 30);
+        final newAnalytics = await RevenueService.getRevenueAnalytics();
+        
+        setState(() {
+          _revenueData = newRevenueData;
+          _revenueAnalytics = newAnalytics;
+          _isLoadingRevenue = false;
+        });
+      } else {
+        setState(() {
+          _revenueData = revenueData;
+          _revenueAnalytics = analytics;
+          _isLoadingRevenue = false;
+        });
+      }
+
+      print('📊 Revenue data loaded: ${_revenueData.length} days of data');
+    } catch (e) {
+      print('❌ Error loading revenue data: $e');
+      setState(() {
+        _isLoadingRevenue = false;
       });
     }
   }
@@ -87,8 +141,10 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
             onPressed: () {
               setState(() {
                 _isLoadingStats = true;
+                _isLoadingRevenue = true;
               });
               _loadOrderStatistics();
+              _loadRevenueData();
             },
           ),
           IconButton(
@@ -243,176 +299,40 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
   }
 
   Widget _buildAnalyticsTab() {
+    if (_isLoadingRevenue) {
+      return const Center(
+        child: CircularProgressIndicator(color: accentGold),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Performance Analytics',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: primaryBrown,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Revenue Chart Placeholder
-          Container(
-            height: 200,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Revenue Analytics',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: primaryBrown,
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Revenue Analytics',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: primaryBrown,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.analytics, size: 64, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Analytics Coming Soon',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Performance Metrics
-          _buildPerformanceMetrics(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPerformanceMetrics() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Key Metrics',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: primaryBrown,
-          ),
-        ),
-        const SizedBox(height: 16),
-        
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Avg. Processing Time',
-                '${_orderStats['avgProcessingTime'] ?? 2} days',
-                Icons.schedule,
-                accentGold,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                'Customer Rating',
-                '${_orderStats['avgRating'] ?? 4.5}/5',
-                Icons.star,
-                successGreen,
+              IconButton(
+                onPressed: _loadRevenueData,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Revenue Data',
+                color: primaryBrown,
               ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 12),
-        
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Completion Rate',
-                '${_orderStats['completionRate'] ?? 95}%',
-                Icons.check_circle,
-                successGreen,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                'Return Rate',
-                '${_orderStats['returnRate'] ?? 2}%',
-                Icons.keyboard_return,
-                warningOrange,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: primaryBrown,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: 16),
+          _buildRevenueChart(),
+          const SizedBox(height: 24),
+          _buildAnalyticsSummary(),
         ],
       ),
     );
@@ -1339,6 +1259,315 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRevenueChart() {
+    return Container(
+      height: 350, // Increased height to prevent overflow
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Revenue Analytics (30 Days)',
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: primaryBrown,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _revenueData.isEmpty 
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.analytics_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No revenue data available',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Complete some orders to see analytics',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: _getChartInterval(),
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey.withOpacity(0.3),
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 35,
+                            interval: 5, // Show every 5th day
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              final index = value.toInt();
+                              if (index >= 0 && index < _revenueData.length) {
+                                final date = _revenueData[index].date;
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      DateFormat('MM/dd').format(date),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox();
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: _getChartInterval(),
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              return Text(
+                                '₹${_formatRevenue(value)}',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              );
+                            },
+                            reservedSize: 45,
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      ),
+                      minX: 0,
+                      maxX: (_revenueData.length - 1).toDouble(),
+                      minY: 0,
+                      maxY: _getMaxRevenue(),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: _generateChartSpots(),
+                          isCurved: true,
+                          gradient: LinearGradient(
+                            colors: [
+                              accentGold.withOpacity(0.8),
+                              accentGold,
+                            ],
+                          ),
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              return FlDotCirclePainter(
+                                radius: 3,
+                                color: accentGold,
+                                strokeWidth: 2,
+                                strokeColor: Colors.white,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              colors: [
+                                accentGold.withOpacity(0.3),
+                                accentGold.withOpacity(0.1),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<FlSpot> _generateChartSpots() {
+    return _revenueData.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), entry.value.revenue);
+    }).toList();
+  }
+
+  double _getMaxRevenue() {
+    if (_revenueData.isEmpty) return 1000;
+    final maxRevenue = _revenueData.map((e) => e.revenue).reduce((a, b) => a > b ? a : b);
+    return maxRevenue > 0 ? maxRevenue * 1.2 : 1000; // Add 20% padding
+  }
+
+  double _getChartInterval() {
+    final maxRevenue = _getMaxRevenue();
+    if (maxRevenue <= 1000) return 200;
+    if (maxRevenue <= 5000) return 1000;
+    if (maxRevenue <= 10000) return 2000;
+    return 5000;
+  }
+
+  String _formatRevenue(double value) {
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    }
+    return value.toInt().toString();
+  }
+
+  Widget _buildAnalyticsSummary() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildAnalyticsCard(
+                'Total Revenue',
+                '₹${(_revenueAnalytics['last30DaysTotal'] ?? 0.0).toStringAsFixed(0)}',
+                Icons.currency_rupee,
+                successGreen,
+                '${(_revenueAnalytics['growthPercentage'] ?? 0.0) >= 0 ? '+' : ''}${(_revenueAnalytics['growthPercentage'] ?? 0.0).toStringAsFixed(1)}%',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildAnalyticsCard(
+                'Avg Daily Revenue',
+                '₹${(_revenueAnalytics['avgDailyRevenue'] ?? 0.0).toStringAsFixed(0)}',
+                Icons.shopping_cart,
+                accentGold,
+                'Last 30 days',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildAnalyticsCard(
+                'Today\'s Revenue',
+                '₹${(_revenueAnalytics['todayRevenue'] ?? 0.0).toStringAsFixed(0)}',
+                Icons.today,
+                primaryBrown,
+                'Today',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildAnalyticsCard(
+                'This Month',
+                '₹${(_revenueAnalytics['monthRevenue'] ?? 0.0).toStringAsFixed(0)}',
+                Icons.calendar_month,
+                successGreen,
+                'Monthly total',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsCard(String title, String value, IconData icon, Color color, String change) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const Spacer(),
+              Text(
+                change,
+                style: TextStyle(
+                  color: change.contains('%') 
+                      ? (change.startsWith('+') ? successGreen : errorRed)
+                      : Colors.grey[600],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primaryBrown,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }

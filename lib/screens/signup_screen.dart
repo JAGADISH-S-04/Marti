@@ -5,6 +5,7 @@ import 'package:arti/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:arti/services/firestore_service.dart';
+import 'package:arti/services/storage_service.dart';
 import 'package:arti/screens/complete_profile_screen.dart';
 import 'package:arti/navigation/bottom_app_navigator.dart';
 
@@ -317,11 +318,20 @@ void _navigateToHome() async {
   _showSnackBar(
       'Signup successful as ${isRetailer ? "Retailer" : "Customer"}!');
 
+  // Save login state
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    await StorageService.saveLoginState(
+      user.email!,
+      isRetailer ? 'retailer' : 'customer'
+    );
+    await StorageService.saveCurrentScreen(isRetailer ? 'seller' : 'buyer');
+  }
+
   // Add a small delay to show the success message
   await Future.delayed(const Duration(seconds: 1));
 
   try {
-    final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       return;

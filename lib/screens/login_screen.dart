@@ -34,7 +34,13 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _storeUserType() async {
-    await StorageService.saveUserType(isRetailer ? 'retailer' : 'customer');
+    final userType = isRetailer ? 'retailer' : 'customer';
+    final screen = isRetailer ? 'seller' : 'buyer';
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await StorageService.saveLoginState(user.email!, userType);
+      await StorageService.saveCurrentScreen(screen);
+    }
   }
 
   Future<void> _signInWithEmailAndPassword() async {

@@ -2,6 +2,7 @@ import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:arti/services/firestore_service.dart';
+import 'package:arti/services/storage_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -102,6 +103,13 @@ void _navigateToHome() async {
   try {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    // Save login state
+    await StorageService.saveLoginState(
+      user.email!,
+      widget.isRetailer ? 'retailer' : 'customer'
+    );
+    await StorageService.saveCurrentScreen(widget.isRetailer ? 'seller' : 'buyer');
 
     // Use the widget.isRetailer property directly since we know what type of account was just created
     if (widget.isRetailer) {

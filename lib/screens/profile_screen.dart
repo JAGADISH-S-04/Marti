@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'orders_page.dart';
 import '../services/user_profile_service.dart';
+import '../services/storage_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -356,11 +357,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () async {
-                await UserProfileService.trackUserActivity('logout', {
-                  'timestamp': DateTime.now().toIso8601String(),
-                });
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
+                try {
+                  await UserProfileService.trackUserActivity('logout', {
+                    'timestamp': DateTime.now().toIso8601String(),
+                  });
+                  
+                  // Sign out from Firebase
+                  await FirebaseAuth.instance.signOut();
+                  
+                  // Clear stored authentication state
+                  await StorageService.clearUserType();
+                  
+                  // Navigate to login screen
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/login', (route) => false);
+                } catch (e) {
+                  print('Error during logout: $e');
+                  // Still navigate to login even if there's an error
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/login', (route) => false);
+                }
               },
               icon: const Icon(Icons.logout, size: 20),
               label: Text(
