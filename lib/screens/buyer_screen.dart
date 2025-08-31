@@ -1,4 +1,5 @@
 import 'package:arti/screens/store_product_screen.dart';
+import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/widgets/store_audio_story_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -88,77 +89,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
         await batch.commit();
         print('Sample stores created successfully');
       }
-    }
-      bool shouldLogout = await showDialog<bool>(
-            context: context,
-            barrierDismissible: true,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: Text(
-                  'Logout',
-                  style: TextStyle(
-                    color: primaryBrown,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-                content: const Text(
-                  'Are you sure you want to logout?',
-                  style: TextStyle(fontSize: 16),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBrown,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Logout'),
-                  ),
-                ],
-              );
-            },
-          ) ??
-          false;
-
-      if (!shouldLogout) return;
-
-      await FirebaseAuth.instance.signOut();
-      await GoogleSignIn().signOut();
-
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
     } catch (e) {
-      print("Logout error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error logging out: $e'),
-            backgroundColor: Colors.red,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
       print('Failed to create sample stores: $e');
       // This is not critical, just for development
     }
@@ -265,12 +196,12 @@ class _BuyerScreenState extends State<BuyerScreen> {
   void _showLocationPicker() {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           height: 300,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,13 +214,13 @@ class _BuyerScreenState extends State<BuyerScreen> {
                   color: primaryBrown,
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               
               // Use Current Location
               ListTile(
                 leading: Icon(Icons.my_location, color: primaryBrown),
-                title: Text('Use Current Location'),
-                subtitle: Text('GPS will detect your location'),
+                title: const Text('Use Current Location'),
+                subtitle: const Text('GPS will detect your location'),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _userAddress = 'Fetching location...');
@@ -297,25 +228,25 @@ class _BuyerScreenState extends State<BuyerScreen> {
                 },
               ),
               
-              Divider(),
+              const Divider(),
               
               // Manual Location Entry
               ListTile(
                 leading: Icon(Icons.edit_location, color: primaryBrown),
-                title: Text('Enter Manually'),
-                subtitle: Text('Type your location'),
+                title: const Text('Enter Manually'),
+                subtitle: const Text('Type your location'),
                 onTap: () {
                   Navigator.pop(context);
                   _showLocationDialog();
                 },
               ),
               
-              Divider(),
+              const Divider(),
               
               // Preset Locations
               ListTile(
                 leading: Icon(Icons.location_city, color: primaryBrown),
-                title: Text('Mumbai, Maharashtra'),
+                title: const Text('Mumbai, Maharashtra'),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _userAddress = 'Mumbai, Maharashtra');
@@ -324,7 +255,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
               
               ListTile(
                 leading: Icon(Icons.location_city, color: primaryBrown),
-                title: Text('Delhi, India'),
+                title: const Text('Delhi, India'),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _userAddress = 'Delhi, India');
@@ -389,7 +320,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                   Navigator.pop(context);
                 }
               },
-              child: Text('Set Location'),
+              child: const Text('Set Location'),
             ),
           ],
         );
@@ -484,7 +415,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                     ),
                     SizedBox(width: screenSize.width * 0.03),
                     // Cart button
-                    Container(
+                    SizedBox(
                       height: 50,
                       width: 50,
                       child: InkWell(
@@ -518,7 +449,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       color: Colors.white,
                       size: 20,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: GestureDetector(
                         onTap: _showLocationPicker,
@@ -638,10 +569,12 @@ class _BuyerScreenState extends State<BuyerScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: screenSize.height * 0.015),
+                  ),
+                  
+                  SizedBox(height: screenSize.height * 0.015),
 
-                    // Stores list with enhanced error handling
-                    FutureBuilder<QuerySnapshot>(
+                  // Stores list with enhanced error handling
+                  FutureBuilder<QuerySnapshot>(
                       future: _fetchStoresWithFallback(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -784,47 +717,8 @@ class _BuyerScreenState extends State<BuyerScreen> {
                           itemBuilder: (context, index) =>
                               _buildStoreCard(filteredStores[index]),
                         );
-                      }
-
-                      if (snapshot.hasError) {
-                        print('Firestore error: ${snapshot.error}');
-                      }
-
-                      final stores = snapshot.data?.docs ?? [];
-                      print('Found ${stores.length} stores in database');
-
-                      // Filter stores by search query
-                      final filteredStores = _searchQuery.isEmpty
-                          ? stores
-                          : stores.where((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              final name = (data['storeName'] ?? '')
-                                  .toString()
-                                  .toLowerCase();
-                              final description = (data['description'] ??
-                                      data['storeDescription'] ??
-                                      '')
-                                  .toString()
-                                  .toLowerCase();
-                              final type = (data['storeType'] ?? '')
-                                  .toString()
-                                  .toLowerCase();
-                              return name.contains(_searchQuery) ||
-                                  description.contains(_searchQuery) ||
-                                  type.contains(_searchQuery);
-                            }).toList();
-
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.symmetric(
-                            horizontal: screenSize.width * 0.04),
-                        itemCount: filteredStores.length,
-                        itemBuilder: (context, index) =>
-                            _buildStoreCard(filteredStores[index]),
-                      );
-                    },
-                  ),
+                      },
+                    ),
 
                   SizedBox(height: screenSize.height * 0.025),
                 ],

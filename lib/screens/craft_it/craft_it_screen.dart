@@ -124,7 +124,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
 
   Future<void> _pickImages() async {
     final ImagePicker picker = ImagePicker();
-    final List<XFile>? images = await picker.pickMultiImage();
+    final List<XFile> images = await picker.pickMultiImage();
 
     if (images != null && images.length <= 5) {
       setState(() {
@@ -164,7 +164,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
 
         // Wait for upload to complete with timeout
         TaskSnapshot snapshot = await uploadTask.timeout(
-          Duration(minutes: 2),
+          const Duration(minutes: 2),
           onTimeout: () {
             uploadTask.cancel();
             throw Exception('Upload timeout for image ${i + 1}');
@@ -231,7 +231,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           if (imageUrls.isEmpty && _selectedImages.isNotEmpty) {
             // Show warning but continue
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text(
                     'Images failed to upload, but request will be submitted without images.'),
                 backgroundColor: Colors.orange,
@@ -243,7 +243,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           print('Image upload error: $e');
           // Continue without images
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                   'Images failed to upload. Submitting request without images.'),
               backgroundColor: Colors.orange,
@@ -395,8 +395,9 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value?.isEmpty ?? true) return 'Budget is required';
-                      if (double.tryParse(value!) == null)
+                      if (double.tryParse(value!) == null) {
                         return 'Enter valid amount';
+                      }
                       return null;
                     },
                   ),
@@ -529,7 +530,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           Row(
             children: [
               Icon(Icons.image, color: widget.primaryBrown),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'Reference Images (Optional)',
                 style: TextStyle(
@@ -540,7 +541,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             'Upload up to 5 images to help artisans understand your vision',
             style: TextStyle(
@@ -548,7 +549,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
               color: Colors.grey.shade600,
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           // Image Grid
           if (_selectedImages.isNotEmpty) ...[
@@ -600,7 +601,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
                 );
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
           ],
 
           // Upload Button
@@ -741,7 +742,7 @@ class MyRequestsTab extends StatelessWidget {
             size: 64,
             color: Colors.grey.shade400,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'No active requests',
             style: TextStyle(
@@ -749,7 +750,7 @@ class MyRequestsTab extends StatelessWidget {
               color: Colors.grey.shade600,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Create your first custom craft request!',
             style: TextStyle(
@@ -827,14 +828,14 @@ class RequestCard extends StatelessWidget {
           'Cancel Request',
           style: TextStyle(color: primaryBrown, fontWeight: FontWeight.bold),
         ),
-        content: Text(
+        content: const Text(
           'Are you sure you want to cancel this request? This action cannot be undone and the request will be removed from your list.',
           style: TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('No', style: TextStyle(color: Colors.grey)),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -842,7 +843,7 @@ class RequestCard extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Yes, Cancel'),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
@@ -861,7 +862,7 @@ class RequestCard extends StatelessWidget {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Request cancelled and removed from your list'),
+            content: const Text('Request cancelled and removed from your list'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -944,13 +945,13 @@ class RequestCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           // Category and Budget
           Row(
             children: [
               Icon(Icons.category, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Text(
                 data['category'] ?? '',
                 style: TextStyle(
@@ -958,9 +959,9 @@ class RequestCard extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Icon(Icons.currency_rupee, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Text(
                 '₹${data['budget']?.toString() ?? '0'}',
                 style: TextStyle(
@@ -971,7 +972,7 @@ class RequestCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // Description
           Text(
@@ -984,13 +985,13 @@ class RequestCard extends StatelessWidget {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           // Quotations count and action buttons
           Row(
             children: [
               Icon(Icons.format_quote, size: 16, color: primaryBrown),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Text(
                 '${quotations.length} Quotation${quotations.length != 1 ? 's' : ''}',
                 style: TextStyle(
@@ -1004,16 +1005,16 @@ class RequestCard extends StatelessWidget {
               if (canCancel) ...[
                 TextButton.icon(
                   onPressed: () => _cancelRequest(context),
-                  icon: Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
-                  label: Text(
+                  icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
+                  label: const Text(
                     'Cancel',
                     style: TextStyle(color: Colors.red),
                   ),
                   style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
               ],
               TextButton(
                 onPressed: () {

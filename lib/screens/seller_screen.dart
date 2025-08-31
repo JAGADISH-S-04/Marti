@@ -9,6 +9,8 @@ import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'store_audio_management_page.dart';
 import 'craft_it/seller_view.dart';
+import 'seller_orders_page.dart';
+import '../services/order_service.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({super.key});
@@ -20,11 +22,14 @@ class MyStoreScreen extends StatefulWidget {
 class _MyStoreScreenState extends State<MyStoreScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _storeData;
+  final OrderService _orderService = OrderService();
+  int _orderCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadStoreData();
+    _loadOrderCount();
   }
 
   Future<void> _loadStoreData() async {
@@ -59,6 +64,29 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
       );
     }
   }
+
+  Future<void> _loadOrderCount() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Listen to the stream and get the first result
+        _orderService.getSellerOrders().listen((orders) {
+          if (mounted) {
+            setState(() {
+              _orderCount = orders.length;
+            });
+          }
+        }).onError((error) {
+          print('Error loading order count: $error');
+        });
+      }
+    } catch (e) {
+      print('Error loading order count: $e');
+      // Keep _orderCount as 0 if there's an error
+    }
+  }
+
+  String get orderCountText => _orderCount.toString();
 
   Future<void> _logout() async {
     try {
@@ -345,6 +373,28 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     label: const Text('Add Product'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),
+                      foregroundColor: Colors.white,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SellerOrdersPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt, size: 18),
+                    label: const Text('Orders'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8B4513),
                       foregroundColor: Colors.white,
                       padding:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -780,6 +830,14 @@ class SellerScreen extends StatelessWidget {
                               'Orders',
                               '0',
                               Icons.shopping_bag,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SellerOrdersPage(),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -877,9 +935,10 @@ class SellerScreen extends StatelessWidget {
     BuildContext context,
     String title,
     String value,
-    IconData icon,
-  ) {
-    return Container(
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
+    Widget cardContent = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -929,5 +988,15 @@ class SellerScreen extends StatelessWidget {
         ],
       ),
     );
+
+    // If onTap is provided, wrap with GestureDetector for clickability
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 }

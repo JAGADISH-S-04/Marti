@@ -1,12 +1,6 @@
 import 'package:arti/models/product.dart';
+import 'package:arti/models/cart_item.dart';
 import 'package:flutter/foundation.dart';
-
-class CartItem {
-  final Product product;
-  int quantity;
-
-  CartItem({required this.product, this.quantity = 1});
-}
 
 class CartService with ChangeNotifier {
   final Map<String, CartItem> _items = {};
@@ -39,6 +33,23 @@ class CartService with ChangeNotifier {
       );
     }
     notifyListeners();
+  }
+
+  void updateQuantity(String productId, int newQuantity) {
+    if (_items.containsKey(productId)) {
+      if (newQuantity <= 0) {
+        removeItem(productId);
+      } else {
+        _items.update(
+          productId,
+          (existingCartItem) => CartItem(
+            product: existingCartItem.product,
+            quantity: newQuantity,
+          ),
+        );
+        notifyListeners();
+      }
+    }
   }
 
   void removeItem(String productId) {

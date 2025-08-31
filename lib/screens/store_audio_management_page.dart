@@ -88,7 +88,7 @@ class _StoreAudioManagementPageState extends State<StoreAudioManagementPage> {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.warning, color: Colors.orange),
+              const Icon(Icons.warning, color: Colors.orange),
               const SizedBox(width: 8),
               Text(
                 'Delete Audio Story',
@@ -263,7 +263,7 @@ class _StoreAudioManagementPageState extends State<StoreAudioManagementPage> {
                       color: accentGold.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.store,
                       color: primaryBrown,
                       size: 24,
@@ -419,7 +419,7 @@ class _StoreAudioManagementPageState extends State<StoreAudioManagementPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.tips_and_updates, color: accentGold, size: 24),
+                    const Icon(Icons.tips_and_updates, color: accentGold, size: 24),
                     const SizedBox(width: 8),
                     Text(
                       'Why Add an Audio Story?',

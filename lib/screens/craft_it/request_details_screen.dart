@@ -76,7 +76,7 @@ class RequestDetailScreen extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.format_quote, color: primaryBrown),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
                             'Quotations (${quotations.length})',
                             style: TextStyle(
@@ -87,7 +87,7 @@ class RequestDetailScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       
                       if (quotations.isEmpty)
                         Center(
@@ -98,7 +98,7 @@ class RequestDetailScreen extends StatelessWidget {
                                 size: 48,
                                 color: Colors.grey.shade400,
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Text(
                                 'No quotations yet',
                                 style: TextStyle(
@@ -168,23 +168,23 @@ class RequestDetailScreen extends StatelessWidget {
               color: primaryBrown,
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           
           // Category, Budget, Deadline
           Row(
             children: [
               _buildInfoChip(Icons.category, data['category'] ?? ''),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               _buildInfoChip(Icons.currency_rupee, '₹${data['budget']?.toString() ?? '0'}'),
             ],
           ),
           
           if (data['deadline']?.isNotEmpty ?? false) ...[
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             _buildInfoChip(Icons.schedule, 'Deadline: ${data['deadline']}'),
           ],
           
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           
           // Description
           Text(
@@ -195,7 +195,7 @@ class RequestDetailScreen extends StatelessWidget {
               color: primaryBrown,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             data['description'] ?? '',
             style: TextStyle(
@@ -207,7 +207,7 @@ class RequestDetailScreen extends StatelessWidget {
           
           // Images
           if (images.isNotEmpty) ...[
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               'Reference Images',
               style: TextStyle(
@@ -216,7 +216,7 @@ class RequestDetailScreen extends StatelessWidget {
                 color: primaryBrown,
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             SizedBox(
               height: 120,
               child: ListView.builder(
@@ -255,7 +255,7 @@ class RequestDetailScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: primaryBrown),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Text(
             text,
             style: TextStyle(
@@ -293,7 +293,7 @@ class RequestDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +331,7 @@ class RequestDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           
           if (quotation['message']?.isNotEmpty ?? false) ...[
             Text(
@@ -341,13 +341,13 @@ class RequestDetailScreen extends StatelessWidget {
                 color: Colors.grey.shade700,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
           ],
           
           Row(
             children: [
               Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Text(
                 'Delivery: ${quotation['deliveryTime'] ?? 'Not specified'}',
                 style: TextStyle(

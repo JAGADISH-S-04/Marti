@@ -1,4 +1,5 @@
 import 'package:arti/navigation/bottom_app_navigator.dart';
+import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:arti/services/storage_service.dart';

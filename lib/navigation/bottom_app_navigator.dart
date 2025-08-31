@@ -25,7 +25,7 @@ class BottomAppNavigator extends StatefulWidget {
 class _BottomAppNavigatorState extends State<BottomAppNavigator> {
   late int _selectedIndex;
   bool _isLoading = true;
-  bool _isRetailer = false;
+  final bool _isRetailer = false;
   
   // Using the seed color
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);

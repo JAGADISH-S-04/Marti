@@ -1,4 +1,3 @@
-import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/navigation/bottom_app_navigator.dart';
 import 'package:flutter/material.dart';

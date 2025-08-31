@@ -57,7 +57,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
               setState(() {}); // Force refresh
             },
@@ -120,8 +120,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(color: primaryBrown),
-                        SizedBox(height: 16),
-                        Text('Loading requests...'),
+                        const SizedBox(height: 16),
+                        const Text('Loading requests...'),
                       ],
                     ),
                   );
@@ -132,26 +132,26 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error, color: Colors.red, size: 48),
-                        SizedBox(height: 16),
-                        Text(
+                        const Icon(Icons.error, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        const Text(
                           'Error loading requests',
                           style: TextStyle(fontSize: 16, color: Colors.red),
                         ),
-                        SizedBox(height: 8),
-                        Text(
+                        const SizedBox(height: 8),
+                        const Text(
                           'Please check your internet connection and try again',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => setState(() {}),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryBrown,
                             foregroundColor: Colors.white,
                           ),
-                          child: Text('Retry'),
+                          child: const Text('Retry'),
                         ),
                       ],
                     ),
@@ -191,7 +191,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                           size: 64,
                           color: Colors.grey.shade400,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           selectedFilter == 'all' 
                               ? 'No active craft requests found'
@@ -201,7 +201,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Check back later for new requests',
                           style: TextStyle(
@@ -209,11 +209,11 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                             color: Colors.grey.shade500,
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         ElevatedButton.icon(
                           onPressed: () => setState(() {}),
-                          icon: Icon(Icons.refresh),
-                          label: Text('Refresh'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryBrown,
                             foregroundColor: Colors.white,
@@ -231,7 +231,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     final request = activeRequests[index];
                     final data = request.data() as Map<String, dynamic>;
                     
-                    print('Request ${index}: ${data['title']} - Status: ${data['status']}');
+                    print('Request $index: ${data['title']} - Status: ${data['status']}');
                     
                     return _buildRequestCard(context, request.id, data);
                   },
@@ -505,7 +505,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     prefixIcon: Icon(Icons.currency_rupee, color: primaryBrown),
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextField(
                   controller: deliveryController,
                   decoration: InputDecoration(
@@ -515,7 +515,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     prefixIcon: Icon(Icons.schedule, color: primaryBrown),
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextField(
                   controller: messageController,
                   maxLines: 3,
