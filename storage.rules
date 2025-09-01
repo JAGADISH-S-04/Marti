@@ -1,21 +1,83 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow authenticated users to upload and read images in products folder
+    // Buyer display structure: buyer_display/{sellerName}/{productName}/images/
+    match /buyer_display/{sellerName}/{productName}/images/{imageId} {
+      allow read: if true; // Anyone can read product images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Buyer display structure: buyer_display/{sellerName}/{productName}/audios/
+    match /buyer_display/{sellerName}/{productName}/audios/{audioId} {
+      allow read: if true; // Anyone can read product audios
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Simplified organized structure: buyer_display/products/{productName}/images/
+    match /buyer_display/products/{productName}/images/{imageId} {
+      allow read: if true; // Anyone can read product images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Simplified organized structure: buyer_display/products/{productName}/audios/
+    match /buyer_display/products/{productName}/audios/{audioId} {
+      allow read: if true; // Anyone can read product audios
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Buyer display audio stories: buyer_display/{sellerName}/audio/
+    match /buyer_display/{sellerName}/audio/{audioId} {
+      allow read: if true; // Anyone can read audio stories
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Legacy products folder for backward compatibility
     match /products/{allPaths=**} {
       allow read: if true; // Anyone can read product images
       allow write: if request.auth != null; // Only authenticated users can upload
     }
     
-    // Allow authenticated users to upload and read their own profile images
+    // Legacy audio stories path for backward compatibility
+    match /products/audio_stories/{fileName} {
+      allow read: if true; // Anyone can read audio stories
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // User profile images
     match /users/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Allow authenticated users to upload and read images in general uploads folder
+    // Seller profile and banner images
+    match /sellers/{sellerId}/profile/{imageId} {
+      allow read: if true; // Anyone can read seller profile images
+      allow write: if request.auth != null && request.auth.uid == sellerId;
+    }
+    
+    // Product videos
+    match /videos/{sellerId}/{productName}/{videoId} {
+      allow read: if true; // Anyone can read product videos
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // General uploads folder for temporary files
     match /uploads/{allPaths=**} {
       allow read: if true; // Anyone can read uploaded images
       allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // User uploads with organized structure - fallback with userID prefix
+    match /buyer_display/{sellerName}/{userProductName}/images/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+                   userProductName.matches('^' + request.auth.uid + '_.*');
+    }
+    
+    // User uploads with organized structure - audios with userID prefix
+    match /buyer_display/{sellerName}/{userProductName}/audios/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+                   userProductName.matches('^' + request.auth.uid + '_.*');
     }
   }
 }

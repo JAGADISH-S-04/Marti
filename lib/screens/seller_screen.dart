@@ -14,6 +14,7 @@ import 'login_screen.dart';
 import 'store_audio_management_page.dart';
 import 'craft_it/seller_view.dart';
 import 'seller_orders_page.dart';
+import 'admin/product_migration_screen.dart';
 import '../services/order_service.dart';
 
 class MyStoreScreen extends StatefulWidget {
@@ -173,6 +174,46 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: Text(
+          'My Store',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF2C1810),
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+        actions: [
+          if (_storeData != null) // Only show migrate button if store exists
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProductMigrationScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.cloud_upload, size: 18),
+                label: const Text('Migrate'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _storeData == null
@@ -415,6 +456,28 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     label: const Text('Orders'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8B4513),
+                      foregroundColor: Colors.white,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProductMigrationScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.cloud_upload, size: 18),
+                    label: const Text('Migrate'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
                       foregroundColor: Colors.white,
                       padding:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

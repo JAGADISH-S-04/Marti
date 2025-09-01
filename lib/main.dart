@@ -8,6 +8,7 @@ import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/product_detail_screen.dart';
 import 'package:arti/screens/add_product_screen.dart';
+import 'package:arti/screens/admin/product_migration_screen.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -132,6 +133,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/product-detail': (context) => const ProductDetailScreen(),
         '/add-product': (context) => const AddProductScreen(),
+        '/migration': (context) => const ProductMigrationScreen(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const BottomAppNavigator(),

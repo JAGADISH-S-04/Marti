@@ -1,2 +1,0 @@
-C:/Users/Madv6/GoogleArt/Arti/android/app/.cxx/Debug/k2w6v701/x86_64/CMakeFiles/edit_cache.dir
-C:/Users/Madv6/GoogleArt/Arti/android/app/.cxx/Debug/k2w6v701/x86_64/CMakeFiles/rebuild_cache.dir

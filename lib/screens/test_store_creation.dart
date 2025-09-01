@@ -64,8 +64,30 @@ class _TestStoreCreationScreenState extends State<TestStoreCreationScreen> {
         'createdAt': DateTime.now().millisecondsSinceEpoch,
       });
 
-      // Create a simple product
-      await FirebaseFirestore.instance.collection('products').add({
+      // Create a simple product with organized storage
+      final productRef = FirebaseFirestore.instance.collection('products').doc();
+      final productId = productRef.id;
+      final sellerName = _storeNameController.text.trim();
+      
+      // Create storage metadata for organized structure
+      final cleanSellerName = sellerName
+          .replaceAll(RegExp(r'[^\w\-_\.]'), '_')
+          .replaceAll(RegExp(r'_+'), '_')
+          .toLowerCase();
+      
+      final storageInfo = {
+        'sellerFolderName': cleanSellerName,
+        'mainImagePath': 'buyer_display/$cleanSellerName/$productId/images/',
+        'additionalImagesPath': 'buyer_display/$cleanSellerName/$productId/images/',
+        'videoPath': 'videos/$cleanSellerName/$productId/',
+        'audioPath': 'buyer_display/$cleanSellerName/$productId/audios/',
+        'creationDate': DateTime.now().toIso8601String(),
+        'storageVersion': '2.0', // Mark as new structure - NO MIGRATION NEEDED
+        'autoOrganized': true,
+      };
+      
+      await productRef.set({
+        'id': productId,
         'name': _productNameController.text.trim(),
         'description': 'Test product',
         'price': double.tryParse(_productPriceController.text.trim()) ?? 100.0,
@@ -78,6 +100,7 @@ class _TestStoreCreationScreenState extends State<TestStoreCreationScreen> {
         'timestamp': FieldValue.serverTimestamp(),
         'isAvailable': true,
         'rating': 4.0,
+        'storageInfo': storageInfo, // Include organized storage metadata
         'createdAt': DateTime.now().toIso8601String(),
       });
 
