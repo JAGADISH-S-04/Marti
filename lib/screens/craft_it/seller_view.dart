@@ -137,7 +137,6 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
               ],
             ),
           ),
-
           // Requests List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(

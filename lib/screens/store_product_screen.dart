@@ -124,7 +124,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       }
     } catch (e) {
       print('Critical error in product fetching: $e');
-      throw e;
+      rethrow;
     }
   }
 

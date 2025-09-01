@@ -156,7 +156,7 @@ class ProductDetailScreen extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.description,
                               color: accentGold,
                               size: 20,

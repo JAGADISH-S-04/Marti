@@ -124,7 +124,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
 
   Future<void> _pickImages() async {
     final ImagePicker picker = ImagePicker();
-    final List<XFile>? images = await picker.pickMultiImage();
+    final List<XFile> images = await picker.pickMultiImage();
 
     if (images != null && images.length <= 5) {
       setState(() {
@@ -164,7 +164,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
 
         // Wait for upload to complete with timeout
         TaskSnapshot snapshot = await uploadTask.timeout(
-          Duration(minutes: 2),
+          const Duration(minutes: 2),
           onTimeout: () {
             uploadTask.cancel();
             throw Exception('Upload timeout for image ${i + 1}');
@@ -231,7 +231,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           if (imageUrls.isEmpty && _selectedImages.isNotEmpty) {
             // Show warning but continue
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text(
                     'Images failed to upload, but request will be submitted without images.'),
                 backgroundColor: Colors.orange,
@@ -243,7 +243,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           print('Image upload error: $e');
           // Continue without images
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                   'Images failed to upload. Submitting request without images.'),
               backgroundColor: Colors.orange,
@@ -395,8 +395,9 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value?.isEmpty ?? true) return 'Budget is required';
-                      if (double.tryParse(value!) == null)
+                      if (double.tryParse(value!) == null) {
                         return 'Enter valid amount';
+                      }
                       return null;
                     },
                   ),
@@ -529,7 +530,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
           Row(
             children: [
               Icon(Icons.image, color: widget.primaryBrown),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'Reference Images (Optional)',
                 style: TextStyle(
@@ -540,7 +541,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             'Upload up to 5 images to help artisans understand your vision',
             style: TextStyle(
@@ -548,7 +549,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
               color: Colors.grey.shade600,
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           // Image Grid
           if (_selectedImages.isNotEmpty) ...[
@@ -600,7 +601,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
                 );
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
           ],
 
           // Upload Button
