@@ -1,4 +1,5 @@
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
+import 'package:arti/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,7 +16,8 @@ import 'craft_it/seller_view.dart';
 import 'seller_orders_page.dart';
 import '../services/order_service.dart';
 
-
+class MyStoreScreen extends StatefulWidget {
+  const MyStoreScreen({Key? key}) : super(key: key);
   @override
   State<MyStoreScreen> createState() => _MyStoreScreenState();
 }

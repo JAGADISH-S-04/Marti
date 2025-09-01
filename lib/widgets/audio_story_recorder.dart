@@ -21,9 +21,10 @@ class AudioStoryRecorder extends StatefulWidget {
   final bool showAsButton;
   final String buttonText;
   final IconData buttonIcon;
-<<<<<<< HEAD
   final bool hidePreview; // New parameter to hide the recorder's own preview
-=======
+
+  const AudioStoryRecorder({
+    Key? key,
     this.textController,
     this.hintText,
     this.onStoryGenerated,
@@ -33,10 +34,7 @@ class AudioStoryRecorder extends StatefulWidget {
     this.showAsButton = false,
     this.buttonText = 'Record Story',
     this.buttonIcon = Icons.mic,
-<<<<<<< HEAD
     this.hidePreview = false, // Default to false for backward compatibility
-=======
->>>>>>> main
   }) : super(key: key);
 
   @override
@@ -75,7 +73,6 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
     _loadPersistedAudioData();
   }
 
-<<<<<<< HEAD
   // Get user-specific persistence keys
   String _getUserSpecificKey(String baseKey) {
     // Use Firebase Auth current user ID or fallback to a default
@@ -90,48 +87,29 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
   }
 
   // Persistence methods with user-specific keys
-=======
-  // Persistence methods
->>>>>>> main
   Future<void> _saveAudioDataToPersistence() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       // Save audio file path if exists
       if (_recordedAudioFile != null) {
-<<<<<<< HEAD
         await prefs.setString(_getUserSpecificKey('audio_story_path'), _recordedAudioFile!.path);
-=======
-        await prefs.setString('audio_story_path', _recordedAudioFile!.path);
->>>>>>> main
       }
       
       // Save transcription
       if (_audioTranscription != null) {
-<<<<<<< HEAD
         await prefs.setString(_getUserSpecificKey('audio_story_transcription'), _audioTranscription!);
-=======
-        await prefs.setString('audio_story_transcription', _audioTranscription!);
->>>>>>> main
       }
       
       // Save translations
       if (_audioTranslations.isNotEmpty) {
         final translationsJson = json.encode(_audioTranslations);
-<<<<<<< HEAD
         await prefs.setString(_getUserSpecificKey('audio_story_translations'), translationsJson);
-=======
-        await prefs.setString('audio_story_translations', translationsJson);
->>>>>>> main
       }
       
       // Save last audio story
       if (_lastAudioStory.isNotEmpty) {
-<<<<<<< HEAD
         await prefs.setString(_getUserSpecificKey('audio_story_last'), _lastAudioStory);
-=======
-        await prefs.setString('audio_story_last', _lastAudioStory);
->>>>>>> main
       }
       
     } catch (e) {
@@ -143,42 +121,24 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-<<<<<<< HEAD
       // Load audio file path with user-specific key
       final audioPath = prefs.getString(_getUserSpecificKey('audio_story_path'));
-=======
-      // Load audio file path
-      final audioPath = prefs.getString('audio_story_path');
->>>>>>> main
       if (audioPath != null && await File(audioPath).exists()) {
         _recordedAudioFile = File(audioPath);
       }
       
-<<<<<<< HEAD
       // Load transcription with user-specific key
       _audioTranscription = prefs.getString(_getUserSpecificKey('audio_story_transcription'));
       
       // Load translations with user-specific key
       final translationsJson = prefs.getString(_getUserSpecificKey('audio_story_translations'));
-=======
-      // Load transcription
-      _audioTranscription = prefs.getString('audio_story_transcription');
-      
-      // Load translations
-      final translationsJson = prefs.getString('audio_story_translations');
->>>>>>> main
       if (translationsJson != null) {
         final Map<String, dynamic> decoded = json.decode(translationsJson);
         _audioTranslations = decoded.cast<String, String>();
       }
       
-<<<<<<< HEAD
       // Load last audio story with user-specific key
       _lastAudioStory = prefs.getString(_getUserSpecificKey('audio_story_last')) ?? '';
-=======
-      // Load last audio story
-      _lastAudioStory = prefs.getString('audio_story_last') ?? '';
->>>>>>> main
       
       // Update UI if we have persisted data
       if (mounted && (_audioTranscription != null || _lastAudioStory.isNotEmpty)) {
@@ -193,17 +153,10 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
   Future<void> _clearPersistedAudioData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-<<<<<<< HEAD
       await prefs.remove(_getUserSpecificKey('audio_story_path'));
       await prefs.remove(_getUserSpecificKey('audio_story_transcription'));
       await prefs.remove(_getUserSpecificKey('audio_story_translations'));
       await prefs.remove(_getUserSpecificKey('audio_story_last'));
-=======
-      await prefs.remove('audio_story_path');
-      await prefs.remove('audio_story_transcription');
-      await prefs.remove('audio_story_translations');
-      await prefs.remove('audio_story_last');
->>>>>>> main
     } catch (e) {
       print('Error clearing persisted audio data: $e');
     }
@@ -920,12 +873,8 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
           _buildRecordingButton(),
           if (_buildDurationDisplay() != null) _buildDurationDisplay()!,
           if (_buildProcessingIndicator() != null) _buildProcessingIndicator()!,
-<<<<<<< HEAD
           // Only show story preview if hidePreview is false
           if (!widget.hidePreview && _buildStoryPreview() != null) _buildStoryPreview()!,
-=======
-          if (_buildStoryPreview() != null) _buildStoryPreview()!,
->>>>>>> main
         ],
       );
     }
@@ -934,12 +883,9 @@ class _AudioStoryRecorderState extends State<AudioStoryRecorder> {
       children: [
         _buildRecordingButton(),
         if (_buildDurationDisplay() != null) _buildDurationDisplay()!,
-<<<<<<< HEAD
         // Only show story preview if hidePreview is false
         if (!widget.hidePreview && _buildProcessingIndicator() != null) _buildProcessingIndicator()!,
         if (!widget.hidePreview && _buildStoryPreview() != null) _buildStoryPreview()!,
-=======
->>>>>>> main
       ],
     );
   }
