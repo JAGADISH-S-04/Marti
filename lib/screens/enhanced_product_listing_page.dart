@@ -711,12 +711,26 @@ class _EnhancedProductListingPageState
       String? videoUrl;
       String buyerDisplayImageUrl = '';
 
+      final productId = DateTime.now().millisecondsSinceEpoch.toString();
+
       // Upload buyer display image if selected (optional)
       if (_buyerDisplayImage != null) {
         _showSnackBar('Uploading buyer display image...');
         try {
+          // Get artisan name for organized storage (will be used again later)
+          final firestoreServiceTemp = FirestoreService();
+          final userDataTemp = await firestoreServiceTemp.checkUserExists(user.uid);
+          final artisanNameTemp = userDataTemp?['fullName'] ??
+              userDataTemp?['username'] ??
+              user.displayName ??
+              'Unknown Artisan';
+              
           buyerDisplayImageUrl =
-              await _productService.uploadImage(_buyerDisplayImage!);
+              await _productService.uploadImage(
+                _buyerDisplayImage!,
+                sellerName: artisanNameTemp,
+                productName: _nameController.text.trim(),
+              );
           print(
               '✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
         } catch (e) {
@@ -736,7 +750,19 @@ class _EnhancedProductListingPageState
       } else if (_selectedImages.isNotEmpty) {
         _showSnackBar(
             'Uploading ${_selectedImages.length} additional images...');
-        imageUrls = await _productService.uploadImages(_selectedImages);
+        // Get artisan name for organized storage
+        final firestoreServiceImages = FirestoreService();
+        final userDataImages = await firestoreServiceImages.checkUserExists(user.uid);
+        final artisanNameImages = userDataImages?['fullName'] ??
+            userDataImages?['username'] ??
+            user.displayName ??
+            'Unknown Artisan';
+            
+        imageUrls = await _productService.uploadImages(
+          _selectedImages,
+          sellerName: artisanNameImages,
+          productName: _nameController.text.trim(),
+        );
       } else {
         _showSnackBar('Creating product without media...');
         // No media to upload - proceed with product creation
@@ -747,8 +773,20 @@ class _EnhancedProductListingPageState
       if (_audioStoryFile != null) {
         _showSnackBar('Uploading audio story...');
         try {
+          // Get artisan name for organized storage
+          final firestoreServiceAudio = FirestoreService();
+          final userDataAudio = await firestoreServiceAudio.checkUserExists(user.uid);
+          final artisanNameAudio = userDataAudio?['fullName'] ??
+              userDataAudio?['username'] ??
+              user.displayName ??
+              'Unknown Artisan';
+              
           audioStoryUrl =
-              await _productService.uploadAudioStory(_audioStoryFile!);
+              await _productService.uploadAudioStory(
+                _audioStoryFile!,
+                sellerName: artisanNameAudio,
+                productName: _nameController.text.trim(),
+              );
           print('✅ Audio story uploaded successfully: $audioStoryUrl');
         } catch (e) {
           print('❌ Audio story upload failed: $e');
@@ -773,7 +811,7 @@ class _EnhancedProductListingPageState
 
       // Create product with AI-enhanced data and comprehensive details
       final product = Product(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: productId, // Use the same ID created earlier
         artisanId: user.uid,
         artisanName: artisanName,
         name: _nameController.text.trim(),

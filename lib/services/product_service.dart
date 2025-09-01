@@ -5,14 +5,55 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import 'package:path/path.dart' as path;
+import 'firebase_storage_service.dart';
+import 'product_database_service.dart';
 
 class ProductService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorageService _storageService = FirebaseStorageService();
+  final ProductDatabaseService _databaseService = ProductDatabaseService();
+
+  /// Create product using new organized structure
+  Future<String> createProductWithOrganizedStorage({
+    required String name,
+    required String description,
+    required String category,
+    required double price,
+    required List<String> materials,
+    required String craftingTime,
+    required String dimensions,
+    required File mainImage,
+    required List<File> additionalImages,
+    required String sellerName,
+    required int stockQuantity,
+    required List<String> tags,
+    File? video,
+    String? careInstructions,
+    Map<String, dynamic>? aiAnalysis,
+  }) async {
+    return await _databaseService.createProduct(
+      name: name,
+      description: description,
+      category: category,
+      price: price,
+      materials: materials,
+      craftingTime: craftingTime,
+      dimensions: dimensions,
+      mainImage: mainImage,
+      additionalImages: additionalImages,
+      sellerName: sellerName,
+      stockQuantity: stockQuantity,
+      tags: tags,
+      video: video,
+      careInstructions: careInstructions,
+      aiAnalysis: aiAnalysis,
+    );
+  }
 
   // Upload images to Firebase Storage
-  Future<List<String>> uploadImages(List<File> images) async {
+  Future<List<String>> uploadImages(List<File> images, {String? sellerName, String? productName}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
@@ -34,8 +75,24 @@ class ProductService {
           throw Exception('Image ${i + 1} has unsupported format. Use JPG, PNG, or WebP.');
         }
         
+        
         final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
-        final ref = _storage.ref().child('products').child(fileName);
+        
+        // Create organized storage path if seller info is provided
+        Reference ref;
+        if (sellerName != null && productName != null) {
+          final cleanSellerName = _cleanFileName(sellerName);
+          final cleanProductName = _cleanFileName(productName);
+          ref = _storage.ref()
+              .child('buyer_display')
+              .child(cleanSellerName)
+              .child(cleanProductName)
+              .child('images')
+              .child(fileName);
+        } else {
+          // Fallback to legacy path
+          ref = _storage.ref().child('products').child(fileName);
+        }
         
         // Upload with metadata
         final metadata = SettableMetadata(
@@ -81,7 +138,7 @@ class ProductService {
   }
 
   // Upload single image to Firebase Storage
-  Future<String> uploadImage(File image) async {
+  Future<String> uploadImage(File image, {String? sellerName, String? productName}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
@@ -133,7 +190,11 @@ class ProductService {
           e.code == 'storage/unknown') {
         print('🔧 Trying alternative upload method...');
         try {
-          return await AlternativeUploadService.uploadImageAlternative(image);
+          return await AlternativeUploadService.uploadImageAlternative(
+            image,
+            sellerName: sellerName ?? 'unknown',
+            productName: productName ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          );
         } catch (altError) {
           print('❌ Alternative upload also failed: $altError');
         }
@@ -167,7 +228,11 @@ class ProductService {
       // Try alternative upload for any other error
       print('🔧 Trying alternative upload method as last resort...');
       try {
-        return await AlternativeUploadService.uploadImageAlternative(image);
+        return await AlternativeUploadService.uploadImageAlternative(
+          image,
+          sellerName: sellerName ?? 'unknown',
+          productName: productName ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        );
       } catch (altError) {
         print('❌ Alternative upload also failed: $altError');
         throw Exception('Failed to upload buyer display image: $e');
@@ -190,7 +255,7 @@ class ProductService {
   }
 
   // Upload audio story to Firebase Storage
-  Future<String> uploadAudioStory(File audioFile) async {
+  Future<String> uploadAudioStory(File audioFile, {String? sellerName, String? productName}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
@@ -207,8 +272,23 @@ class ProductService {
         throw Exception('Audio file has unsupported format. Use WAV, MP3, AAC, M4A, OGG, or FLAC.');
       }
       
-      final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}_audio_story$extension';
-      final ref = _storage.ref().child('products').child('audio_stories').child(fileName);
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_audio_story$extension';
+      
+      // Create organized storage path if seller info is provided
+      Reference ref;
+      if (sellerName != null && productName != null) {
+        final cleanSellerName = _cleanFileName(sellerName);
+        final cleanProductName = _cleanFileName(productName);
+        ref = _storage.ref()
+            .child('buyer_display')
+            .child(cleanSellerName)
+            .child(cleanProductName)
+            .child('audios')
+            .child(fileName);
+      } else {
+        // Fallback to legacy path
+        ref = _storage.ref().child('products').child('audio_stories').child(fileName);
+      }
       
       // Upload with metadata
       final metadata = SettableMetadata(
@@ -217,6 +297,10 @@ class ProductService {
           'uploadedBy': user.uid,
           'uploadedAt': DateTime.now().toIso8601String(),
           'fileType': 'audio_story',
+          'sellerName': sellerName ?? 'unknown',
+          'productName': productName ?? 'unknown',
+          'storageVersion': '2.0',
+          'autoOrganized': (sellerName != null && productName != null).toString(),
         },
       );
       
@@ -258,10 +342,34 @@ class ProductService {
     try {
       print('🚀 Starting product creation for user: ${user.uid}');
       
-      // First, create the main product document
+      // Create storage metadata for new organized structure
+      final cleanSellerName = _cleanFileName(product.artisanName);
+      final cleanProductName = _cleanFileName(product.name);
+      final storageInfo = {
+        'sellerFolderName': cleanSellerName,
+        'productFolderName': cleanProductName,
+        'mainImagePath': 'buyer_display/$cleanSellerName/$cleanProductName/images/',
+        'additionalImagesPath': 'buyer_display/$cleanSellerName/$cleanProductName/images/',
+        'videoPath': 'videos/$cleanSellerName/$cleanProductName/',
+        'audioPath': 'buyer_display/$cleanSellerName/$cleanProductName/audios/',
+        'creationDate': DateTime.now().toIso8601String(),
+        'storageVersion': '2.0', // Mark as new structure - NO MIGRATION NEEDED
+        'autoOrganized': true,
+      };
+      
+      // Add storage info to product data
+      final productData = product.toMap();
+      productData['storageInfo'] = storageInfo;
+      
+      print('📁 Product will use organized storage structure:');
+      print('   🖼️  Images: ${storageInfo['mainImagePath']}');
+      print('   🎥 Videos: ${storageInfo['videoPath']}');
+      print('   🎵 Audio: ${storageInfo['audioPath']}');
+      
+      // First, create the main product document with storage info
       final productRef = _firestore.collection('products').doc(product.id);
-      await productRef.set(product.toMap());
-      print('✅ Product document created');
+      await productRef.set(productData);
+      print('✅ Product document created with organized storage metadata');
       
       // Try to find user in either customers or retailers collection
       String? userCollection;
@@ -430,5 +538,13 @@ class ProductService {
     } catch (e) {
       throw Exception('Failed to search products: $e');
     }
+  }
+
+  /// Clean filename for storage path
+  String _cleanFileName(String name) {
+    return name
+        .replaceAll(RegExp(r'[^\w\-_\.]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .toLowerCase();
   }
 }

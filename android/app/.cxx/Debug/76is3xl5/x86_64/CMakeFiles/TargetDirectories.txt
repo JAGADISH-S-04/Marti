@@ -1,2 +1,0 @@
-D:/Mouli/GenAI Final/Arti/android/app/.cxx/Debug/76is3xl5/x86_64/CMakeFiles/edit_cache.dir
-D:/Mouli/GenAI Final/Arti/android/app/.cxx/Debug/76is3xl5/x86_64/CMakeFiles/rebuild_cache.dir
