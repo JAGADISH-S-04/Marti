@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notification_service.dart';
 import 'notification_screen.dart';
+import 'chat_screen.dart';
 
 class SellerRequestsScreen extends StatefulWidget {
   const SellerRequestsScreen({super.key});
@@ -27,82 +28,151 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
         .snapshots();
   }
 
+  void _openChat(BuildContext context, String requestId, Map<String, dynamic> requestData) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Get customer info
+      final customerId = requestData['userId'] ?? '';
+      
+      // Get customer name
+      String customerName = 'Customer';
+      try {
+        final customerDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(customerId)
+            .get();
+        if (customerDoc.exists && customerDoc.data() != null) {
+          customerName = customerDoc.data()!['name'] ?? 
+                       customerDoc.data()!['email']?.split('@')[0] ?? 
+                       'Customer';
+        }
+      } catch (e) {
+        print('Error fetching customer info: $e');
+      }
+
+      // Get artisan name
+      String artisanName = 'Artisan';
+      try {
+        final artisanDoc = await FirebaseFirestore.instance
+            .collection('retailers')
+            .doc(user.uid)
+            .get();
+        if (artisanDoc.exists && artisanDoc.data() != null) {
+          artisanName = artisanDoc.data()!['fullName'] ?? 
+                       artisanDoc.data()!['name'] ?? 
+                       user.email?.split('@')[0] ?? 
+                       'Artisan';
+        }
+      } catch (e) {
+        print('Error fetching artisan info: $e');
+      }
+      
+      // Create chat room ID (same format as customer side)
+      final chatRoomId = '${requestId}_${customerId}_${user.uid}';
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            requestId: requestId,
+            chatRoomId: chatRoomId,
+            artisanName: artisanName,
+            customerName: customerName,
+            primaryBrown: primaryBrown,
+            lightBrown: lightBrown,
+            backgroundBrown: backgroundBrown,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening chat: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundBrown,
       appBar: AppBar(
-  backgroundColor: primaryBrown,
-  foregroundColor: Colors.white,
-  title: Text(
-    'Craft Requests',
-    style: GoogleFonts.playfairDisplay(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-  actions: [
-    // Notification bell with badge
-    StreamBuilder<int>(
-      stream: FirebaseAuth.instance.currentUser != null 
-          ? NotificationService.getUnreadNotificationCount(
-              FirebaseAuth.instance.currentUser!.uid)
-          : Stream.value(0),
-      builder: (context, snapshot) {
-        final unreadCount = snapshot.data ?? 0;
-        
-        return Stack(
-          children: [
-            IconButton(
-              icon: Icon(Icons.notifications),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NotificationsScreen(),
+        backgroundColor: primaryBrown,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Craft Requests',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          // Notification bell with badge
+          StreamBuilder<int>(
+            stream: FirebaseAuth.instance.currentUser != null 
+                ? NotificationService.getUnreadNotificationCount(
+                    FirebaseAuth.instance.currentUser!.uid)
+                : Stream.value(0),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NotificationsScreen(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Notifications',
                   ),
-                );
-              },
-              tooltip: 'Notifications',
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    unreadCount > 99 ? '99+' : unreadCount.toString(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    ),
-    IconButton(
-      icon: Icon(Icons.refresh),
-      onPressed: () {
-        setState(() {}); // Force refresh
-      },
-      tooltip: 'Refresh',
-    ),
-  ],
-),
+                ],
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {}); // Force refresh
+            },
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Filter Section
@@ -479,7 +549,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
               const SizedBox(height: 12),
             ],
 
-            // Quotations info and action buttons
+            // Quotations info
             Row(
               children: [
                 Icon(Icons.format_quote, size: 16, color: primaryBrown),
@@ -492,83 +562,131 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Spacer(),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-                // View Details button
-                TextButton.icon(
-                  onPressed: () =>
-                      _showRequestDetails(context, requestId, data),
-                  icon: Icon(Icons.visibility, size: 16, color: primaryBrown),
-                  label: Text(
-                    'View Details',
-                    style: TextStyle(color: primaryBrown, fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            // Action buttons section - Fixed layout to prevent overflow
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // First row - View Details button (always present)
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _showRequestDetails(context, requestId, data),
+                    icon: Icon(Icons.visibility, size: 16, color: primaryBrown),
+                    label: Text(
+                      'View Details',
+                      style: TextStyle(color: primaryBrown, fontSize: 14),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      backgroundColor: primaryBrown.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
-
-                const SizedBox(width: 8),
-
-                // Show different status based on quotation state
-                if (isMyQuotationAccepted)
+                
+                const SizedBox(height: 8),
+                
+                // Second row - Status-specific action buttons
+                if (isMyQuotationAccepted) ...[
+                  // Chat and Accepted status for accepted artisan
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openChat(context, requestId, data),
+                          icon: Icon(Icons.chat, size: 16),
+                          label: Text('Chat', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle, size: 16, color: Colors.green.shade800),
+                              SizedBox(width: 4),
+                              Text(
+                                'Accepted',
+                                style: TextStyle(
+                                  color: Colors.green.shade800,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (hasQuoted) ...[
+                  // Quoted status
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade100,
+                      color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green),
+                      border: Border.all(color: Colors.blue.shade300),
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.check_circle,
-                            size: 16, color: Colors.green.shade800),
-                        SizedBox(width: 4),
+                        Icon(Icons.check, size: 16, color: Colors.blue.shade800),
+                        SizedBox(width: 8),
                         Text(
-                          'Accepted',
+                          'Quotation Submitted',
                           style: TextStyle(
-                            color: Colors.green.shade800,
-                            fontSize: 12,
+                            color: Colors.blue.shade800,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                  )
-                else if (hasQuoted)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Quoted',
-                      style: TextStyle(
-                        color: Colors.blue.shade800,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                else if (status.toLowerCase() == 'open')
-                  ElevatedButton(
-                    onPressed: () =>
-                        _showQuotationDialog(context, requestId, data),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBrown,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Submit Quote'),
                   ),
+                ] else if (status.toLowerCase() == 'open') ...[
+                  // Submit Quote button for open requests
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showQuotationDialog(context, requestId, data),
+                      icon: Icon(Icons.add_business, size: 16),
+                      label: Text('Submit Quotation'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBrown,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],

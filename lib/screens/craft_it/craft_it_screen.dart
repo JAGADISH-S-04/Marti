@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'request_details_screen.dart';
+import 'chat_screen.dart';
 
 class CraftItScreen extends StatefulWidget {
   const CraftItScreen({super.key});
@@ -773,9 +774,7 @@ class MyRequestsTab extends StatelessWidget {
   }
 }
 
-// Enhanced Request Card Widget with quotation viewing
-// Replace the RequestCard class with this updated version
-
+// Enhanced Request Card Widget with chat functionality
 class RequestCard extends StatelessWidget {
   final DocumentSnapshot request;
   final Map<String, dynamic> data;
@@ -1274,6 +1273,73 @@ class RequestCard extends StatelessWidget {
               Wrap(
                 spacing: 4,
                 children: [
+                  // Chat button (only show for accepted quotations)
+                  if (isAccepted)
+                    InkWell(
+                      onTap: () async {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) return;
+
+                        try {
+                          // Get artisan info from accepted quotation
+                          final artisanId = acceptedQuotation['artisanId'] ?? '';
+                          final artisanName = acceptedQuotation['artisanName'] ?? 'Artisan';
+                          
+                          // Get customer info
+                          final userDoc = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+                          final customerName = userDoc.data()?['name'] ?? user.email?.split('@')[0] ?? 'Customer';
+
+                          // Create or get chat room
+                          final chatRoomId = '${request.id}_${user.uid}_$artisanId';
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                requestId: request.id,
+                                chatRoomId: chatRoomId,
+                                artisanName: artisanName,
+                                customerName: customerName,
+                                primaryBrown: primaryBrown,
+                                lightBrown: lightBrown,
+                                backgroundBrown: backgroundBrown,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error opening chat: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat, size: 12, color: Colors.blue),
+                            SizedBox(width: 4),
+                            Text(
+                              'Chat',
+                              style: TextStyle(color: Colors.blue, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
                   // Cancel button (only show for open requests within 24 hours)
                   if (canCancelRequest)
                     InkWell(
@@ -1285,7 +1351,7 @@ class RequestCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: Colors.red.shade200),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.cancel_outlined, size: 12, color: Colors.red),
