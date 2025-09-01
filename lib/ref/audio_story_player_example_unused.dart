@@ -30,7 +30,7 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
     
     // Show confirmation to user
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text('Story updated successfully!'),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 2),
@@ -51,22 +51,22 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Audio Story Player Demo'),
-        backgroundColor: const Color(0xFF8B4513),
+        title: Text('Audio Story Player Demo'),
+        backgroundColor: Color(0xFF8B4513),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           children: [
             // Example 1: Read-only mode (for buyers)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Read-Only Mode (Buyer View)',
                       style: TextStyle(
                         fontSize: 18,
@@ -74,7 +74,7 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
                         color: Color(0xFF8B4513),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     AudioStoryPlayer(
                       audioUrl: 'https://example.com/audio.mp3',
                       transcription: currentTranscription,
@@ -87,16 +87,16 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
               ),
             ),
             
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             
             // Example 2: Editable mode (for sellers/artisans)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Editable Mode (Seller View)',
                       style: TextStyle(
                         fontSize: 18,
@@ -104,7 +104,7 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
                         color: Color(0xFF8B4513),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       'Click the edit icon to modify the story text',
                       style: TextStyle(
@@ -112,7 +112,7 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
                         color: Colors.grey.shade600,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     AudioStoryPlayer(
                       audioUrl: 'https://example.com/audio.mp3',
                       transcription: currentTranscription,
@@ -127,13 +127,13 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
               ),
             ),
             
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             
             // Current state display
             Card(
               color: Colors.blue.shade50,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -145,19 +145,19 @@ class _AudioStoryPlayerExampleState extends State<AudioStoryPlayerExample> {
                         color: Colors.blue.shade800,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       'Original Text: $currentTranscription',
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       'Available Translations: ${availableTranslations.length}',
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14),
                     ),
                     ...availableTranslations.entries.map((entry) => 
                       Padding(
-                        padding: const EdgeInsets.only(left: 16, top: 4),
+                        padding: EdgeInsets.only(left: 16, top: 4),
                         child: Text(
                           '${entry.key}: ${entry.value}',
                           style: TextStyle(

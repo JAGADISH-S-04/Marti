@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 

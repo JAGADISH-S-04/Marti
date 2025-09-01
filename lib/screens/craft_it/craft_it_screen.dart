@@ -664,8 +664,6 @@ class MyRequestsTab extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('craft_requests')
           .where('userId', isEqualTo: user.uid)
-          .where('status', isNotEqualTo: 'cancelled') // Exclude cancelled requests
-          .orderBy('status') // Required for != queries
           .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
@@ -677,45 +675,31 @@ class MyRequestsTab extends StatelessWidget {
 
         if (snapshot.hasError) {
           print('Error loading user requests: ${snapshot.error}');
-          // Fallback to client-side filtering if compound query fails
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('craft_requests')
-                .where('userId', isEqualTo: user.uid)
-                .snapshots(),
-            builder: (context, fallbackSnapshot) {
-              if (fallbackSnapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(color: primaryBrown),
-                );
-              }
-
-              if (!fallbackSnapshot.hasData) {
-                return _buildEmptyState();
-              }
-
-              // Filter out cancelled requests on client side
-              final allDocs = fallbackSnapshot.data!.docs;
-              final activeDocs = allDocs.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final status = data['status']?.toString().toLowerCase() ?? 'open';
-                return status != 'cancelled' && status != 'deleted';
-              }).toList();
-
-              if (activeDocs.isEmpty) {
-                return _buildEmptyState();
-              }
-
-              return _buildRequestsList(activeDocs, screenSize);
-            },
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, color: Colors.red, size: 48),
+                SizedBox(height: 16),
+                Text('Error loading requests'),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    // Force rebuild to retry
+                    (context as Element).markNeedsBuild();
+                  },
+                  child: Text('Retry'),
+                ),
+              ],
+            ),
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData) {
           return _buildEmptyState();
         }
 
-        // Additional client-side filtering as safety measure
+        // Filter out cancelled and deleted requests on client side
         final allDocs = snapshot.data!.docs;
         final activeDocs = allDocs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -742,7 +726,7 @@ class MyRequestsTab extends StatelessWidget {
             size: 64,
             color: Colors.grey.shade400,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'No active requests',
             style: TextStyle(
@@ -750,7 +734,7 @@ class MyRequestsTab extends StatelessWidget {
               color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Create your first custom craft request!',
             style: TextStyle(
@@ -764,24 +748,11 @@ class MyRequestsTab extends StatelessWidget {
   }
 
   Widget _buildRequestsList(List<DocumentSnapshot> docs, Size screenSize) {
-    // Sort the documents manually by createdAt
-    final sortedDocs = docs.toList();
-    sortedDocs.sort((a, b) {
-      final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-      final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-
-      if (aTime == null && bTime == null) return 0;
-      if (aTime == null) return 1;
-      if (bTime == null) return -1;
-
-      return bTime.compareTo(aTime); // Descending order (newest first)
-    });
-
     return ListView.builder(
       padding: EdgeInsets.all(screenSize.width * 0.04),
-      itemCount: sortedDocs.length,
+      itemCount: docs.length,
       itemBuilder: (context, index) {
-        final request = sortedDocs[index];
+        final request = docs[index];
         final data = request.data() as Map<String, dynamic>;
 
         // Double-check status before rendering
@@ -802,7 +773,9 @@ class MyRequestsTab extends StatelessWidget {
   }
 }
 
-// Updated Request Card Widget
+// Enhanced Request Card Widget with quotation viewing
+// Replace the RequestCard class with this updated version
+
 class RequestCard extends StatelessWidget {
   final DocumentSnapshot request;
   final Map<String, dynamic> data;
@@ -819,8 +792,54 @@ class RequestCard extends StatelessWidget {
     required this.backgroundBrown,
   });
 
+  bool _canCancelRequest() {
+    final createdAt = data['createdAt'] as Timestamp?;
+    if (createdAt == null) return false;
+    
+    final now = DateTime.now();
+    final createdTime = createdAt.toDate();
+    final difference = now.difference(createdTime);
+    
+    return difference.inHours < 24;
+  }
+
+  bool _canCancelAcceptedQuotation() {
+    final acceptedAt = data['acceptedAt'] as Timestamp?;
+    if (acceptedAt == null) return false;
+    
+    final now = DateTime.now();
+    final acceptedTime = acceptedAt.toDate();
+    final difference = now.difference(acceptedTime);
+    
+    return difference.inHours < 24;
+  }
+
+  String _getTimeRemaining(Timestamp timestamp) {
+    final now = DateTime.now();
+    final targetTime = timestamp.toDate();
+    final difference = now.difference(targetTime);
+    final hoursLeft = 24 - difference.inHours;
+    
+    if (hoursLeft <= 0) return '';
+    if (hoursLeft < 1) {
+      final minutesLeft = 60 - difference.inMinutes % 60;
+      return '$minutesLeft min left';
+    }
+    return '$hoursLeft hrs left';
+  }
+
   Future<void> _cancelRequest(BuildContext context) async {
-    // Show confirmation dialog
+    if (!_canCancelRequest()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Request can only be cancelled within 24 hours of creation'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -828,14 +847,37 @@ class RequestCard extends StatelessWidget {
           'Cancel Request',
           style: TextStyle(color: primaryBrown, fontWeight: FontWeight.bold),
         ),
-        content: const Text(
-          'Are you sure you want to cancel this request? This action cannot be undone and the request will be removed from your list.',
-          style: TextStyle(fontSize: 14),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to cancel this request? This action cannot be undone.',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 12),
+            if (data['createdAt'] != null)
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Time to cancel: ${_getTimeRemaining(data['createdAt'])}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No', style: TextStyle(color: Colors.grey)),
+            child: Text('No', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -843,7 +885,7 @@ class RequestCard extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Yes, Cancel'),
+            child: Text('Yes, Cancel'),
           ),
         ],
       ),
@@ -851,7 +893,6 @@ class RequestCard extends StatelessWidget {
 
     if (confirmed == true) {
       try {
-        // Update the request status to 'cancelled'
         await FirebaseFirestore.instance
             .collection('craft_requests')
             .doc(request.id)
@@ -862,10 +903,9 @@ class RequestCard extends StatelessWidget {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Request cancelled and removed from your list'),
+            content: Text('Request cancelled successfully'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       } catch (e) {
@@ -874,7 +914,100 @@ class RequestCard extends StatelessWidget {
             content: Text('Error cancelling request: ${e.toString()}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelAcceptedQuotation(BuildContext context) async {
+    if (!_canCancelAcceptedQuotation()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Accepted quotation can only be cancelled within 24 hours'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Cancel Accepted Quotation',
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to cancel the accepted quotation? This will reopen the request for new quotations.',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 12),
+            if (data['acceptedAt'] != null)
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Time to cancel: ${_getTimeRemaining(data['acceptedAt'])}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('No', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Yes, Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('craft_requests')
+            .doc(request.id)
+            .update({
+          'status': 'open',
+          'acceptedQuotation': FieldValue.delete(),
+          'acceptedAt': FieldValue.delete(),
+          'quotationCancelledAt': Timestamp.now(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Accepted quotation cancelled. Request is now open for new quotations.'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cancelling quotation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -888,13 +1021,16 @@ class RequestCard extends StatelessWidget {
 
     final quotations = data['quotations'] as List? ?? [];
     final status = data['status'] ?? 'open';
+    final acceptedQuotation = data['acceptedQuotation'];
+    final isAccepted = acceptedQuotation != null;
     
     // Don't render cancelled or deleted requests
     if (status.toLowerCase() == 'cancelled' || status.toLowerCase() == 'deleted') {
       return const SizedBox.shrink();
     }
     
-    final canCancel = status.toLowerCase() == 'open'; // Only allow cancellation for open requests
+    final canCancelRequest = status.toLowerCase() == 'open' && _canCancelRequest();
+    final canCancelAcceptedQuotation = isAccepted && _canCancelAcceptedQuotation();
 
     return Container(
       margin: EdgeInsets.only(bottom: screenSize.height * 0.02),
@@ -924,55 +1060,71 @@ class RequestCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: primaryBrown,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
               ),
+              SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _getStatusColor(status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: _getStatusColor(status)),
                 ),
                 child: Text(
                   status.toUpperCase(),
                   style: TextStyle(
                     color: _getStatusColor(status),
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
 
           // Category and Budget
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
             children: [
-              Icon(Icons.category, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text(
-                data['category'] ?? '',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 12,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.category, size: 14, color: Colors.grey.shade600),
+                  SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      data['category'] ?? '',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Icon(Icons.currency_rupee, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text(
-                '₹${data['budget']?.toString() ?? '0'}',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.currency_rupee, size: 14, color: Colors.grey.shade600),
+                  SizedBox(width: 4),
+                  Text(
+                    '₹${data['budget']?.toString() ?? '0'}',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
 
           // Description
           Text(
@@ -985,55 +1137,207 @@ class RequestCard extends StatelessWidget {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
+
+          // Show accepted quotation if exists
+          if (isAccepted) ...[
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Accepted Quotation',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      if (canCancelAcceptedQuotation)
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _getTimeRemaining(data['acceptedAt']),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.red.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Artisan: ${acceptedQuotation['artisanName'] ?? 'Unknown'}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Price: ₹${acceptedQuotation['price']?.toString() ?? '0'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (acceptedQuotation['deliveryTime']?.toString().isNotEmpty == true)
+                        Expanded(
+                          child: Text(
+                            'Delivery: ${acceptedQuotation['deliveryTime']}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (canCancelAcceptedQuotation) ...[
+                    SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _cancelAcceptedQuotation(context),
+                        icon: Icon(Icons.cancel_outlined, size: 14),
+                        label: Text(
+                          'Cancel Accepted Quotation',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SizedBox(height: 12),
+          ],
 
           // Quotations count and action buttons
           Row(
             children: [
-              Icon(Icons.format_quote, size: 16, color: primaryBrown),
-              const SizedBox(width: 4),
-              Text(
-                '${quotations.length} Quotation${quotations.length != 1 ? 's' : ''}',
-                style: TextStyle(
-                  color: primaryBrown,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Icon(Icons.format_quote, size: 14, color: primaryBrown),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${quotations.length} Quote${quotations.length != 1 ? 's' : ''}',
+                  style: TextStyle(
+                    color: primaryBrown,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
-              // Cancel button (only show for open requests)
-              if (canCancel) ...[
-                TextButton.icon(
-                  onPressed: () => _cancelRequest(context),
-                  icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
-                  label: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.red),
+              if (quotations.isNotEmpty && !isAccepted) ...[
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    'Review',
+                    style: TextStyle(
+                      color: Colors.orange.shade800,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
               ],
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RequestDetailScreen(
-                        requestId: request.id,
-                        primaryBrown: primaryBrown,
-                        lightBrown: lightBrown,
-                        backgroundBrown: backgroundBrown,
+              
+              // Action buttons in a flexible layout
+              Wrap(
+                spacing: 4,
+                children: [
+                  // Cancel button (only show for open requests within 24 hours)
+                  if (canCancelRequest)
+                    InkWell(
+                      onTap: () => _cancelRequest(context),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cancel_outlined, size: 12, color: Colors.red),
+                            SizedBox(width: 4),
+                            Text(
+                              'Cancel',
+                              style: TextStyle(color: Colors.red, fontSize: 11),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                },
-                child: Text(
-                  'View Details',
-                  style: TextStyle(color: primaryBrown),
-                ),
+                  
+                  // View button
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RequestDetailScreen(
+                            requestId: request.id,
+                            primaryBrown: primaryBrown,
+                            lightBrown: lightBrown,
+                            backgroundBrown: backgroundBrown,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: primaryBrown,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            quotations.isNotEmpty ? Icons.visibility : Icons.info_outline,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            quotations.isNotEmpty ? 'View' : 'Details',
+                            style: TextStyle(fontSize: 11, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
