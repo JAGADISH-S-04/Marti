@@ -547,4 +547,151 @@ class ProductService {
         .replaceAll(RegExp(r'_+'), '_')
         .toLowerCase();
   }
+
+  /// Increment product view count
+  Future<void> incrementViews(String productId) async {
+    try {
+      await _firestore.collection('products').doc(productId).update({
+        'views': FieldValue.increment(1),
+      });
+    } catch (e) {
+      print('Error incrementing views: $e');
+      throw Exception('Failed to increment views');
+    }
+  }
+
+  /// Toggle like status for a product
+  Future<void> toggleLike(String productId, String userId) async {
+    try {
+      final productRef = _firestore.collection('products').doc(productId);
+      
+      await _firestore.runTransaction((transaction) async {
+        final productDoc = await transaction.get(productRef);
+        
+        if (!productDoc.exists) {
+          throw Exception('Product not found');
+        }
+        
+        final data = productDoc.data()!;
+        
+        // Handle null values and ensure proper types
+        List<String> likedBy = [];
+        if (data['likedBy'] != null) {
+          likedBy = List<String>.from(data['likedBy']);
+        }
+        
+        int currentLikes = 0;
+        if (data['likes'] != null) {
+          currentLikes = (data['likes'] is int) ? data['likes'] : int.tryParse(data['likes'].toString()) ?? 0;
+        }
+        
+        if (likedBy.contains(userId)) {
+          // User already liked, so unlike
+          likedBy.remove(userId);
+          transaction.update(productRef, {
+            'likes': currentLikes > 0 ? currentLikes - 1 : 0,
+            'likedBy': likedBy,
+          });
+        } else {
+          // User hasn't liked, so like
+          likedBy.add(userId);
+          transaction.update(productRef, {
+            'likes': currentLikes + 1,
+            'likedBy': likedBy,
+          });
+        }
+      });
+    } catch (e) {
+      print('Error toggling like: $e');
+      throw Exception('Failed to toggle like: ${e.toString()}');
+    }
+  }
+
+  /// Check if user has liked a product
+  Future<bool> hasUserLiked(String productId, String userId) async {
+    try {
+      final doc = await _firestore.collection('products').doc(productId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['likedBy'] != null) {
+          final List<String> likedBy = List<String>.from(data['likedBy']);
+          return likedBy.contains(userId);
+        }
+      }
+      return false;
+    } catch (e) {
+      print('Error checking like status: $e');
+      return false;
+    }
+  }
+
+  /// One-time fix to add likes fields to existing products
+  Future<void> addLikesFieldsToAllProducts() async {
+    try {
+      print('Starting to add likes fields to all products...');
+      
+      // Get all products
+      final querySnapshot = await _firestore.collection('products').get();
+      
+      final batch = _firestore.batch();
+      int count = 0;
+      
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        
+        // Check if likes field is missing or null
+        if (!data.containsKey('likes') || data['likes'] == null) {
+          batch.update(doc.reference, {
+            'likes': 0,
+          });
+          count++;
+        }
+        
+        // Check if likedBy field is missing or null
+        if (!data.containsKey('likedBy') || data['likedBy'] == null) {
+          batch.update(doc.reference, {
+            'likedBy': [],
+          });
+          count++;
+        }
+      }
+      
+      if (count > 0) {
+        await batch.commit();
+        print('Successfully added likes fields to $count product entries.');
+      } else {
+        print('All products already have likes fields.');
+      }
+    } catch (e) {
+      print('Error adding likes fields: $e');
+      throw Exception('Failed to add likes fields: $e');
+    }
+  }
+
+  /// Get product analytics (views, likes, etc.)
+  Future<Map<String, dynamic>> getProductAnalytics(String productId) async {
+    try {
+      final doc = await _firestore.collection('products').doc(productId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        return {
+          'views': data['views'] ?? 0,
+          'likes': data['likes'] ?? 0,
+          'likedBy': List<String>.from(data['likedBy'] ?? []),
+          'rating': data['rating'] ?? 0.0,
+          'reviewCount': data['reviewCount'] ?? 0,
+        };
+      }
+      return {
+        'views': 0,
+        'likes': 0,
+        'likedBy': [],
+        'rating': 0.0,
+        'reviewCount': 0,
+      };
+    } catch (e) {
+      print('Error getting product analytics: $e');
+      throw Exception('Failed to get product analytics');
+    }
+  }
 }

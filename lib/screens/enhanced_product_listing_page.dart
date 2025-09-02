@@ -133,11 +133,14 @@ class _EnhancedProductListingPageState
       final product = widget.product!;
       _nameController.text = product.name;
       _priceController.text = product.price.toString();
-      _stockController.text = '0'; // Default value for new products
+      _stockController.text = product.stockQuantity.toString(); // Fix: Use actual stock quantity for editing
       _descriptionController.text = product.description;
-      _materialsController.text = (product.materials as String?) ?? '';
-      _dimensionsController.text = (product.dimensions as String?) ?? '';
-      _craftingTimeController.text = (product.craftingTime as String?) ?? '';
+      
+      // Fix: Handle materials properly (List<String> to comma-separated string)
+      _materialsController.text = product.materials.join(', ');
+      
+      _dimensionsController.text = product.dimensions;
+      _craftingTimeController.text = product.craftingTime;
       _careInstructionsController.text = product.careInstructions ?? '';
       _selectedCategory = product.category;
 
@@ -149,6 +152,15 @@ class _EnhancedProductListingPageState
         _audioStoryTranslations =
             Map<String, String>.from(product.audioStoryTranslations!);
       }
+      
+      // Initialize AI analysis if it exists
+      if (product.aiAnalysis != null) {
+        _aiAnalysis = Map<String, dynamic>.from(product.aiAnalysis!);
+        _hasAnalyzed = true;
+      }
+    } else {
+      // Default values for new products
+      _stockController.text = '1';
     }
   }
 
@@ -688,13 +700,11 @@ class _EnhancedProductListingPageState
     );
   }
 
-  // Submit product listing
+  // Submit product listing (handles both create and update)
   Future<void> _submitProduct() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    // No minimum media requirement - allow product creation without images/video
 
     setState(() {
       _isSubmitting = true;
@@ -706,98 +716,10 @@ class _EnhancedProductListingPageState
         throw Exception('User not authenticated');
       }
 
-      // Upload media files with progress indication
-      List<String> imageUrls = [];
-      String? videoUrl;
-      String buyerDisplayImageUrl = '';
-
-      final productId = DateTime.now().millisecondsSinceEpoch.toString();
-
-      // Upload buyer display image if selected (optional)
-      if (_buyerDisplayImage != null) {
-        _showSnackBar('Uploading buyer display image...');
-        try {
-          // Get artisan name for organized storage (will be used again later)
-          final firestoreServiceTemp = FirestoreService();
-          final userDataTemp = await firestoreServiceTemp.checkUserExists(user.uid);
-          final artisanNameTemp = userDataTemp?['fullName'] ??
-              userDataTemp?['username'] ??
-              user.displayName ??
-              'Unknown Artisan';
-              
-          buyerDisplayImageUrl =
-              await _productService.uploadImage(
-                _buyerDisplayImage!,
-                sellerName: artisanNameTemp,
-                productName: _nameController.text.trim(),
-              );
-          print(
-              '✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
-        } catch (e) {
-          print('❌ Buyer display image upload failed: $e');
-          // Don't throw error for buyer display image - it's optional
-          _showSnackBar(
-              'Warning: Buyer display image upload failed. Using uploaded images instead.',
-              isError: true);
-        }
-      }
-
-      // Upload media if available
-
-      if (_useVideo && _selectedVideo != null) {
-        _showSnackBar('Uploading video...');
-        videoUrl = await _productService.uploadVideo(_selectedVideo!);
-      } else if (_selectedImages.isNotEmpty) {
-        _showSnackBar(
-            'Uploading ${_selectedImages.length} additional images...');
-        // Get artisan name for organized storage
-        final firestoreServiceImages = FirestoreService();
-        final userDataImages = await firestoreServiceImages.checkUserExists(user.uid);
-        final artisanNameImages = userDataImages?['fullName'] ??
-            userDataImages?['username'] ??
-            user.displayName ??
-            'Unknown Artisan';
-            
-        imageUrls = await _productService.uploadImages(
-          _selectedImages,
-          sellerName: artisanNameImages,
-          productName: _nameController.text.trim(),
-        );
-      } else {
-        _showSnackBar('Creating product without media...');
-        // No media to upload - proceed with product creation
-      }
-
-      // Upload audio story if available
-      String? audioStoryUrl;
-      if (_audioStoryFile != null) {
-        _showSnackBar('Uploading audio story...');
-        try {
-          // Get artisan name for organized storage
-          final firestoreServiceAudio = FirestoreService();
-          final userDataAudio = await firestoreServiceAudio.checkUserExists(user.uid);
-          final artisanNameAudio = userDataAudio?['fullName'] ??
-              userDataAudio?['username'] ??
-              user.displayName ??
-              'Unknown Artisan';
-              
-          audioStoryUrl =
-              await _productService.uploadAudioStory(
-                _audioStoryFile!,
-                sellerName: artisanNameAudio,
-                productName: _nameController.text.trim(),
-              );
-          print('✅ Audio story uploaded successfully: $audioStoryUrl');
-        } catch (e) {
-          print('❌ Audio story upload failed: $e');
-          // Audio story upload failure is not critical, continue with product creation
-          _showSnackBar(
-              'Warning: Audio story upload failed. Product will be created without audio.',
-              isError: true);
-        }
-      }
-
-      _showSnackBar('Creating product listing...');
+      final bool isEditMode = widget.product != null;
+      final productId = isEditMode 
+          ? widget.product!.id 
+          : DateTime.now().millisecondsSinceEpoch.toString();
 
       // Get user data for artisan name
       final firestoreService = FirestoreService();
@@ -807,11 +729,77 @@ class _EnhancedProductListingPageState
           user.displayName ??
           'Unknown Artisan';
 
+      // Handle media uploads
+      List<String> imageUrls = [];
+      String? videoUrl;
+      String buyerDisplayImageUrl = '';
+
+      // In edit mode, preserve existing media URLs if no new media is selected
+      if (isEditMode) {
+        imageUrls = List<String>.from(widget.product!.imageUrls);
+        videoUrl = widget.product!.videoUrl;
+        buyerDisplayImageUrl = widget.product!.imageUrl;
+      }
+
+      // Upload buyer display image if selected
+      if (_buyerDisplayImage != null) {
+        _showSnackBar('Uploading buyer display image...');
+        try {
+          buyerDisplayImageUrl = await _productService.uploadImage(
+            _buyerDisplayImage!,
+            sellerName: artisanName,
+            productName: _nameController.text.trim(),
+          );
+          print('✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
+        } catch (e) {
+          print('❌ Buyer display image upload failed: $e');
+          _showSnackBar(
+              'Warning: Buyer display image upload failed.',
+              isError: true);
+        }
+      }
+
+      // Upload media if new files are selected
+      if (_useVideo && _selectedVideo != null) {
+        _showSnackBar('Uploading video...');
+        videoUrl = await _productService.uploadVideo(_selectedVideo!);
+        imageUrls = []; // Clear images when using video
+      } else if (_selectedImages.isNotEmpty) {
+        _showSnackBar('Uploading ${_selectedImages.length} additional images...');
+        imageUrls = await _productService.uploadImages(
+          _selectedImages,
+          sellerName: artisanName,
+          productName: _nameController.text.trim(),
+        );
+        videoUrl = null; // Clear video when using images
+      }
+
+      // Upload audio story if available
+      String? audioStoryUrl = isEditMode ? widget.product!.audioStoryUrl : null;
+      if (_audioStoryFile != null) {
+        _showSnackBar('Uploading audio story...');
+        try {
+          audioStoryUrl = await _productService.uploadAudioStory(
+            _audioStoryFile!,
+            sellerName: artisanName,
+            productName: _nameController.text.trim(),
+          );
+          print('✅ Audio story uploaded successfully: $audioStoryUrl');
+        } catch (e) {
+          print('❌ Audio story upload failed: $e');
+          _showSnackBar(
+              'Warning: Audio story upload failed.',
+              isError: true);
+        }
+      }
+
+      _showSnackBar(isEditMode ? 'Updating product...' : 'Creating product listing...');
+
       final currentTime = DateTime.now();
 
       // Create product with AI-enhanced data and comprehensive details
       final product = Product(
-        id: productId, // Use the same ID created earlier
+        id: productId,
         artisanId: user.uid,
         artisanName: artisanName,
         name: _nameController.text.trim(),
@@ -834,7 +822,7 @@ class _EnhancedProductListingPageState
             : (imageUrls.isNotEmpty ? imageUrls.first : ''),
         imageUrls: imageUrls,
         videoUrl: videoUrl,
-        createdAt: currentTime,
+        createdAt: isEditMode ? widget.product!.createdAt : currentTime,
         updatedAt: currentTime,
         stockQuantity: int.tryParse(_stockController.text) ?? 1,
         tags: _generateTags(),
@@ -851,18 +839,27 @@ class _EnhancedProductListingPageState
             : null,
       );
 
-      await _productService.createProduct(product);
-
-      // Show detailed success message
-      _showSnackBar('🎉 Product "${product.name}" listed successfully!');
+      // Create or update the product
+      if (isEditMode) {
+        await _productService.updateProduct(product);
+        _showSnackBar('🎉 Product "${product.name}" updated successfully!');
+      } else {
+        await _productService.createProduct(product);
+        _showSnackBar('🎉 Product "${product.name}" listed successfully!');
+      }
 
       // Show success dialog with product details
-      _showProductCreatedDialog(product);
+      _showProductCreatedDialog(product, isEditMode);
 
-      _clearForm();
+      if (!isEditMode) {
+        _clearForm();
+      } else {
+        // In edit mode, navigate back with success result
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       String errorMessage = e.toString();
-      print('❌ Product creation error: $errorMessage');
+      print('❌ Product ${widget.product != null ? 'update' : 'creation'} error: $errorMessage');
 
       if (errorMessage.contains('too large')) {
         _showSnackBar(
@@ -884,7 +881,7 @@ class _EnhancedProductListingPageState
             isError: true);
       } else {
         _showSnackBar(
-            'Error creating product: ${errorMessage.replaceAll('Exception: ', '')}',
+            'Error ${widget.product != null ? 'updating' : 'creating'} product: ${errorMessage.replaceAll('Exception: ', '')}',
             isError: true);
       }
     } finally {
@@ -895,7 +892,7 @@ class _EnhancedProductListingPageState
   }
 
   // Show product created success dialog
-  void _showProductCreatedDialog(Product product) {
+  void _showProductCreatedDialog(Product product, [bool isEditMode = false]) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -906,7 +903,7 @@ class _EnhancedProductListingPageState
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Product Listed Successfully!',
+                  isEditMode ? 'Product Updated Successfully!' : 'Product Listed Successfully!',
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -993,14 +990,16 @@ class _EnhancedProductListingPageState
                     color: accentGold.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.info, color: primaryBrown, size: 16),
-                      SizedBox(width: 8),
+                      const Icon(Icons.info, color: primaryBrown, size: 16),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Your product is now live on the marketplace and can be discovered by buyers!',
-                          style: TextStyle(fontSize: 12, color: primaryBrown),
+                          isEditMode 
+                            ? 'Your product has been updated and changes are now live on the marketplace!'
+                            : 'Your product is now live on the marketplace and can be discovered by buyers!',
+                          style: const TextStyle(fontSize: 12, color: primaryBrown),
                         ),
                       ),
                     ],
@@ -1017,16 +1016,29 @@ class _EnhancedProductListingPageState
               },
               child: const Text('View My Products'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryBrown,
-                foregroundColor: Colors.white,
+            if (!isEditMode)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBrown,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Create Another'),
+              )
+            else
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(true); // Return to seller screen with success
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBrown,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Done'),
               ),
-              child: const Text('Create Another'),
-            ),
           ],
         );
       },
@@ -1301,7 +1313,9 @@ class _EnhancedProductListingPageState
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
-          'AI-Powered Product Listing',
+          widget.product != null 
+            ? 'Edit Product' 
+            : 'AI-Powered Product Listing',
           style: GoogleFonts.playfairDisplay(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -1437,11 +1451,14 @@ class _EnhancedProductListingPageState
           const SizedBox(height: 20),
 
           // Display selected media
-          if (_selectedImages.isNotEmpty) _buildImagePreview(),
-          if (_selectedVideo != null && _useVideo) _buildVideoPreview(),
+          if (_selectedImages.isNotEmpty || (widget.product != null && widget.product!.imageUrls.isNotEmpty)) 
+            _buildImagePreview(),
+          if ((_selectedVideo != null && _useVideo) || (widget.product != null && widget.product!.videoUrl != null && !_useVideo)) 
+            _buildVideoPreview(),
 
           // Optional media message
-          if (_selectedImages.isEmpty && _selectedVideo == null)
+          if (_selectedImages.isEmpty && _selectedVideo == null && 
+              (widget.product == null || (widget.product!.imageUrls.isEmpty && widget.product!.videoUrl == null)))
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1480,6 +1497,10 @@ class _EnhancedProductListingPageState
   }
 
   Widget _buildImagePreview() {
+    final bool isEditMode = widget.product != null;
+    final existingImages = isEditMode ? widget.product!.imageUrls : <String>[];
+    final totalImages = _selectedImages.length + existingImages.length;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1487,7 +1508,9 @@ class _EnhancedProductListingPageState
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${_selectedImages.length} Photos Selected',
+              isEditMode 
+                ? '${totalImages} Photos (${existingImages.length} existing, ${_selectedImages.length} new)'
+                : '${_selectedImages.length} Photos Selected',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 color: primaryBrown,
@@ -1503,7 +1526,7 @@ class _EnhancedProductListingPageState
                   });
                 },
                 icon: const Icon(Icons.clear_all, size: 16),
-                label: const Text('Clear All'),
+                label: const Text('Clear New'),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[600],
                 ),
@@ -1515,8 +1538,11 @@ class _EnhancedProductListingPageState
           height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: _selectedImages.length,
+            itemCount: totalImages,
             itemBuilder: (context, index) {
+              final bool isExistingImage = index < existingImages.length;
+              final imageIndex = isExistingImage ? index : index - existingImages.length;
+              
               return Container(
                 width: 100,
                 height: 100,
@@ -1524,13 +1550,15 @@ class _EnhancedProductListingPageState
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   image: DecorationImage(
-                    image: FileImage(_selectedImages[index]),
+                    image: isExistingImage 
+                        ? NetworkImage(existingImages[imageIndex]) as ImageProvider
+                        : FileImage(_selectedImages[imageIndex]),
                     fit: BoxFit.cover,
                   ),
                 ),
                 child: Stack(
                   children: [
-                    if (_isAnalyzing)
+                    if (_isAnalyzing && !isExistingImage)
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
@@ -1561,26 +1589,48 @@ class _EnhancedProductListingPageState
                           ),
                         ),
                       ),
-                    // Remove button
-                    Positioned(
-                      top: 5,
-                      right: 5,
-                      child: GestureDetector(
-                        onTap: () => _removeImage(index),
+                    // Existing image indicator
+                    if (isExistingImage)
+                      Positioned(
+                        bottom: 5,
+                        left: 5,
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.8),
+                            color: Colors.blue,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 12,
+                          child: const Text(
+                            'Current',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    // Remove button (only for new images)
+                    if (!isExistingImage)
+                      Positioned(
+                        top: 5,
+                        right: 5,
+                        child: GestureDetector(
+                          onTap: () => _removeImage(imageIndex),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               );
@@ -1593,11 +1643,15 @@ class _EnhancedProductListingPageState
   }
 
   Widget _buildVideoPreview() {
+    final bool isEditMode = widget.product != null;
+    final bool hasExistingVideo = isEditMode && widget.product!.videoUrl != null;
+    final bool hasNewVideo = _selectedVideo != null && _useVideo;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Video Selected',
+          hasNewVideo ? 'New Video Selected' : (hasExistingVideo ? 'Current Video' : 'Video Selected'),
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: primaryBrown,
@@ -1611,8 +1665,7 @@ class _EnhancedProductListingPageState
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey[300]!),
           ),
-          child: _videoController != null &&
-                  _videoController!.value.isInitialized
+          child: hasNewVideo && _videoController != null && _videoController!.value.isInitialized
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: Stack(
@@ -1680,10 +1733,52 @@ class _EnhancedProductListingPageState
                     ],
                   ),
                 )
-              : const Center(
-                  child:
-                      Icon(Icons.video_library, size: 50, color: Colors.grey),
-                ),
+              : hasExistingVideo
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Stack(
+                        children: [
+                          Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.video_library, size: 50, color: Colors.grey),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Current Video',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 10,
+                            left: 10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Existing Video',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.video_library, size: 50, color: Colors.grey),
+                    ),
         ),
       ],
     );
@@ -3545,17 +3640,21 @@ class _EnhancedProductListingPageState
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text('Creating Product...',
-                      style: GoogleFonts.inter(fontSize: 16)),
+                  Text(
+                    widget.product != null ? 'Updating Product...' : 'Creating Product...',
+                    style: GoogleFonts.inter(fontSize: 16)
+                  ),
                 ],
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.rocket_launch),
+                  Icon(widget.product != null ? Icons.update : Icons.rocket_launch),
                   const SizedBox(width: 8),
                   Text(
-                    'List Product with AI Power',
+                    widget.product != null 
+                      ? 'Update Product'
+                      : 'List Product with AI Power',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
