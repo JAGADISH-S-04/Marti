@@ -1,19 +1,146 @@
 import 'package:arti/models/product.dart';
 import 'package:arti/services/cart_service.dart';
+import 'package:arti/services/product_service.dart';
 import 'package:arti/widgets/enhanced_audio_story_section.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ProductDetailScreen extends StatelessWidget {
+class ProductDetailScreen extends StatefulWidget {
   final Product? product;
 
   const ProductDetailScreen({super.key, this.product});
 
   @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  final ProductService _productService = ProductService();
+  bool _isLiked = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeProductData();
+  }
+
+  Future<void> _initializeProductData() async {
+    final Product p = widget.product ?? 
+        ModalRoute.of(context)!.settings.arguments as Product;
+    
+    // Increment view count when product is viewed
+    await _incrementViews(p.id);
+    
+    // Check if current user has liked this product
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final isLiked = await _productService.hasUserLiked(p.id, user.uid);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+        });
+      }
+    }
+  }
+
+  Future<void> _incrementViews(String productId) async {
+    try {
+      await _productService.incrementViews(productId);
+    } catch (e) {
+      // Silently handle view increment errors
+      print('Error incrementing views: $e');
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Show login prompt
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to like products'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final Product p = widget.product ?? 
+          ModalRoute.of(context)!.settings.arguments as Product;
+      
+      await _productService.toggleLike(p.id, user.uid);
+      
+      // Update local state
+      setState(() {
+        _isLiked = !_isLiked;
+      });
+
+      // Show feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isLiked ? 'Added to favorites!' : 'Removed from favorites'),
+          backgroundColor: _isLiked ? Colors.green : Colors.grey,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      // If the error is about missing fields, try to fix it
+      if (e.toString().contains('Null') || e.toString().contains('subtype')) {
+        try {
+          // Try to add the missing fields
+          await _productService.addLikesFieldsToAllProducts();
+          
+          // Retry the like operation
+          final Product p = widget.product ?? 
+              ModalRoute.of(context)!.settings.arguments as Product;
+          await _productService.toggleLike(p.id, user.uid);
+          
+          setState(() {
+            _isLiked = !_isLiked;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isLiked ? 'Added to favorites!' : 'Removed from favorites'),
+              backgroundColor: _isLiked ? Colors.green : Colors.grey,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        } catch (retryError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to like product. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to like product. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Product p =
-        product ?? ModalRoute.of(context)!.settings.arguments as Product;
+        widget.product ?? ModalRoute.of(context)!.settings.arguments as Product;
 
     // Color scheme matching the app theme
     const Color primaryBrown = Color(0xFF2C1810);
@@ -118,6 +245,55 @@ class ProductDetailScreen extends StatelessWidget {
                             fontSize: 20,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Like Button Only (no views/likes count for buyers)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      GestureDetector(
+                        onTap: _isLoading ? null : _toggleLike,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _isLiked ? Colors.red.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _isLiked ? Colors.red : Colors.grey,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isLoading)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              else
+                                Icon(
+                                  _isLiked ? Icons.favorite : Icons.favorite_border,
+                                  size: 18,
+                                  color: _isLiked ? Colors.red : Colors.grey[600],
+                                ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isLiked ? 'Liked' : 'Like',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _isLiked ? Colors.red : Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

@@ -1,5 +1,7 @@
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
+import 'package:arti/services/product_database_service.dart';
+import 'package:arti/models/product.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,9 +14,9 @@ import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'store_audio_management_page.dart';
-import 'craft_it/seller_view.dart';
 import 'seller_orders_page.dart';
 import 'admin/product_migration_screen.dart';
+import 'product_migration_page.dart';
 import '../services/order_service.dart';
 
 class MyStoreScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _storeData;
   final OrderService _orderService = OrderService();
+  final ProductDatabaseService _productService = ProductDatabaseService();
   int _orderCount = 0;
 
   @override
@@ -100,6 +103,182 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   }
 
   String get orderCountText => _orderCount.toString();
+
+  // Edit product functionality
+  Future<void> _editProduct(Map<String, dynamic> productData) async {
+    try {
+      // Convert Map to Product object
+      final product = _mapToProduct(productData);
+      
+      // Navigate to the enhanced product listing page with the product data
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EnhancedProductListingPage(product: product),
+        ),
+      );
+      
+      // Refresh the products list if the product was updated
+      if (result == true) {
+        _showSnackBar('Product updated successfully!');
+      }
+    } catch (e) {
+      _showSnackBar('Error editing product: $e', isError: true);
+    }
+  }
+
+  // Delete product functionality - Enhanced with ProductDatabaseService
+  Future<void> _deleteProduct(Map<String, dynamic> productData) async {
+    // Show confirmation dialog
+    bool shouldDelete = await showDialog<bool>(
+          context: context,
+          barrierDismissible: true,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red.shade600, size: 24),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Delete Product',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to delete "${productData['name']}"?',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.red.shade600, size: 16),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'This action cannot be undone. All product data, images, and associated information will be permanently deleted.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Delete'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldDelete) return;
+
+    try {
+      // Show loading indicator
+      _showSnackBar('Deleting product...');
+
+      // Use the enhanced ProductDatabaseService for secure deletion
+      final success = await _productService.deleteProduct(productData['id']);
+      
+      if (success) {
+        _showSnackBar('Product "${productData['name']}" deleted successfully!');
+      } else {
+        _showSnackBar('Failed to delete product. Please try again.', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error deleting product: $e', isError: true);
+    }
+  }
+
+  // Helper method to convert Map to Product object
+  Product _mapToProduct(Map<String, dynamic> data) {
+    return Product(
+      id: data['id'] ?? '',
+      artisanId: data['artisanId'] ?? '',
+      artisanName: data['artisanName'] ?? '',
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      category: data['category'] ?? '',
+      price: (data['price'] as num?)?.toDouble() ?? 0.0,
+      materials: data['materials'] is List 
+          ? List<String>.from(data['materials'])
+          : (data['materials'] as String?)?.split(',').map((s) => s.trim()).toList() ?? [],
+      craftingTime: data['craftingTime'] ?? '',
+      dimensions: data['dimensions'] ?? '',
+      imageUrl: data['imageUrl'] ?? '',
+      imageUrls: data['imageUrls'] is List 
+          ? List<String>.from(data['imageUrls'])
+          : [],
+      videoUrl: data['videoUrl'],
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: data['updatedAt'] is Timestamp 
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      stockQuantity: data['stockQuantity'] ?? 0,
+      tags: data['tags'] is List 
+          ? List<String>.from(data['tags'])
+          : [],
+      careInstructions: data['careInstructions'],
+      aiAnalysis: data['aiAnalysis'] is Map 
+          ? Map<String, dynamic>.from(data['aiAnalysis'])
+          : null,
+      audioStoryUrl: data['audioStoryUrl'],
+      audioStoryTranscription: data['audioStoryTranscription'],
+      audioStoryTranslations: data['audioStoryTranslations'] is Map 
+          ? Map<String, String>.from(data['audioStoryTranslations'])
+          : null,
+    );
+  }
+
+  // Helper method to show snack bar messages
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError ? Colors.red : const Color(0xFFD4AF37),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   Future<void> _logout() async {
     try {
@@ -195,7 +374,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ProductMigrationScreen(),
+                      builder: (context) => const ProductMigrationPage(),
                     ),
                   );
                 },
@@ -560,12 +739,23 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   }
 
   Widget _buildProductCard(Map<String, dynamic> product) {
+    final bool isLowStock = (product['stockQuantity'] ?? 0) < 5;
+    final bool isOutOfStock = (product['stockQuantity'] ?? 0) == 0;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOutOfStock 
+              ? Colors.red.shade200 
+              : isLowStock 
+                  ? Colors.orange.shade200 
+                  : Colors.grey.shade200,
+          width: isOutOfStock || isLowStock ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -575,76 +765,220 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Product Image
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.grey[200],
-            ),
-            child:
-                product['imageUrls'] != null && product['imageUrls'].isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          product['imageUrls'][0],
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Icon(
-                        Icons.image,
-                        color: Colors.grey[400],
-                      ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product['name'] ?? 'Unknown Product',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2C1810),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              // Product Image
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey[200],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  product['category'] ?? '',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+                child: Stack(
                   children: [
-                    Text(
-                      '₹${product['price'] ?? 0}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFD4AF37),
-                      ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: product['imageUrls'] != null && product['imageUrls'].isNotEmpty
+                          ? Image.network(
+                              product['imageUrls'][0],
+                              fit: BoxFit.cover,
+                              width: 60,
+                              height: 60,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.image,
+                                color: Colors.grey[400],
+                              ),
+                            )
+                          : Icon(
+                              Icons.image,
+                              color: Colors.grey[400],
+                            ),
                     ),
-                    const Spacer(),
+                    // Stock status indicator
+                    if (isOutOfStock || isLowStock)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: isOutOfStock ? Colors.red : Colors.orange,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product['name'] ?? 'Unknown Product',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF2C1810),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Status badge
+                        if (isOutOfStock)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.shade300),
+                            ),
+                            child: Text(
+                              'Out of Stock',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          )
+                        else if (isLowStock)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Text(
+                              'Low Stock',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      'Stock: ${product['stockQuantity'] ?? 0}',
+                      product['category'] ?? '',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          '₹${product['price'] ?? 0}',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFD4AF37),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Stock: ${product['stockQuantity'] ?? 0}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isOutOfStock 
+                                ? Colors.red.shade600 
+                                : isLowStock 
+                                    ? Colors.orange.shade600 
+                                    : Colors.grey[600],
+                            fontWeight: isOutOfStock || isLowStock 
+                                ? FontWeight.w600 
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Action buttons row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Quick Stats
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${product['views'] ?? 0} views',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${product['likes'] ?? 0}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Edit button
+                  TextButton.icon(
+                    onPressed: () => _editProduct(product),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Edit'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2C1810),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(60, 28),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Delete button
+                  TextButton.icon(
+                    onPressed: () => _deleteProduct(product),
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(60, 28),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -1662,7 +1996,7 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) => const SellerOrdersPage(),
                                   ),
                                 );
                               },
@@ -1808,7 +2142,7 @@ class _SellerScreenState extends State<SellerScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const SellerRequestsScreen(),
+              builder: (context) => const SellerOrdersPage(),
             ),
           );
         },

@@ -22,6 +22,8 @@ class Product {
   final String? careInstructions; // Care instructions for the product
   final Map<String, dynamic>? aiAnalysis; // Store AI analysis data
   final int views; // Track product views
+  final int likes; // Track product likes
+  final List<String> likedBy; // Track users who liked this product
   final double rating; // Average rating
   final int reviewCount; // Number of reviews
   final String? audioStoryUrl; // URL of uploaded audio story
@@ -50,6 +52,8 @@ class Product {
     this.careInstructions,
     this.aiAnalysis,
     this.views = 0,
+    this.likes = 0,
+    this.likedBy = const [],
     this.rating = 0.0,
     this.reviewCount = 0,
     this.audioStoryUrl,
@@ -81,6 +85,8 @@ class Product {
       'careInstructions': careInstructions,
       'aiAnalysis': aiAnalysis,
       'views': views,
+      'likes': likes,
+      'likedBy': likedBy,
       'rating': rating,
       'reviewCount': reviewCount,
       'audioStoryUrl': audioStoryUrl,
@@ -139,6 +145,8 @@ class Product {
       careInstructions: map['careInstructions'],
       aiAnalysis: map['aiAnalysis'] != null ? Map<String, dynamic>.from(map['aiAnalysis']) : null,
       views: map['views'] ?? 0,
+      likes: map['likes'] ?? 0,
+      likedBy: List<String>.from(map['likedBy'] ?? []),
       rating: (map['rating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
       audioStoryUrl: map['audioStoryUrl'],

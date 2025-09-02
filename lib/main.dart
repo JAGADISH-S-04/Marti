@@ -9,6 +9,7 @@ import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/product_detail_screen.dart';
 import 'package:arti/screens/add_product_screen.dart';
 import 'package:arti/screens/admin/product_migration_screen.dart';
+import 'package:arti/screens/product_migration_page.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -44,6 +45,10 @@ class MyApp extends StatelessWidget {
             final args = settings.arguments as String?;
             return MaterialPageRoute(
               builder: (_) => BottomAppNavigator(initialUserType: args),
+            );
+          case '/migration':
+            return MaterialPageRoute(
+              builder: (_) => const ProductMigrationPage(),
             );
           default:
             return null;

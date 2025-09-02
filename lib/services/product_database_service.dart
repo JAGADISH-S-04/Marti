@@ -127,8 +127,8 @@ class ProductDatabaseService {
     }
   }
 
-  /// Update existing product
-  Future<void> updateProduct({
+  /// Update existing product with enhanced seller screen compatibility
+  Future<bool> updateProduct({
     required String productId,
     String? name,
     String? description,
@@ -158,74 +158,89 @@ class ProductDatabaseService {
 
       final existingProduct = Product.fromMap(productDoc.data()!);
       
-      // Verify ownership
+      // Verify ownership - critical for seller screen security
       if (existingProduct.artisanId != user.uid) {
         throw Exception('You do not have permission to update this product');
       }
 
       final updateData = <String, dynamic>{};
 
-      // Handle image updates
+      // Handle image updates with proper cleanup
       if (newMainImage != null) {
-        // Delete old main image
-        if (existingProduct.imageUrl.isNotEmpty) {
-          await _storageService.deleteFile(existingProduct.imageUrl);
+        try {
+          // Delete old main image if it exists
+          if (existingProduct.imageUrl.isNotEmpty) {
+            await _storageService.deleteFile(existingProduct.imageUrl);
+          }
+          
+          // Upload new main image
+          final newMainImageUrl = await _storageService.uploadBuyerDisplayImage(
+            image: newMainImage,
+            sellerName: existingProduct.artisanName,
+            productId: productId,
+            sellerId: user.uid,
+          );
+          updateData['imageUrl'] = newMainImageUrl;
+        } catch (e) {
+          print('Warning: Error updating main image: $e');
+          // Continue with other updates even if image update fails
         }
-        
-        // Upload new main image
-        final newMainImageUrl = await _storageService.uploadBuyerDisplayImage(
-          image: newMainImage,
-          sellerName: existingProduct.artisanName,
-          productId: productId,
-          sellerId: user.uid,
-        );
-        updateData['imageUrl'] = newMainImageUrl;
       }
 
       if (newAdditionalImages != null && newAdditionalImages.isNotEmpty) {
-        // Delete old additional images
-        for (String oldUrl in existingProduct.imageUrls) {
-          await _storageService.deleteFile(oldUrl);
+        try {
+          // Delete old additional images
+          for (String oldUrl in existingProduct.imageUrls) {
+            await _storageService.deleteFile(oldUrl);
+          }
+          
+          // Upload new additional images
+          final newAdditionalImageUrls = await _storageService.uploadProductImages(
+            images: newAdditionalImages,
+            sellerName: existingProduct.artisanName,
+            productId: productId,
+            sellerId: user.uid,
+          );
+          updateData['imageUrls'] = newAdditionalImageUrls;
+        } catch (e) {
+          print('Warning: Error updating additional images: $e');
+          // Continue with other updates
         }
-        
-        // Upload new additional images
-        final newAdditionalImageUrls = await _storageService.uploadProductImages(
-          images: newAdditionalImages,
-          sellerName: existingProduct.artisanName,
-          productId: productId,
-          sellerId: user.uid,
-        );
-        updateData['imageUrls'] = newAdditionalImageUrls;
       }
 
-      // Handle video update
+      // Handle video update with proper cleanup
       if (newVideo != null) {
-        // Delete old video if exists
-        if (existingProduct.videoUrl != null && existingProduct.videoUrl!.isNotEmpty) {
-          await _storageService.deleteFile(existingProduct.videoUrl!);
+        try {
+          // Delete old video if exists
+          if (existingProduct.videoUrl != null && existingProduct.videoUrl!.isNotEmpty) {
+            await _storageService.deleteFile(existingProduct.videoUrl!);
+          }
+          
+          // Upload new video
+          final newVideoUrl = await _storageService.uploadProductVideo(
+            video: newVideo,
+            sellerName: existingProduct.artisanName,
+            productId: productId,
+            sellerId: user.uid,
+          );
+          updateData['videoUrl'] = newVideoUrl;
+        } catch (e) {
+          print('Warning: Error updating video: $e');
+          // Continue with other updates
         }
-        
-        // Upload new video
-        final newVideoUrl = await _storageService.uploadProductVideo(
-          video: newVideo,
-          sellerName: existingProduct.artisanName,
-          productId: productId,
-          sellerId: user.uid,
-        );
-        updateData['videoUrl'] = newVideoUrl;
       }
 
-      // Update other fields
-      if (name != null) updateData['name'] = name;
-      if (description != null) updateData['description'] = description;
-      if (category != null) updateData['category'] = category;
-      if (price != null) updateData['price'] = price;
-      if (materials != null) updateData['materials'] = materials;
-      if (craftingTime != null) updateData['craftingTime'] = craftingTime;
-      if (dimensions != null) updateData['dimensions'] = dimensions;
-      if (stockQuantity != null) updateData['stockQuantity'] = stockQuantity;
+      // Update other fields - safe updates for seller screen
+      if (name != null && name.trim().isNotEmpty) updateData['name'] = name.trim();
+      if (description != null && description.trim().isNotEmpty) updateData['description'] = description.trim();
+      if (category != null && category.trim().isNotEmpty) updateData['category'] = category.trim();
+      if (price != null && price > 0) updateData['price'] = price;
+      if (materials != null && materials.isNotEmpty) updateData['materials'] = materials;
+      if (craftingTime != null && craftingTime.trim().isNotEmpty) updateData['craftingTime'] = craftingTime.trim();
+      if (dimensions != null && dimensions.trim().isNotEmpty) updateData['dimensions'] = dimensions.trim();
+      if (stockQuantity != null && stockQuantity >= 0) updateData['stockQuantity'] = stockQuantity;
       if (tags != null) updateData['tags'] = tags;
-      if (careInstructions != null) updateData['careInstructions'] = careInstructions;
+      if (careInstructions != null) updateData['careInstructions'] = careInstructions.trim();
       if (aiAnalysis != null) updateData['aiAnalysis'] = aiAnalysis;
       if (isActive != null) updateData['isActive'] = isActive;
 
@@ -235,23 +250,32 @@ class ProductDatabaseService {
       // Update search terms and price range if relevant fields changed
       if (name != null || description != null || category != null || 
           materials != null || tags != null || price != null) {
-        final updatedProduct = Product.fromMap({...productDoc.data()!, ...updateData});
-        updateData['searchTerms'] = updatedProduct.toMap()['searchTerms'];
-        updateData['priceRange'] = updatedProduct.toMap()['priceRange'];
+        final updatedProductData = {...productDoc.data()!, ...updateData};
+        final updatedProduct = Product.fromMap(updatedProductData);
+        final updatedProductMap = updatedProduct.toMap();
+        
+        if (updatedProductMap.containsKey('searchTerms')) {
+          updateData['searchTerms'] = updatedProductMap['searchTerms'];
+        }
+        if (updatedProductMap.containsKey('priceRange')) {
+          updateData['priceRange'] = updatedProductMap['priceRange'];
+        }
       }
 
-      // Save updates to Firestore
+      // Save updates to Firestore - atomic operation
       await _firestore.collection('products').doc(productId).update(updateData);
 
-      print('Product updated successfully: $productId');
+      print('✅ Product updated successfully: $productId');
+      return true; // Return success indicator for seller screen
     } catch (e) {
-      print('Error updating product: $e');
+      print('❌ Error updating product: $e');
       throw Exception('Failed to update product: $e');
     }
   }
 
   /// Delete product and all associated files
-  Future<void> deleteProduct(String productId) async {
+  /// Delete product and all associated files - enhanced for seller screen
+  Future<bool> deleteProduct(String productId) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
@@ -264,38 +288,103 @@ class ProductDatabaseService {
 
       final product = Product.fromMap(productDoc.data()!);
       
-      // Verify ownership
+      // Verify ownership - critical for seller screen security
       if (product.artisanId != user.uid) {
         throw Exception('You do not have permission to delete this product');
       }
 
-      // Delete all associated files
+      print('🗑️ Starting deletion process for product: ${product.name}');
+
+      // Delete all associated files with error handling
+      final deletionTasks = <Future>[];
+
+      // Delete main image
       if (product.imageUrl.isNotEmpty) {
-        await _storageService.deleteFile(product.imageUrl);
+        deletionTasks.add(_safeDeleteFile(product.imageUrl, 'main image'));
       }
       
+      // Delete additional images
       for (String imageUrl in product.imageUrls) {
-        await _storageService.deleteFile(imageUrl);
+        if (imageUrl.isNotEmpty) {
+          deletionTasks.add(_safeDeleteFile(imageUrl, 'additional image'));
+        }
       }
       
+      // Delete video
       if (product.videoUrl != null && product.videoUrl!.isNotEmpty) {
-        await _storageService.deleteFile(product.videoUrl!);
+        deletionTasks.add(_safeDeleteFile(product.videoUrl!, 'video'));
       }
       
+      // Delete audio story
       if (product.audioStoryUrl != null && product.audioStoryUrl!.isNotEmpty) {
-        await _storageService.deleteFile(product.audioStoryUrl!);
+        deletionTasks.add(_safeDeleteFile(product.audioStoryUrl!, 'audio story'));
       }
 
-      // Delete product document
+      // Execute all deletion tasks in parallel
+      await Future.wait(deletionTasks);
+
+      // Delete from any related collections (reviews, favorites, etc.)
+      await _deleteRelatedData(productId);
+
+      // Finally, delete the product document
       await _firestore.collection('products').doc(productId).delete();
 
       // Update seller product count
       await _updateSellerProductCount(user.uid, -1);
 
-      print('Product deleted successfully: $productId');
+      print('✅ Product deleted successfully: $productId');
+      return true; // Return success indicator for seller screen
     } catch (e) {
-      print('Error deleting product: $e');
+      print('❌ Error deleting product: $e');
       throw Exception('Failed to delete product: $e');
+    }
+  }
+
+  /// Safe file deletion with error handling
+  Future<void> _safeDeleteFile(String fileUrl, String fileType) async {
+    try {
+      await _storageService.deleteFile(fileUrl);
+      print('✅ Deleted $fileType successfully');
+    } catch (e) {
+      print('⚠️ Warning: Could not delete $fileType ($fileUrl): $e');
+      // Don't throw error, continue with other deletions
+    }
+  }
+
+  /// Delete related data when product is deleted
+  Future<void> _deleteRelatedData(String productId) async {
+    try {
+      // Delete reviews
+      final reviewsQuery = await _firestore
+          .collection('reviews')
+          .where('productId', isEqualTo: productId)
+          .get();
+      
+      final reviewDeletions = reviewsQuery.docs.map((doc) => doc.reference.delete());
+      
+      // Delete from favorites
+      final favoritesQuery = await _firestore
+          .collection('favorites')
+          .where('productId', isEqualTo: productId)
+          .get();
+      
+      final favoriteDeletions = favoritesQuery.docs.map((doc) => doc.reference.delete());
+      
+      // Delete from cart items
+      final cartQuery = await _firestore
+          .collectionGroup('cartItems')
+          .where('productId', isEqualTo: productId)
+          .get();
+      
+      final cartDeletions = cartQuery.docs.map((doc) => doc.reference.delete());
+
+      // Execute all related deletions
+      await Future.wait([...reviewDeletions, ...favoriteDeletions, ...cartDeletions]);
+      
+      print('✅ Cleaned up related data for product: $productId');
+    } catch (e) {
+      print('⚠️ Warning: Error cleaning up related data: $e');
+      // Don't throw error, product deletion should continue
     }
   }
 
@@ -317,17 +406,118 @@ class ProductDatabaseService {
     }
   }
 
-  /// Get product by ID
-  Future<Product?> getProduct(String productId) async {
+  /// Get products by seller with real-time updates for seller screen
+  Stream<List<Product>> getProductsBySellerStream(String sellerId) {
+    return _firestore
+        .collection('products')
+        .where('artisanId', isEqualTo: sellerId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Product.fromMap(doc.data()))
+            .toList());
+  }
+
+  /// Get product by ID with ownership verification
+  Future<Product?> getProduct(String productId, {bool verifyOwnership = false}) async {
     try {
       final doc = await _firestore.collection('products').doc(productId).get();
       if (doc.exists) {
-        return Product.fromMap(doc.data()!);
+        final product = Product.fromMap(doc.data()!);
+        
+        // Verify ownership if requested (for seller operations)
+        if (verifyOwnership) {
+          final user = _auth.currentUser;
+          if (user == null || product.artisanId != user.uid) {
+            throw Exception('You do not have permission to access this product');
+          }
+        }
+        
+        return product;
       }
       return null;
     } catch (e) {
       print('Error getting product: $e');
       throw Exception('Failed to get product: $e');
+    }
+  }
+
+  /// Toggle product active status (useful for seller screen)
+  Future<bool> toggleProductStatus(String productId, bool isActive) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    try {
+      // Verify ownership first
+      final product = await getProduct(productId, verifyOwnership: true);
+      if (product == null) throw Exception('Product not found');
+
+      await _firestore.collection('products').doc(productId).update({
+        'isActive': isActive,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      print('✅ Product status toggled: $productId -> active: $isActive');
+      return true;
+    } catch (e) {
+      print('❌ Error toggling product status: $e');
+      throw Exception('Failed to toggle product status: $e');
+    }
+  }
+
+  /// Update product stock (useful for seller screen)
+  Future<bool> updateProductStock(String productId, int newStock) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    try {
+      // Verify ownership first
+      final product = await getProduct(productId, verifyOwnership: true);
+      if (product == null) throw Exception('Product not found');
+
+      await _firestore.collection('products').doc(productId).update({
+        'stockQuantity': newStock,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      print('✅ Product stock updated: $productId -> stock: $newStock');
+      return true;
+    } catch (e) {
+      print('❌ Error updating product stock: $e');
+      throw Exception('Failed to update product stock: $e');
+    }
+  }
+
+  /// Bulk update products (useful for seller screen batch operations)
+  Future<int> bulkUpdateProducts(String sellerId, Map<String, dynamic> updates) async {
+    final user = _auth.currentUser;
+    if (user == null || user.uid != sellerId) {
+      throw Exception('User not authenticated or unauthorized');
+    }
+
+    try {
+      final querySnapshot = await _firestore
+          .collection('products')
+          .where('artisanId', isEqualTo: sellerId)
+          .get();
+
+      final batch = _firestore.batch();
+      int updateCount = 0;
+
+      for (final doc in querySnapshot.docs) {
+        final updateData = {...updates};
+        updateData['updatedAt'] = Timestamp.fromDate(DateTime.now());
+        
+        batch.update(doc.reference, updateData);
+        updateCount++;
+      }
+
+      await batch.commit();
+      print('✅ Bulk updated $updateCount products for seller: $sellerId');
+      return updateCount;
+    } catch (e) {
+      print('❌ Error in bulk update: $e');
+      throw Exception('Failed to bulk update products: $e');
     }
   }
 
@@ -481,6 +671,7 @@ class ProductDatabaseService {
   }
 
   /// Get product analytics for seller
+  /// Get product analytics for seller - enhanced for seller dashboard
   Future<Map<String, dynamic>> getSellerProductAnalytics(String sellerId) async {
     try {
       final products = await getProductsBySeller(sellerId);
@@ -489,6 +680,9 @@ class ProductDatabaseService {
       double totalRating = 0;
       int totalReviews = 0;
       int activeProducts = 0;
+      int inactiveProducts = 0;
+      int lowStockProducts = 0;
+      int outOfStockProducts = 0;
       double totalValue = 0;
       
       for (Product product in products) {
@@ -496,7 +690,18 @@ class ProductDatabaseService {
         totalRating += product.rating * product.reviewCount;
         totalReviews += product.reviewCount;
         totalValue += product.price * product.stockQuantity;
-        if (product.isActive) activeProducts++;
+        
+        if (product.isActive) {
+          activeProducts++;
+        } else {
+          inactiveProducts++;
+        }
+        
+        if (product.stockQuantity == 0) {
+          outOfStockProducts++;
+        } else if (product.stockQuantity < 5) {
+          lowStockProducts++;
+        }
       }
 
       final averageRating = totalReviews > 0 ? totalRating / totalReviews : 0.0;
@@ -504,6 +709,9 @@ class ProductDatabaseService {
       return {
         'totalProducts': products.length,
         'activeProducts': activeProducts,
+        'inactiveProducts': inactiveProducts,
+        'lowStockProducts': lowStockProducts,
+        'outOfStockProducts': outOfStockProducts,
         'totalViews': totalViews,
         'averageRating': averageRating,
         'totalReviews': totalReviews,
