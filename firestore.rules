@@ -201,8 +201,8 @@ service cloud.firestore {
     function validateProductUpdate(newData, existingData) {
       // Ensure critical fields aren't changed maliciously
       return newData.artisanId == existingData.artisanId &&
-             // Allow normal field updates
-             (newData.diff(existingData).affectedKeys().hasOnly(['name', 'description', 'price', 'stockQuantity', 'materials', 'tags', 'category', 'dimensions', 'craftingTime', 'careInstructions', 'isActive', 'updatedAt', 'imageUrl', 'imageUrls', 'videoUrl', 'audioStoryUrl', 'audioStoryTranscription', 'audioStoryTranslations', 'aiAnalysis', 'searchTerms', 'priceRange', 'views', 'likes', 'likedBy']));
+             // Allow normal field updates including Artisan's Legacy fields
+             (newData.diff(existingData).affectedKeys().hasOnly(['name', 'description', 'price', 'stockQuantity', 'materials', 'tags', 'category', 'dimensions', 'craftingTime', 'careInstructions', 'isActive', 'updatedAt', 'imageUrl', 'imageUrls', 'videoUrl', 'audioStoryUrl', 'audioStoryTranscription', 'audioStoryTranslations', 'aiAnalysis', 'searchTerms', 'priceRange', 'views', 'likes', 'likedBy', 'artisanLegacyStory', 'storyIngredients', 'provenanceMapData']));
     }
     
     function validateLikesViewsUpdate(newData, existingData) {

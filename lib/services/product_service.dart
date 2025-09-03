@@ -502,6 +502,18 @@ class ProductService {
     }
   }
 
+  // Flexible update method for specific fields
+  Future<void> updateProductFields(String productId, Map<String, dynamic> data) async {
+    try {
+      await _firestore
+          .collection('products')
+          .doc(productId)
+          .update(data);
+    } catch (e) {
+      throw Exception('Failed to update product: $e');
+    }
+  }
+
   // Delete product
   Future<void> deleteProduct(String productId) async {
     try {

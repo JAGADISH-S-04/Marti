@@ -29,6 +29,11 @@ class Product {
   final String? audioStoryUrl; // URL of uploaded audio story
   final String? audioStoryTranscription; // Transcribed text of audio story
   final Map<String, String>? audioStoryTranslations; // Multi-language translations
+  
+  // Artisan's Legacy fields
+  final String? artisanLegacyStory; // The final generated story
+  final Map<String, dynamic>? storyIngredients; // The artisan's original inputs
+  final Map<String, dynamic>? provenanceMapData; // Data for the interactive map
 
   Product({
     required this.id,
@@ -59,6 +64,9 @@ class Product {
     this.audioStoryUrl,
     this.audioStoryTranscription,
     this.audioStoryTranslations,
+    this.artisanLegacyStory,
+    this.storyIngredients,
+    this.provenanceMapData,
   });
 
   // Convert Product to Map for Firestore
@@ -92,6 +100,9 @@ class Product {
       'audioStoryUrl': audioStoryUrl,
       'audioStoryTranscription': audioStoryTranscription,
       'audioStoryTranslations': audioStoryTranslations,
+      'artisanLegacyStory': artisanLegacyStory,
+      'storyIngredients': storyIngredients,
+      'provenanceMapData': provenanceMapData,
       // Add search fields for better querying
       'searchTerms': _generateSearchTerms(),
       'priceRange': _getPriceRange(),
@@ -153,6 +164,13 @@ class Product {
       audioStoryTranscription: map['audioStoryTranscription'],
       audioStoryTranslations: map['audioStoryTranslations'] != null 
           ? Map<String, String>.from(map['audioStoryTranslations']) 
+          : null,
+      artisanLegacyStory: map['artisanLegacyStory'],
+      storyIngredients: map['storyIngredients'] != null
+          ? Map<String, dynamic>.from(map['storyIngredients'])
+          : null,
+      provenanceMapData: map['provenanceMapData'] != null
+          ? Map<String, dynamic>.from(map['provenanceMapData'])
           : null,
     );
   }

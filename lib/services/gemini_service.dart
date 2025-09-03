@@ -1019,4 +1019,75 @@ Provide accurate language detection with high confidence.''';
     
     return analysis;
   }
+
+  /// Generates the "Artisan's Legacy" story and map data.
+  static Future<Map<String, dynamic>> generateArtisanLegacyStory(
+      Map<String, String> storyIngredients, List<File> images) async {
+    try {
+      final prompt = """
+      You are an expert storyteller and cultural historian for a high-end artisan marketplace. Your task is to weave a captivating, emotional, and authentic story for a product based on the 'story ingredients' provided by the artisan. You must also generate structured data for an interactive map.
+
+      **Artisan's Inputs (Story Ingredients):**
+      - Product Name: "${storyIngredients['productName']}"
+      - Category: "${storyIngredients['category']}"
+      - Artisan Name: "${storyIngredients['artisanName']}"
+      - Inspiration: "${storyIngredients['inspiration']}"
+      - Origin of Materials: "${storyIngredients['materialsOrigin']}"
+      - Crafting Process: "${storyIngredients['craftingProcess']}"
+
+      **Your Task:**
+      1.  **Generate a Story:** Write a compelling narrative (150-200 words). It must be written in a warm, first-person style from the artisan's perspective. The story should beautifully connect the inspiration, the materials, and the crafting process. It should evoke emotion and highlight the product's cultural significance and authenticity.
+      2.  **Generate Map Data:** Extract key locations mentioned or implied in the inputs (e.g., 'my village temple', 'the Ganges riverbed', 'a forest in the Western Ghats'). For each location, provide a plausible latitude/longitude, a title, and a short descriptive snippet. You must identify at least two locations: the material's origin and the artisan's workshop (which you can assume is in a relevant region).
+
+      **CRITICAL: Your entire response must be a single, valid JSON object. Do not include any text before or after the JSON block.**
+
+      **JSON Output Format:**
+      ```json
+      {
+        "story": "A warm, personal, and captivating story from the artisan's perspective...",
+        "mapData": {
+          "points": [
+            {
+              "id": "material_origin",
+              "lat": 25.3176,
+              "lng": 82.9739,
+              "title": "Origin of the Sacred Clay",
+              "snippet": "The journey of this piece begins here, with sacred clay sourced from the banks of the Ganges in Varanasi."
+            },
+            {
+              "id": "artisan_workshop",
+              "lat": 26.8467,
+              "lng": 80.9462,
+              "title": "The Artisan's Workshop in Lucknow",
+              "snippet": "In my humble workshop in Lucknow, I shape each piece by hand, a skill passed down through generations."
+            }
+          ]
+        }
+      }
+      ```
+      """;
+
+      // Prepare image parts if they exist
+      List<DataPart> imageParts = [];
+      if (images.isNotEmpty) {
+        for (final image in images) {
+          final bytes = await image.readAsBytes();
+          imageParts.add(DataPart('image/jpeg', bytes));
+        }
+      }
+
+      final content = [Content.multi([TextPart(prompt), ...imageParts])];
+      final response = await _visionModel.generateContent(content);
+
+      if (response.text == null || response.text!.isEmpty) {
+        throw Exception('Empty response from Gemini API during story generation');
+      }
+
+      return _extractAndParseJson(response.text!);
+
+    } catch (e) {
+      print('Error in generateArtisanLegacyStory: $e');
+      throw Exception('Failed to generate the artisan legacy story.');
+    }
+  }
 }

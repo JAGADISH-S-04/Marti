@@ -2,6 +2,7 @@ import 'package:arti/models/product.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/product_service.dart';
 import 'package:arti/widgets/enhanced_audio_story_section.dart';
+import 'package:arti/widgets/artisan_legacy_story_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -361,7 +362,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                   
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
+                  
+                  // Artisan's Legacy Story (if available)
+                  ArtisanLegacyStoryWidget(product: p),
                   
                   // Product Details
                   Container(

@@ -16,6 +16,7 @@ import 'login_screen.dart';
 import 'store_audio_management_page.dart';
 import 'seller_orders_page.dart';
 import 'craft_it/seller_view.dart';
+import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
 import '../services/order_service.dart';
@@ -2007,22 +2008,16 @@ class _SellerScreenState extends State<SellerScreen> {
                       ),
                       const SizedBox(height: 12),
                       
-                      // Action Buttons Row 2
+                      // Action Buttons Row 3 - Artisan's Legacy
                       Row(
                         children: [
                           Expanded(
                             child: _buildActionButton(
                               context,
-                              'List My Store',
-                              Icons.add_business,
+                              'Artisan\'s Legacy',
+                              Icons.auto_stories,
                               () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const AddProductScreen(),
-                                  ),
-                                );
+                                _showArtisanLegacyDialog(context);
                               },
                             ),
                           ),
@@ -2162,6 +2157,122 @@ class _SellerScreenState extends State<SellerScreen> {
         tooltip: 'View Craft Requests',
       ),
     );
+  }
+
+  void _showArtisanLegacyDialog(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login first')),
+      );
+      return;
+    }
+
+    // Get user's products
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .where('artisanId', isEqualTo: user.uid)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You need to create products first before adding Artisan Legacy stories'),
+          ),
+        );
+        return;
+      }
+
+      // Show product selection dialog
+      final products = snapshot.docs
+          .map((doc) => Product.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+          .toList();
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.auto_stories, color: Color(0xFF8B6914)),
+              const SizedBox(width: 8),
+              Text(
+                'Select Product',
+                style: GoogleFonts.playfairDisplay(
+                  color: const Color(0xFF2C1810),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                final hasStory = product.artisanLegacyStory != null;
+                
+                return ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      product.imageUrl,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.image, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    product.name,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    hasStory ? 'Story already created' : 'No story yet',
+                    style: TextStyle(
+                      color: hasStory ? Colors.green : Colors.orange,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: Icon(
+                    hasStory ? Icons.edit : Icons.add,
+                    color: const Color(0xFF8B6914),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditArtisanStoryScreen(product: product),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading products: $e')),
+      );
+    }
   }
 
   Widget _buildActionButton(

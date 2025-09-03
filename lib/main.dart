@@ -11,6 +11,7 @@ import 'package:arti/screens/add_product_screen.dart';
 import 'package:arti/screens/admin/product_migration_screen.dart';
 import 'package:arti/screens/product_migration_page.dart';
 import 'package:arti/services/cart_service.dart';
+import 'package:arti/services/gemini_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +22,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Gemini Service
+  GeminiService.initialize();
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => CartService(), // Provide CartService globally
