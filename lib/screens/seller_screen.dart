@@ -1834,10 +1834,40 @@ class SellerScreen extends StatefulWidget {
 }
 
 class _SellerScreenState extends State<SellerScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _storeData;
+
   @override
   void initState() {
     super.initState();
     _saveCurrentScreen();
+    _loadStoreData();
+  }
+
+  Future<void> _loadStoreData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final storeDoc = await FirebaseFirestore.instance
+            .collection('stores')
+            .doc(user.uid)
+            .get();
+        
+        if (mounted) {
+          setState(() {
+            _storeData = storeDoc.exists ? storeDoc.data() : null;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading store data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveCurrentScreen() async {
@@ -1998,7 +2028,7 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) => const SellerOrdersPage(),
                                   ),
                                 );
                               },
@@ -2042,13 +2072,13 @@ class _SellerScreenState extends State<SellerScreen> {
                       ),
                       const SizedBox(height: 12),
                       
-                      // Full width button
+                      // Dynamic Store Button (Test Store / Edit Store)
                       SizedBox(
                         width: double.infinity,
                         child: _buildActionButton(
                           context,
-                          'Test Store (No Image)',
-                          Icons.science,
+                          _storeData == null ? 'Test Store' : 'Edit Store',
+                          _storeData == null ? Icons.science : Icons.edit,
                           () {
                             Navigator.push(
                               context,
@@ -2124,7 +2154,7 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) => const SellerOrdersPage(),
                                   ),
                                 );
                               },
@@ -2146,7 +2176,7 @@ class _SellerScreenState extends State<SellerScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const SellerRequestsScreen(),
+              builder: (context) => const SellerOrdersPage(),
             ),
           );
         },
