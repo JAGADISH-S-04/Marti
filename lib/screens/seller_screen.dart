@@ -15,6 +15,7 @@ import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'store_audio_management_page.dart';
 import 'seller_orders_page.dart';
+import 'craft_it/seller_view.dart';
 import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
 import '../services/order_service.dart';
@@ -1996,7 +1997,7 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerOrdersPage(),
+                                    builder: (context) => const SellerRequestsScreen(),
                                   ),
                                 );
                               },
@@ -2124,6 +2125,14 @@ class _SellerScreenState extends State<SellerScreen> {
                               'Requests',
                               '0',
                               Icons.assignment,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SellerRequestsScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -2142,7 +2151,7 @@ class _SellerScreenState extends State<SellerScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const SellerOrdersPage(),
+              builder: (context) => const SellerRequestsScreen(),
             ),
           );
         },
