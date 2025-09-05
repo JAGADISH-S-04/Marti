@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "garti-sans"
+    "default": "garti-sans",
+    "firebase use default": "garti-sans"
   },
   "targets": {},
   "etags": {}

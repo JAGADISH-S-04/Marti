@@ -48,6 +48,30 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Craft request images - allow authenticated users to upload reference images
+    match /craft_requests/{allPaths=**} {
+      allow read: if true; // Anyone can read craft request images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Direct craft_requests root path
+    match /craft_requests/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Specific craft request image upload path
+    match /craft_requests/{userId}/{requestId}/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Alternative craft request paths
+    match /craft_requests/images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
     // Seller profile and banner images
     match /sellers/{sellerId}/profile/{imageId} {
       allow read: if true; // Anyone can read seller profile images

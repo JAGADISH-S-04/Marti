@@ -1,8 +1,7 @@
 import 'package:arti/screens/store_product_screen.dart';
 import 'package:arti/widgets/store_audio_story_section.dart';
-import 'package:arti/screens/cart_screen.dart'; // Add this import
-import 'package:firebase_auth/firebase_auth.dart'; // Add this import
-import 'package:google_sign_in/google_sign_in.dart'; // Add this import
+import 'package:arti/screens/cart_screen.dart';
+import 'package:arti/screens/buyer_chatbot_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -728,6 +727,16 @@ class _BuyerScreenState extends State<BuyerScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BuyerChatbotScreen()),
+          );
+        },
+        backgroundColor: primaryBrown,
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
       ),
     );
   }

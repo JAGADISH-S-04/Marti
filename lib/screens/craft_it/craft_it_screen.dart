@@ -9,7 +9,9 @@ import 'request_details_screen.dart';
 import 'chat_screen.dart';
 
 class CraftItScreen extends StatefulWidget {
-  const CraftItScreen({super.key});
+  final int initialTab;
+  
+  const CraftItScreen({super.key, this.initialTab = 0});
 
   @override
   State<CraftItScreen> createState() => _CraftItScreenState();
@@ -27,7 +29,7 @@ class _CraftItScreenState extends State<CraftItScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
   }
 
   @override
@@ -262,7 +264,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
         'budget': double.tryParse(_budgetController.text.trim()) ?? 0.0,
         'deadline': _deadlineController.text.trim(),
         'images': imageUrls,
-        'userId': user.uid,
+        'buyerId': user.uid,  // Changed from userId to buyerId
         'userEmail': user.email,
         'status': 'open',
         'createdAt': Timestamp.now(),
@@ -664,8 +666,9 @@ class MyRequestsTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('craft_requests')
-          .where('userId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
+          .where('buyerId', isEqualTo: user.uid)  // Changed from userId to buyerId
+          // Temporarily removed .orderBy to avoid index requirement
+          // .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -707,6 +710,21 @@ class MyRequestsTab extends StatelessWidget {
           final status = data['status']?.toString().toLowerCase() ?? 'open';
           return status != 'cancelled' && status != 'deleted';
         }).toList();
+
+        // Sort by createdAt manually (since we removed orderBy to avoid index requirement)
+        activeDocs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aCreatedAt = aData['createdAt'] as Timestamp?;
+          final bCreatedAt = bData['createdAt'] as Timestamp?;
+          
+          if (aCreatedAt == null && bCreatedAt == null) return 0;
+          if (aCreatedAt == null) return 1;
+          if (bCreatedAt == null) return -1;
+          
+          // Descending order (newest first)
+          return bCreatedAt.compareTo(aCreatedAt);
+        });
 
         if (activeDocs.isEmpty) {
           return _buildEmptyState();
@@ -1285,15 +1303,46 @@ class RequestCard extends StatelessWidget {
                           final artisanId = acceptedQuotation['artisanId'] ?? '';
                           final artisanName = acceptedQuotation['artisanName'] ?? 'Artisan';
                           
-                          // Get customer info
+                          // Get customer info from request data
+                          print('🔍 Debug: Full request data: $data');
+                          print('🔍 Debug: Current user: ${user.uid}');
+                          print('🔍 Debug: Current user type: retailer (artisan)');
+                          
+                          String customerId = data['buyerId'] ?? '';
+                          print('🔍 Debug: Extracted buyerId: "$customerId"');
+                          
+                          // If buyerId is empty, check if the current user is actually the buyer
+                          if (customerId.isEmpty) {
+                            // Check if current user created this request (they would be the buyer)
+                            if (data['buyerId'] == null || data['buyerId'] == '') {
+                              // Try to get buyerId from a different field or use current user if they're the request creator
+                              // This might happen if the field name is different or data is corrupted
+                              print('⚠️ BuyerId is empty, checking alternative fields...');
+                              print('🔍 Available fields: ${data.keys.toList()}');
+                              
+                              // You might need to adjust this based on your actual data structure
+                              customerId = user.uid; // Fallback: assume current user is the customer
+                              print('🔧 Using current user as customerId fallback: $customerId');
+                            }
+                          }
+                          
+                          if (customerId.isEmpty) {
+                            print('❌ Customer ID is still empty in request data');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Unable to start chat: Customer ID not found')),
+                            );
+                            return;
+                          }
+                          
                           final userDoc = await FirebaseFirestore.instance
                               .collection('users')
-                              .doc(user.uid)
+                              .doc(customerId)
                               .get();
-                          final customerName = userDoc.data()?['name'] ?? user.email?.split('@')[0] ?? 'Customer';
+                          final customerName = userDoc.data()?['name'] ?? 'Customer';
 
-                          // Create or get chat room
-                          final chatRoomId = '${request.id}_${user.uid}_$artisanId';
+                          // Create or get chat room with proper IDs
+                          final chatRoomId = '${request.id}_${customerId}_$artisanId';
+                          print('Creating chat room: $chatRoomId (Customer: $customerId, Artisan: $artisanId, Current User: ${user.uid})');
                           
                           Navigator.push(
                             context,

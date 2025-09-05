@@ -15,6 +15,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);
   final Color lightBrown = const Color.fromARGB(255, 139, 98, 87);
   final Color backgroundBrown = const Color.fromARGB(255, 245, 240, 235);
+  
+  bool _useSimpleQuery = false;
 
   @override
   void initState() {
@@ -83,7 +85,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
         body: StreamBuilder<QuerySnapshot>(
-          stream: NotificationService.getUserNotifications(currentUser.uid),
+          stream: _useSimpleQuery 
+              ? NotificationService.getUserNotificationsSimple(currentUser.uid)
+              : NotificationService.getUserNotifications(currentUser.uid),
           builder: (context, snapshot) {
             print('NotificationsScreen: StreamBuilder state = ${snapshot.connectionState}');
             print('NotificationsScreen: Has error = ${snapshot.hasError}');
@@ -106,6 +110,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
             if (snapshot.hasError) {
               print('NotificationsScreen: Stream error = ${snapshot.error}');
+              
+              // Check if it's an index error and switch to simple query
+              if (snapshot.error.toString().contains('failed-precondition') || 
+                  snapshot.error.toString().contains('index')) {
+                if (!_useSimpleQuery) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    setState(() {
+                      _useSimpleQuery = true;
+                    });
+                  });
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: primaryBrown),
+                        SizedBox(height: 16),
+                        Text('Switching to fallback mode...'),
+                      ],
+                    ),
+                  );
+                }
+              }
+              
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -118,7 +145,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Error: ${snapshot.error}',
+                      _useSimpleQuery 
+                          ? 'Using simplified view (index building)'
+                          : 'Error: ${snapshot.error}',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
@@ -126,7 +155,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ElevatedButton(
                       onPressed: () {
                         print('NotificationsScreen: Retry button pressed');
-                        setState(() {});
+                        setState(() {
+                          _useSimpleQuery = false;
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBrown,

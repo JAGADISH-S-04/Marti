@@ -96,6 +96,15 @@ class NotificationService {
         .snapshots();
   }
 
+  // Fallback method for when index is building
+  static Stream<QuerySnapshot> getUserNotificationsSimple(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .limit(50)
+        .snapshots();
+  }
+
   // Mark notification as read
   static Future<void> markAsRead(String notificationId) async {
     try {

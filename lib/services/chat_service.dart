@@ -35,7 +35,39 @@ class ChatService {
   // Send message
   Future<void> sendMessage(String chatRoomId, String message, {String? imageUrl, String messageType = 'text'}) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      print('❌ No authenticated user for sending message');
+      return;
+    }
+
+    print('📤 Sending message to chatRoomId: $chatRoomId');
+    print('📝 Message: $message');
+
+    // Get the corrected chat room ID
+    chatRoomId = await getCorrectChatRoomId(chatRoomId);
+    print('📤 Using corrected chatRoomId for sending: $chatRoomId');
+
+    // Extract IDs from the corrected chatRoomId format: requestId_customerId_artisanId
+    final parts = chatRoomId.split('_');
+    if (parts.length >= 3) {
+      final requestId = parts[0];
+      final customerId = parts[1];
+      final artisanId = parts[2];
+      
+      print('🔍 Parsed IDs - Request: $requestId, Customer: $customerId, Artisan: $artisanId');
+      
+      // Validate that IDs are not empty
+      if (requestId.isNotEmpty && customerId.isNotEmpty && artisanId.isNotEmpty) {
+        // Ensure chat room exists first
+        await _ensureChatRoomExists(chatRoomId, requestId, customerId, artisanId);
+      } else {
+        print('❌ Invalid chat room ID format: $chatRoomId (requestId: $requestId, customerId: $customerId, artisanId: $artisanId)');
+        throw Exception('Invalid chat room ID format: Missing customer, request, or artisan ID');
+      }
+    } else {
+      print('❌ Invalid chat room ID format: $chatRoomId');
+      throw Exception('Invalid chat room ID format: Expected format requestId_customerId_artisanId');
+    }
 
     // Get user info - check both users and retailers collections
     String senderName = 'Unknown User';
@@ -74,20 +106,57 @@ class ChatService {
     );
 
     // Add message to subcollection
-    await _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('messages')
-        .add(messageData.toMap());
+    try {
+      print('💾 Adding message to Firestore using chatRoomId: $chatRoomId');
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .add(messageData.toMap());
+      print('✅ Message added successfully');
 
-    // Update chat room with last message
-    final unreadField = senderType == 'customer' ? 'artisanUnreadCount' : 'customerUnreadCount';
+      // Update chat room with last message using set with merge to avoid update errors
+      final unreadField = senderType == 'customer' ? 'artisanUnreadCount' : 'customerUnreadCount';
+      
+      print('🔄 Updating chat room last message...');
+      await _firestore.collection('chat_rooms').doc(chatRoomId).set({
+        'lastMessage': messageType == 'image' ? '📷 Image' : message,
+        'lastMessageTime': Timestamp.now(),
+        unreadField: FieldValue.increment(1),
+      }, SetOptions(merge: true));
+      print('✅ Chat room updated successfully');
+    } catch (e) {
+      print('❌ Error sending message: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to ensure chat room exists
+  Future<void> _ensureChatRoomExists(String chatRoomId, String requestId, String customerId, String artisanId) async {
+    final chatRoomRef = _firestore.collection('chat_rooms').doc(chatRoomId);
+    final chatRoom = await chatRoomRef.get();
     
-    await _firestore.collection('chat_rooms').doc(chatRoomId).update({
-      'lastMessage': messageType == 'image' ? '📷 Image' : message,
-      'lastMessageTime': Timestamp.now(),
-      unreadField: FieldValue.increment(1),
-    });
+    if (!chatRoom.exists) {
+      print('🏗️ Creating new chat room: $chatRoomId');
+      try {
+        await chatRoomRef.set({
+          'requestId': requestId,
+          'customerId': customerId,
+          'artisanId': artisanId,
+          'createdAt': Timestamp.now(),
+          'lastMessage': '',
+          'lastMessageTime': Timestamp.now(),
+          'customerUnreadCount': 0,
+          'artisanUnreadCount': 0,
+        });
+        print('✅ Chat room created successfully');
+      } catch (e) {
+        print('❌ Error creating chat room: $e');
+        rethrow;
+      }
+    } else {
+      print('✅ Chat room already exists: $chatRoomId');
+    }
   }
 
   // Upload image for chat
@@ -112,17 +181,62 @@ class ChatService {
     return null;
   }
 
-  // Get messages stream
-  Stream<List<ChatMessage>> getMessages(String chatRoomId) {
-    return _firestore
+  // Helper method to get/fix the correct chat room ID
+  Future<String> getCorrectChatRoomId(String chatRoomId) async {
+    final parts = chatRoomId.split('_');
+    if (parts.length >= 3 && parts[1].isEmpty) {
+      print('⚠️ Fixing malformed chat room ID: $chatRoomId');
+      final requestId = parts[0];
+      final artisanId = parts[2];
+      
+      try {
+        final requestDoc = await _firestore.collection('craft_requests').doc(requestId).get();
+        if (requestDoc.exists) {
+          final customerId = requestDoc.data()?['buyerId'] ?? '';
+          if (customerId.isNotEmpty) {
+            final correctedId = '${requestId}_${customerId}_$artisanId';
+            print('🔧 Fixed chat room ID: $correctedId');
+            return correctedId;
+          }
+        }
+      } catch (e) {
+        print('❌ Error fixing chat room ID: $e');
+      }
+    }
+    return chatRoomId;
+  }
+
+  // Get messages stream with auto-correction of malformed IDs
+  Stream<List<ChatMessage>> getMessages(String chatRoomId) async* {
+    print('📡 Setting up message stream for chatRoomId: $chatRoomId');
+    
+    // Get the correct chat room ID
+    final correctChatRoomId = await getCorrectChatRoomId(chatRoomId);
+    print('📡 Using corrected chat room ID: $correctChatRoomId');
+    
+    yield* _firestore
         .collection('chat_rooms')
-        .doc(chatRoomId)
+        .doc(correctChatRoomId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
-            .toList());
+        .map((snapshot) {
+          print('📬 Received ${snapshot.docs.length} messages from Firestore for chatRoom: $correctChatRoomId');
+          final messages = snapshot.docs
+              .map((doc) {
+                try {
+                  return ChatMessage.fromMap(doc.data(), doc.id);
+                } catch (e) {
+                  print('❌ Error parsing message ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((message) => message != null)
+              .cast<ChatMessage>()
+              .toList();
+          print('✅ Successfully parsed ${messages.length} messages');
+          return messages;
+        });
   }
 
   // Mark messages as read

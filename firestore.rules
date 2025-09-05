@@ -68,6 +68,22 @@ service cloud.firestore {
       }
     }
     
+    // Users - General user profiles and authentication data
+    match /users/{userId} {
+      // Users can read any user profile (for social features)
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can manage their own profile
+      allow create, update, delete: if request.auth != null && 
+                                   request.auth.uid == userId;
+      
+      // User subcollections
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && 
+                          request.auth.uid == userId;
+      }
+    }
+    
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
     // Orders - Enhanced order management
     match /orders/{orderId} {
@@ -157,11 +173,42 @@ service cloud.firestore {
     
     // Notifications
     match /notifications/{notificationId} {
-      // Users can only access their own notifications
-      allow read, write: if request.auth != null && 
-                        request.auth.uid == resource.data.userId;
+      // Users can only read their own notifications
+      allow read: if request.auth != null && 
+                 request.auth.uid == resource.data.userId;
+      
+      // Allow creating and updating notifications for the target user
+      allow create, update: if request.auth != null && 
+                           request.auth.uid == request.resource.data.userId;
+      
+      // Allow system or other users to create notifications for a user
+      allow create: if request.auth != null;
+      
+      // Users can update/delete their own notifications
+      allow update, delete: if request.auth != null && 
+                           request.auth.uid == resource.data.userId;
     }
     
+    // ============ CRAFT REQUESTS ============
+    // Craft requests - Custom order requests from buyers
+    match /craft_requests/{requestId} {
+      // Anyone can read requests (for discovery/browsing)
+      allow read: if true;
+      
+      // Only authenticated users can create requests
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.buyerId &&
+                   validateCraftRequestData(request.resource.data);
+      
+      // Buyers can update their own requests
+      // Any authenticated user can update to add quotations (app logic handles validation)
+      allow update: if request.auth != null;
+      
+      // Buyers can delete their own requests
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.buyerId;
+    }
+
     // ============ ADMINISTRATIVE AND SYSTEM ============
     // Categories - Read-only for users
     match /categories/{categoryId} {
@@ -212,6 +259,27 @@ service cloud.firestore {
              newData.artisanId == existingData.artisanId &&
              newData.name == existingData.name &&
              newData.price == existingData.price;
+    }
+    
+    function validateCraftRequestData(data) {
+      return data.keys().hasAll(['buyerId', 'title', 'description', 'budget']) &&
+             data.buyerId is string && data.buyerId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.budget is number && data.budget > 0;
+    }
+    
+    // ============ CHAT SYSTEM ============
+    // Chat rooms collection
+    match /chat_rooms/{chatRoomId} {
+      allow read, write: if request.auth != null;
+      allow create: if request.auth != null;
+        
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+        allow create: if request.auth != null;
+      }
     }
     
     // ============ FALLBACK RULES ============
