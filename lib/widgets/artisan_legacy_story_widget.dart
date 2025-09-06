@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/product.dart';
+import '../services/living_workshop_service.dart';
+import '../screens/living_workshop_screen.dart';
 // For the maps integration, you would need to add google_maps_flutter package
 // import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -121,6 +123,26 @@ class ArtisanLegacyStoryWidget extends StatelessWidget {
           
           // Interactive Map Placeholder or Journey Points
           _buildJourneyPoints(),
+          
+          const SizedBox(height: 24),
+          
+          // Living Workshop Button
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: () => _exploreLivingWorkshop(context),
+              icon: const Icon(Icons.vrpano),
+              label: const Text("Explore the Living Workshop"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B6914),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -303,5 +325,50 @@ class ArtisanLegacyStoryWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _exploreLivingWorkshop(BuildContext context) async {
+    try {
+      // Show a loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final workshopService = LivingWorkshopService();
+      final workshopData = await workshopService.getLivingWorkshop(product.artisanId);
+      
+      Navigator.pop(context); // Close loading indicator
+
+      if (workshopData != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LivingWorkshopScreen(
+              workshopData: workshopData,
+              artisanId: product.artisanId,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This artisan hasn\'t created a Living Workshop yet.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load workshop: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

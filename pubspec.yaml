@@ -45,6 +45,8 @@ dependencies:
   permission_handler: ^11.3.1
   record: ^6.1.1
   audioplayers: ^6.0.0
+  googleapis_auth: ^1.6.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -57,3 +59,5 @@ flutter:
 
   assets:
     - assets/images/artisan-1.jpg
+    - assets/gcp-service-key.json
+    - credentials.json

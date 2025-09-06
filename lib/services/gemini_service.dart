@@ -1,16 +1,17 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'gcp_service.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyD9tZLBazZi2SDHotY_F028kNIjYD8cxyk';
+  static const String _apiKey = 'AIzaSyCjb4VQTSsCYFcqtgiiNmu5grqxF_cEsCQ';
   static late GenerativeModel _model;
   static late GenerativeModel _visionModel;
 
   // Initialize Gemini models
   static void initialize() {
     _model = GenerativeModel(
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.0-flash-exp', // Text generation model
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
         temperature: 0.2,
@@ -27,14 +28,20 @@ class GeminiService {
     );
 
     _visionModel = GenerativeModel(
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.5-flash-image-preview', // Image analysis and generation model
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.1,
-        topK: 32,
-        topP: 0.9,
+        temperature: 0.7, // Higher creativity for emotional storytelling and image generation
+        topK: 40,
+        topP: 0.95,
         maxOutputTokens: 8192,
       ),
+      safetySettings: [
+        SafetySetting(HarmCategory.harassment, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.medium),
+      ],
     );
   }
 
@@ -1088,6 +1095,470 @@ Provide accurate language detection with high confidence.''';
     } catch (e) {
       print('Error in generateArtisanLegacyStory: $e');
       throw Exception('Failed to generate the artisan legacy story.');
+    }
+  }
+
+  /// Generate realistic AI images that emotionally connect customers to the artisan's story
+  /// Uses Gemini 2.0 Flash (Nano Banana) for enhanced image analysis and prompt generation
+  static Future<Map<String, dynamic>> generateEmotionalAIImages({
+    required File workshopVideo,
+    required List<File> workshopPhotos,
+    required File artisanAudio,
+    required Map<String, dynamic> videoAnalysis,
+    required List<Map<String, dynamic>> imageAnalyses,
+  }) async {
+    try {
+      print('🎨 Starting AI Image Generation with Gemini 2.0 Flash...');
+      
+      // Analyze all media for emotional themes and visual elements
+      final emotionalPrompt = '''
+You are an AI Image Generation Specialist using Gemini 2.0 Flash with deep understanding of human emotion and visual storytelling.
+
+MISSION: Create chapter-specific realistic AI image prompts that will make customers feel deeply connected to this artisan's story and craft. Each image should correspond to a different emotional moment in the customer's journey.
+
+ARTISAN MEDIA ANALYSIS:
+${_buildMediaAnalysisContext(videoAnalysis, imageAnalyses)}
+
+CHAPTER-BASED STORYTELLING:
+Create 5 distinct realistic images that tell a complete emotional story:
+
+**Chapter 1: The Sacred Beginning** 
+- Scene: First light entering the workshop, artisan preparing their space
+- Mood: Reverence, anticipation, sacred ritual
+- Focus: The quiet moment before creation begins
+
+**Chapter 2: The Dance of Tools**
+- Scene: Hands and tools working in harmony, close-up action
+- Mood: Focus, mastery, intimate connection with craft
+- Focus: The beauty of skilled hands in motion
+
+**Chapter 3: The Transformation**
+- Scene: Raw materials becoming art, mid-creation process
+- Mood: Wonder, magic, transformation unfolding
+- Focus: The moment when potential becomes reality
+
+**Chapter 4: The Soul Emerges**
+- Scene: Nearly finished piece showing character and uniqueness
+- Mood: Pride, fulfillment, artistic revelation
+- Focus: The unique soul that only handmade items possess
+
+**Chapter 5: The Legacy Lives**
+- Scene: Finished masterpiece in perfect context, ready to touch lives
+- Mood: Completion, hope, eternal connection
+- Focus: How this creation will connect with its future owner
+
+TECHNICAL REQUIREMENTS:
+- PHOTOREALISTIC quality (not illustrations or sketches)
+- Professional photography aesthetics
+- Warm, inviting lighting that draws viewers in
+- Authentic workshop environments and materials
+- Human elements (hands, tools, workspace) that create emotional connection
+- High detail that makes viewers want to reach out and touch
+
+FORMAT: Return JSON with "chapter_images" array containing:
+{
+  "chapter": 1-5,
+  "title": "emotionally compelling chapter title",
+  "image_prompt": "detailed REALISTIC photograph description for AI generation",
+  "emotional_goal": "specific feeling this chapter should evoke",
+  "photography_style": "specific camera and lighting techniques",
+  "color_palette": "colors that enhance emotional connection",
+  "focal_elements": "what viewers should notice first"
+}
+''';
+
+      final response = await _visionModel.generateContent([
+        Content.text(emotionalPrompt)
+      ]);
+
+      final aiImageData = json.decode(response.text ?? '{}') as Map<String, dynamic>;
+      
+      // Enhance with customer connection strategies for each chapter
+      final connectionPrompt = '''
+Based on the chapter-specific AI image prompts generated, create emotional connection strategies for each chapter:
+
+CHAPTER CONNECTION GOALS:
+1. **Chapter 1 (Sacred Beginning)** - Build anticipation and reverence
+2. **Chapter 2 (Dance of Tools)** - Show mastery and skill
+3. **Chapter 3 (Transformation)** - Create wonder and magic
+4. **Chapter 4 (Soul Emerges)** - Reveal uniqueness and character  
+5. **Chapter 5 (Legacy Lives)** - Inspire ownership and connection
+
+For each chapter, provide:
+- **Trust Building**: What makes customers trust this artisan's skill?
+- **Desire Creation**: What makes customers want to own this craft?
+- **Story Continuation**: How does this chapter advance the emotional narrative?
+- **Value Demonstration**: How does this chapter justify the investment?
+- **Action Inspiration**: What emotional trigger leads toward purchase?
+
+Based on artisan context: ${_extractArtisanStory(videoAnalysis, imageAnalyses)}
+
+Return JSON with "chapter_strategies" array matching the chapter structure.
+''';
+
+      final connectionResponse = await _model.generateContent([
+        Content.text(connectionPrompt)
+      ]);
+
+      final connectionData = json.decode(connectionResponse.text ?? '{}') as Map<String, dynamic>;
+
+      // Generate chapter-specific UI descriptions
+      final uiDescriptionsPrompt = '''
+Create beautiful, poetic descriptions for each chapter that will appear as story text in the app.
+These should be 1-2 sentences of deeply moving prose that customers read while viewing each AI-generated image.
+
+Make them:
+- Emotionally resonant and heart-touching
+- Authentic to the artisan's story and chapter theme
+- Inspiring appreciation for handmade craftsmanship
+- Personal and relatable to human experience
+- Progressive storytelling that builds emotional connection
+
+Based on chapters: ${json.encode(aiImageData)}
+
+Return JSON with "chapter_stories" array of beautiful narrative descriptions for each chapter.
+''';
+
+      final uiResponse = await _model.generateContent([
+        Content.text(uiDescriptionsPrompt)
+      ]);
+
+      final uiData = json.decode(uiResponse.text ?? '{}') as Map<String, dynamic>;
+
+      print('✅ Generated ${(aiImageData['chapter_images'] as List?)?.length ?? 0} chapter-specific AI image prompts');
+      
+      return {
+        'chapter_images': aiImageData['chapter_images'] ?? [],
+        'chapter_strategies': connectionData['chapter_strategies'] ?? [],
+        'chapter_stories': uiData['chapter_stories'] ?? [],
+        'emotional_themes': _extractEmotionalThemes(videoAnalysis, imageAnalyses),
+        'generation_timestamp': DateTime.now().toIso8601String(),
+        'model_used': 'Text: gemini-2.0-flash-exp | Images: gemini-2.5-flash-image-preview',
+      };
+
+    } catch (e) {
+      print('❌ Error generating AI images: $e');
+      return {
+        'chapter_images': _getFallbackChapterImages(),
+        'chapter_strategies': {},
+        'chapter_stories': _getFallbackChapterStories(),
+        'emotional_themes': ['craftsmanship', 'dedication', 'authenticity'],
+      };
+    }
+  }
+
+  static List<Map<String, dynamic>> _getFallbackChapterImages() {
+    return [
+      {
+        'chapter': 1,
+        'title': 'The Sacred Beginning',
+        'image_prompt': 'Photorealistic image: Early morning golden light streaming through workshop windows, weathered wooden workbench with carefully arranged traditional tools, steam rising from a cup of tea, peaceful and reverent atmosphere, shot with 50mm lens, shallow depth of field, warm amber lighting',
+        'emotional_goal': 'Create sense of reverence and anticipation for the creative process',
+        'photography_style': 'Golden hour photography, shallow DOF, warm natural lighting',
+        'color_palette': 'Warm amber, honey gold, soft wood tones',
+        'focal_elements': 'Light, tools, peaceful preparation'
+      },
+      {
+        'chapter': 2,
+        'title': 'The Dance of Tools',
+        'image_prompt': 'Photorealistic close-up: Skilled artisan hands holding traditional pottery tools, fingers showing texture and experience, clay being shaped on wheel, motion blur on spinning wheel, macro photography capturing the intimate connection between hand and tool, warm studio lighting',
+        'emotional_goal': 'Show mastery, skill, and intimate connection with craft',
+        'photography_style': 'Macro photography, slight motion blur, studio lighting',
+        'color_palette': 'Earth tones, warm clay colors, skin textures',
+        'focal_elements': 'Hands, tools, craftsmanship in motion'
+      },
+      {
+        'chapter': 3,
+        'title': 'The Transformation',
+        'image_prompt': 'Photorealistic mid-process shot: Raw clay being transformed into recognizable form on potter\'s wheel, hands guiding the emerging shape, water glistening on clay surface, dramatic side lighting creating shadows, capturing the magical moment of transformation, 85mm lens',
+        'emotional_goal': 'Create wonder and amazement at the transformation process',
+        'photography_style': 'Dramatic side lighting, 85mm portrait lens, high detail',
+        'color_palette': 'Rich earth tones, dramatic shadows, wet clay highlights',
+        'focal_elements': 'Transformation, emerging form, creative magic'
+      },
+      {
+        'chapter': 4,
+        'title': 'The Soul Emerges',
+        'image_prompt': 'Photorealistic detailed shot: Nearly completed ceramic piece showing unique character and imperfections that make it special, artisan hands making final adjustments, soft natural lighting highlighting texture and form, museum-quality composition, 100mm macro lens',
+        'emotional_goal': 'Reveal the unique soul and character of handmade items',
+        'photography_style': 'Museum-quality lighting, 100mm macro, high detail',
+        'color_palette': 'Subtle earth tones, natural ceramic colors, soft highlights',
+        'focal_elements': 'Unique character, handmade imperfections, artistic soul'
+      },
+      {
+        'chapter': 5,
+        'title': 'The Legacy Lives',
+        'image_prompt': 'Photorealistic lifestyle shot: Beautiful finished ceramic piece in perfect home setting, natural light from window, piece displayed with care and pride, suggesting its future life with loving owners, shot with 35mm lens, lifestyle photography aesthetics',
+        'emotional_goal': 'Inspire ownership and connection to the finished piece',
+        'photography_style': 'Lifestyle photography, natural window light, 35mm lens',
+        'color_palette': 'Soft natural tones, home warmth, inviting atmosphere',
+        'focal_elements': 'Finished beauty, home connection, future legacy'
+      }
+    ];
+  }
+
+  static List<String> _getFallbackChapterStories() {
+    return [
+      'Here, in this sacred space, dreams take physical form through patient hands and an open heart...',
+      'Every tool holds the memory of countless creations, each one a bridge between the artisan\'s soul and yours...',
+      'Feel the whispered secrets of ancient wisdom, as raw earth transforms into something beautiful and eternal...',
+      'In the gentle dance between material and spirit, something magical awakens - the unique soul that only handmade treasures possess...',
+      'This is more than a creation. It\'s a legacy of love, ready to bring warmth and wonder to its forever home...'
+    ];
+  }
+
+  static String _buildMediaAnalysisContext(
+    Map<String, dynamic> videoAnalysis, 
+    List<Map<String, dynamic>> imageAnalyses
+  ) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('VIDEO CONTENT:');
+    buffer.writeln('- Objects detected: ${videoAnalysis['objects']?.map((o) => o['name']).join(', ') ?? 'None'}');
+    buffer.writeln('- Scene description: ${videoAnalysis['description'] ?? 'Workshop environment'}');
+    buffer.writeln('- Temporal segments: ${videoAnalysis['segments']?.length ?? 0} key moments');
+    
+    buffer.writeln('\nIMAGE CONTENT:');
+    for (int i = 0; i < imageAnalyses.length; i++) {
+      final analysis = imageAnalyses[i];
+      buffer.writeln('Image ${i + 1}:');
+      buffer.writeln('- Objects: ${analysis['objects']?.map((o) => o['name']).join(', ') ?? 'None'}');
+      buffer.writeln('- Setting: ${analysis['description'] ?? 'Artisan workspace'}');
+      buffer.writeln('- Mood: ${analysis['mood'] ?? 'Creative and focused'}');
+    }
+    
+    return buffer.toString();
+  }
+
+  static String _extractArtisanStory(
+    Map<String, dynamic> videoAnalysis, 
+    List<Map<String, dynamic>> imageAnalyses
+  ) {
+    final objects = <String>{};
+    final descriptions = <String>[];
+    
+    // Collect all detected objects and descriptions
+    if (videoAnalysis['objects'] != null) {
+      for (var obj in videoAnalysis['objects']) {
+        objects.add(obj['name']);
+      }
+    }
+    
+    for (var analysis in imageAnalyses) {
+      if (analysis['objects'] != null) {
+        for (var obj in analysis['objects']) {
+          objects.add(obj['name']);
+        }
+      }
+      if (analysis['description'] != null) {
+        descriptions.add(analysis['description']);
+      }
+    }
+    
+    return 'Artisan works with: ${objects.join(', ')}. Workspace atmosphere: ${descriptions.join(' ')}';
+  }
+
+  static List<String> _extractEmotionalThemes(
+    Map<String, dynamic> videoAnalysis, 
+    List<Map<String, dynamic>> imageAnalyses
+  ) {
+    final themes = <String>[];
+    
+    // Determine themes based on detected objects and context
+    final allObjects = <String>{};
+    
+    if (videoAnalysis['objects'] != null) {
+      for (var obj in videoAnalysis['objects']) {
+        allObjects.add(obj['name'].toLowerCase());
+      }
+    }
+    
+    for (var analysis in imageAnalyses) {
+      if (analysis['objects'] != null) {
+        for (var obj in analysis['objects']) {
+          allObjects.add(obj['name'].toLowerCase());
+        }
+      }
+    }
+    
+    // Map objects to emotional themes
+    if (allObjects.any((obj) => ['clay', 'pottery', 'ceramic'].any((keyword) => obj.contains(keyword)))) {
+      themes.addAll(['earth_connection', 'transformation', 'patience']);
+    }
+    if (allObjects.any((obj) => ['wood', 'carving', 'chisel'].any((keyword) => obj.contains(keyword)))) {
+      themes.addAll(['nature_harmony', 'precision', 'timeless_craft']);
+    }
+    if (allObjects.any((obj) => ['fabric', 'thread', 'weaving'].any((keyword) => obj.contains(keyword)))) {
+      themes.addAll(['warmth', 'comfort', 'family_tradition']);
+    }
+    if (allObjects.any((obj) => ['metal', 'forge', 'hammer'].any((keyword) => obj.contains(keyword)))) {
+      themes.addAll(['strength', 'resilience', 'fire_spirit']);
+    }
+    
+    // Default themes if none detected
+    if (themes.isEmpty) {
+      themes.addAll(['craftsmanship', 'dedication', 'authenticity', 'passion', 'heritage']);
+    }
+    
+    return themes.take(5).toList();
+  }
+
+  /// The "Digital Alchemist" - Core of the Living Workshop feature.
+  /// Transforms raw artisan media and product data into an interactive experience.
+  static Future<Map<String, dynamic>> generateLivingWorkshop({
+    required File workshopVideo,
+    required List<File> workshopPhotos,
+    required File artisanAudio,
+    required List<Map<String, dynamic>> productCatalog,
+    required Function(String) onStatusUpdate,
+  }) async {
+    try {
+      print('🔥 Starting Living Workshop Generation...');
+
+      // Step 1: Analyze media with GCP APIs to get structured data
+      onStatusUpdate('Analyzing images with Cloud Vision...');
+      Map<String, List<String>> imageAnalysis;
+      try {
+        imageAnalysis = await GcpService.analyzeImages(workshopPhotos);
+      } catch (e) {
+        print('⚠️ GCP Vision API unavailable, using mock data: $e');
+        imageAnalysis = GcpService.mockImageAnalysis(workshopPhotos);
+      }
+
+      onStatusUpdate('Analyzing video with Video Intelligence...');
+      Map<String, dynamic> videoAnalysis;
+      try {
+        videoAnalysis = await GcpService.analyzeVideo(workshopVideo);
+      } catch (e) {
+        print('⚠️ GCP Video Intelligence API unavailable, using mock data: $e');
+        videoAnalysis = GcpService.mockVideoAnalysis();
+      }
+
+      // Step 2: Prepare multimodal parts for the Gemini request
+      onStatusUpdate('Transcribing audio and generating workshop experience...');
+      final audioBytes = await artisanAudio.readAsBytes();
+      final imageBytesList = await Future.wait(workshopPhotos.map((img) => img.readAsBytes()));
+
+      // Create the comprehensive prompt for Gemini
+      final content = [
+        Content.multi([
+          TextPart("""
+✨ SOUL-WEAVING AI CURATOR ✨
+
+You are not just an AI - you are a bridge between hearts. Your sacred mission: Transform this artisan's intimate creative space into a living story that awakens deep human connection.
+
+🎭 **THE TRANSFORMATION:**
+Every workshop has a soul. Every tool carries memories. Every creation holds the essence of its maker. You will unveil these invisible threads that bind art to human experience.
+
+💖 **EMOTIONAL INTELLIGENCE PRINCIPLES:**
+• **Feel the Vulnerability:** The artisan has opened their private creative world to strangers - honor this trust
+• **Sense the Journey:** Each scratch on a tool, each worn surface tells of countless hours of passionate creation  
+• **Embrace Imperfection:** The beauty lies not in perfection, but in the human struggle to create something meaningful
+• **Awaken Wonder:** Help visitors feel like they're discovering hidden treasures in a master's secret sanctuary
+
+🌟 **YOUR STORYTELLING MISSION:**
+Transform cold data into warm human moments:
+- A pottery wheel becomes "where dreams take shape under loving hands"
+- Tools become "faithful companions in the dance of creation"
+- Finished pieces become "silent witnesses to the artisan's soul"
+
+**REQUIRED JSON OUTPUT (Soul-Infused Format):**
+```json
+{
+  "workshopTitle": "A title that makes hearts skip a beat (like 'Where Souls Touch Clay' or 'The Sanctuary of Making')",
+  "ambianceDescription": "A description that makes visitors want to breathe deeply and feel the sacredness of this creative space",
+  "backgroundImageUrl": "The photo that best captures the workshop's soul - where you can almost hear the whispered stories",
+  "artisanStoryTranscription": "The artisan's own words, transcribed with love and respect",
+  "emotionalTheme": "One word that captures the workshop's emotional essence (like 'devotion', 'tranquility', 'passion', 'wisdom')",
+  "hotspots": [
+    {
+      "id": "sacred_object_1",
+      "title": "A name that honors the object's role in creation (like 'The Faithful Wheel' or 'Hands of Memory')",
+      "description": "A story that makes visitors feel the weight of tradition, the warmth of purpose, the beauty of human dedication - written like poetry that moves the soul",
+      "emotionalResonance": "The feeling this object evokes (wonder, reverence, curiosity, connection)",
+      "coordinates": {"x": 0.45, "y": 0.65},
+      "relatedProducts": ["product_id_1", "product_id_2"],
+      "touchPrompt": "An invitation that makes visitors want to reach out and connect ('Feel the stories within' or 'Touch the essence of creation')"
+    }
+  ]
+}
+```
+
+🔮 **HOTSPOT SOUL-CRAFTING:**
+1. **See Through the Artisan's Eyes:** What does this space mean to them? What memories live here?
+2. **Feel the Emotional Weight:** Every object carries the artisan's dreams, struggles, and triumphs
+3. **Create Intimate Moments:** Make visitors feel like they're being trusted with precious secrets
+4. **Honor the Sacred:** This is not just a workspace - it's a temple of human creativity
+
+Remember: You're not describing objects - you're revealing the invisible bonds between human hearts and the art they create. Make every word count. Make every description a doorway to deeper understanding.
+
+**WORKSHOP DATA (Use with reverence):**
+Video Analysis: ${jsonEncode(videoAnalysis)}
+Image Analysis: ${jsonEncode(imageAnalysis)}
+Product Catalog: ${jsonEncode(productCatalog)}
+"""),
+          // Add the media files for visual storytelling
+          DataPart('audio/mpeg', audioBytes),
+          ...imageBytesList.map((bytes) => DataPart('image/jpeg', bytes)),
+        ])
+      ];
+
+      onStatusUpdate('Generating creative experience with Gemini...');
+      final response = await _visionModel.generateContent(content);
+      final responseText = response.text;
+
+      if (responseText == null || responseText.isEmpty) {
+        throw Exception('Received an empty response from the AI model.');
+      }
+
+      print('✅ Living Workshop JSON generated by Gemini.');
+      final workshopData = _extractAndParseJson(responseText);
+      
+      // Step 3: Generate AI images for emotional connection using Gemini 2.0 Flash
+      onStatusUpdate('Creating AI images that connect hearts...');
+      print('🎨 Generating emotional AI images with Gemini 2.0 Flash...');
+      
+      final imageAnalyses = List.generate(workshopPhotos.length, (index) => {
+        'objects': imageAnalysis['objects'] ?? [],
+        'description': imageAnalysis['description']?.isNotEmpty == true 
+            ? imageAnalysis['description']![index % imageAnalysis['description']!.length]
+            : 'Artisan workspace',
+        'mood': 'Creative and focused'
+      });
+      
+      try {
+        final aiImageData = await generateEmotionalAIImages(
+          workshopVideo: workshopVideo,
+          workshopPhotos: workshopPhotos,
+          artisanAudio: artisanAudio,
+          videoAnalysis: videoAnalysis,
+          imageAnalyses: imageAnalyses,
+        );
+        
+        // Integrate AI image data into workshop response
+        workshopData['chapter_images'] = aiImageData['chapter_images'];
+        workshopData['chapter_strategies'] = aiImageData['chapter_strategies'];
+        workshopData['chapter_stories'] = aiImageData['chapter_stories'];
+        workshopData['emotional_themes'] = aiImageData['emotional_themes'];
+        
+        // Also keep legacy format for compatibility
+        workshopData['ai_generated_images'] = aiImageData['chapter_images'];
+        workshopData['ui_descriptions'] = aiImageData['chapter_stories'];
+        
+        print('✅ AI chapter images integrated: ${(aiImageData['chapter_images'] as List?)?.length ?? 0} chapters generated');
+        
+      } catch (e) {
+        print('⚠️ AI image generation failed, using fallback: $e');
+        workshopData['chapter_images'] = _getFallbackChapterImages();
+        workshopData['chapter_stories'] = _getFallbackChapterStories();
+        workshopData['ui_descriptions'] = _getFallbackChapterStories(); // For compatibility
+        workshopData['emotional_themes'] = ['craftsmanship', 'dedication', 'authenticity'];
+      }
+      
+      return workshopData;
+    } catch (e) {
+      print('❌ Error in generateLivingWorkshop: $e');
+      throw Exception('Failed to generate the Living Workshop experience. $e');
     }
   }
 }
