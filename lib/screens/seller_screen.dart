@@ -19,6 +19,7 @@ import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
+import 'artisan_media_upload_screen.dart';
 import '../services/order_service.dart';
 
 class MyStoreScreen extends StatefulWidget {
@@ -2069,6 +2070,25 @@ class _SellerScreenState extends State<SellerScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Action Buttons Row 4 - Living Workshop
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          'Living Workshop',
+                          Icons.vrpano,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ArtisanMediaUploadScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       const SizedBox(height: 12),
                       
