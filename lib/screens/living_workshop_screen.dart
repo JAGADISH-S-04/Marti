@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/product.dart';
-import '../services/product_database_service.dart';
-import '../services/gemini_service.dart';
-import '../services/living_workshop_service.dart';
-import 'product_detail_screen.dart';
 
 class LivingWorkshopScreen extends StatefulWidget {
   final Map<String, dynamic> workshopData;
@@ -28,7 +23,6 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   late Animation<Offset> _slideAnimation;
   
   int _currentChapter = 0;
-  bool _isRevealing = false;
   String _currentMood = 'contemplative';
   List<String> _interactiveStory = [];
   String _workshopTitle = 'Living Workshop';
@@ -70,12 +64,9 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       // 🔥 GOD-LEVEL AI GENERATION: Generate REAL AI content
       print('🚀 GOD-MODE: Starting AI content generation...');
       
-      // Generate AI images and emotional stories using static method
-      _aiGeneratedContent = await GeminiService.generateEmotionalAIImages(
-        videoAnalysis: widget.workshopData['video_analysis'] ?? {},
-        imageAnalyses: widget.workshopData['image_analyses'] ?? [],
-        audioContext: widget.workshopData['audio_context'] ?? {},
-      );
+      // For now, use fallback content generation since we don't have the required File objects
+      // TODO: Implement proper file handling for workshop video, photos, and audio
+      _aiGeneratedContent = await _generateFallbackContent();
       
       print('🎨 AI Content Generated: ${_aiGeneratedContent}');
       
@@ -91,6 +82,26 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     setState(() {
       _isGeneratingAI = false;
     });
+  }
+
+  Future<Map<String, dynamic>> _generateFallbackContent() async {
+    // Generate fallback content based on available workshop data
+    return {
+      'ai_images': [
+        {
+          'url': 'https://via.placeholder.com/800x600/2D3142/FFFFFF?text=Workshop+Moment+1',
+          'description': 'The artisan\'s hands shaping clay with deep concentration',
+          'emotion': 'contemplative'
+        },
+        {
+          'url': 'https://via.placeholder.com/800x600/9B4192/FFFFFF?text=Workshop+Moment+2',
+          'description': 'The moment when creativity flows through ancient techniques',
+          'emotion': 'inspired'
+        }
+      ],
+      'emotional_story': widget.workshopData['emotional_story'] ?? 'A beautiful journey of craftsmanship and soul.',
+      'workshop_theme': widget.workshopData['emotionalTheme'] ?? 'connection'
+    };
   }
 
   void _extractEmotionalStories() {
@@ -184,7 +195,6 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   void _advanceChapter() {
     if (_currentChapter < _interactiveStory.length - 1) {
       setState(() {
-        _isRevealing = true;
         // Cycle through emotional moods based on the story content
         final emotionalMoods = ['contemplative', 'inspired', 'focused', 'joyful', 'peaceful', 
                               'devotion', 'tranquility', 'passion', 'wisdom', 'wonder'];
@@ -194,7 +204,6 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       _slideController.reverse().then((_) {
         setState(() {
           _currentChapter++;
-          _isRevealing = false;
         });
         _slideController.forward();
       });
@@ -1074,55 +1083,6 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompletionScreen() {
-    return Container(
-      padding: EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.auto_awesome,
-            size: 64,
-            color: Colors.white.withOpacity(0.9),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Connection Complete',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 28,
-              color: Colors.white,
-              fontWeight: FontWeight.w300,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16),
-          Text(
-            'You have journeyed through the artisan\'s world, feeling every emotion, understanding every choice. This connection will remain with you forever.',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.7),
-              height: 1.6,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-            ),
-            child: Text('Continue Experience'),
-          ),
         ],
       ),
     );
