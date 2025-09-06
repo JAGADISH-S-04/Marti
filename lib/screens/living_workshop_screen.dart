@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/product.dart';
 import '../services/product_database_service.dart';
+import '../services/gemini_service.dart';
+import '../services/living_workshop_service.dart';
 import 'product_detail_screen.dart';
 
 class LivingWorkshopScreen extends StatefulWidget {
@@ -48,12 +50,47 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     'connection': Color(0xFFFEBC2C),
   };
 
+  bool _isGeneratingAI = false;
+  Map<String, dynamic>? _aiGeneratedContent;
+
   @override
   void initState() {
     super.initState();
     _setupAnimations();
-    _extractEmotionalStories();
+    _generateAIContentAndStories();
     _startImmersiveExperience();
+  }
+
+  Future<void> _generateAIContentAndStories() async {
+    setState(() {
+      _isGeneratingAI = true;
+    });
+
+    try {
+      // 🔥 GOD-LEVEL AI GENERATION: Generate REAL AI content
+      print('🚀 GOD-MODE: Starting AI content generation...');
+      
+      // Generate AI images and emotional stories using static method
+      _aiGeneratedContent = await GeminiService.generateEmotionalAIImages(
+        videoAnalysis: widget.workshopData['video_analysis'] ?? {},
+        imageAnalyses: widget.workshopData['image_analyses'] ?? [],
+        audioContext: widget.workshopData['audio_context'] ?? {},
+      );
+      
+      print('🎨 AI Content Generated: ${_aiGeneratedContent}');
+      
+      // Extract AI-generated stories
+      _extractEmotionalStories();
+      
+    } catch (e) {
+      print('❌ AI Generation Error: $e');
+      // Fallback to existing data extraction
+      _extractEmotionalStories();
+    }
+    
+    setState(() {
+      _isGeneratingAI = false;
+    });
   }
 
   void _extractEmotionalStories() {
@@ -64,11 +101,21 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     _emotionalTheme = workshopData['emotionalTheme'] ?? 'connection';
     _currentMood = _emotionalTheme;
     
-    // Extract stories from AI-generated chapter stories if available (highest priority)
+    // 🔥 PRIORITY 1: Use FRESH AI-generated content
+    if (_aiGeneratedContent != null) {
+      final chapterStories = _aiGeneratedContent!['chapter_stories'] as List?;
+      if (chapterStories != null && chapterStories.isNotEmpty) {
+        _interactiveStory = chapterStories.cast<String>();
+        print('✨ Using FRESH AI-generated chapter stories: ${_interactiveStory.length} chapters');
+        return;
+      }
+    }
+    
+    // PRIORITY 2: Extract stories from existing AI-generated chapter stories
     final chapterStories = workshopData['chapter_stories'] as List?;
     if (chapterStories != null && chapterStories.isNotEmpty) {
       _interactiveStory = chapterStories.cast<String>();
-      print('✨ Using AI-generated chapter stories: ${_interactiveStory.length} chapters');
+      print('✨ Using existing AI-generated chapter stories: ${_interactiveStory.length} chapters');
     } else {
       // Fallback to UI descriptions
       final uiDescriptions = workshopData['ui_descriptions'] as List?;
@@ -104,7 +151,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       _interactiveStory = ["In this moment, you are witnessing the sacred act of creation - where human hands transform dreams into reality..."];
     }
     
-    print('✨ Extracted ${_interactiveStory.length} emotional stories from workshop data');
+    print('✨ Final story count: ${_interactiveStory.length} emotional stories');
   }
 
   void _setupAnimations() {
@@ -186,6 +233,11 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   }
 
   Widget _buildWorkshopContent() {
+    // 🔥 GOD-LEVEL UI: Show AI generation progress
+    if (_isGeneratingAI) {
+      return _buildAIGenerationScreen();
+    }
+    
     return SafeArea(
       child: Column(
         children: [
@@ -200,6 +252,99 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           // Navigation controls
           _buildNavigationControls(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAIGenerationScreen() {
+    return SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // AI generation animation
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(60),
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 48,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    SizedBox(height: 8),
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 32),
+            Text(
+              'Creating Your AI Experience',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.w400,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Gemini AI is crafting personalized stories and realistic images just for you...',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.8),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 24),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.smart_toy,
+                    size: 16,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Dual-Model AI Processing',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -304,8 +449,16 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   }
 
   Widget _buildChapterImage() {
-    // Get AI-generated chapter images
-    final chapterImages = widget.workshopData['chapter_images'] as List?;
+    // 🔥 GOD-LEVEL PRIORITY: Use FRESH AI-generated images first
+    List<dynamic>? chapterImages;
+    
+    if (_aiGeneratedContent != null) {
+      chapterImages = _aiGeneratedContent!['chapter_images'] as List?;
+      print('🎨 Using FRESH AI-generated images: ${chapterImages?.length ?? 0}');
+    } else {
+      chapterImages = widget.workshopData['chapter_images'] as List?;
+      print('🎨 Using existing workshop images: ${chapterImages?.length ?? 0}');
+    }
     
     if (chapterImages != null && _currentChapter < chapterImages.length) {
       final currentImage = chapterImages[_currentChapter];
@@ -313,9 +466,18 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       final imageTitle = currentImage['title'] ?? 'Chapter ${_currentChapter + 1}';
       final description = currentImage['description'] ?? '';
       
-      // Generate a unique placeholder URL based on the AI prompt
-      final promptHash = imagePrompt.hashCode.abs();
-      final imageUrl = 'https://picsum.photos/400/300?random=$promptHash&blur=1';
+      // 🔥 REAL AI IMAGE GENERATION: Use actual AI-generated image URLs
+      String imageUrl;
+      if (currentImage['generated_image_url'] != null) {
+        imageUrl = currentImage['generated_image_url'];
+        print('🖼️ Using real AI-generated image: $imageUrl');
+      } else {
+        // Enhanced placeholder with better diversity
+        final promptHash = imagePrompt.hashCode.abs();
+        final seedValue = promptHash % 1000 + (_currentChapter * 137);
+        imageUrl = 'https://picsum.photos/400/300?random=$seedValue';
+        print('🖼️ Using enhanced placeholder for: $imagePrompt');
+      }
       
       return Container(
         height: 200,

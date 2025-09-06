@@ -1148,22 +1148,56 @@ Create 5 distinct realistic images that tell a complete emotional story:
 - Focus: How this creation will connect with its future owner
 
 TECHNICAL REQUIREMENTS:
-- PHOTOREALISTIC quality (not illustrations or sketches)
-- Professional photography aesthetics
-- Warm, inviting lighting that draws viewers in
-- Authentic workshop environments and materials
-- Human elements (hands, tools, workspace) that create emotional connection
-- High detail that makes viewers want to reach out and touch
+- Generate PHOTOREALISTIC images using ACTUAL VISUAL ELEMENTS from the provided workshop video, photos, and audio content
+- Analyze specific artisan workspace: lighting conditions, tool arrangements, material textures, and environmental details
+- Extract REAL COLOR PALETTES from workshop photos for authentic color matching
+- Use ACTUAL WORKSPACE LAYOUT from video analysis for accurate spatial representation
+- Incorporate SPECIFIC TOOLS AND MATERIALS visible in the uploaded content
+- Match AUTHENTIC LIGHTING CONDITIONS (natural vs artificial, warm vs cool tones)
+- Preserve REAL CULTURAL ARTIFACTS and traditional elements shown in the media
+- Reference ACTUAL ARTISAN APPEARANCE and clothing style from video content
+- Use TRANSCRIBED AUDIO CONTENT to add authentic personal story elements
+
+ADVANCED REALISM PARAMETERS:
+- Camera settings: Use actual photo metadata when available (ISO, aperture, focal length)
+- Lighting analysis: Match exact light sources, shadows, and reflections from workshop
+- Material textures: Reference actual surface textures visible in photos (wood grain, clay smoothness, fabric weave)
+- Tool wear patterns: Include realistic wear marks and patina from frequently used tools
+- Workspace authenticity: Match actual clutter, organization, and personal touches visible
+- Environmental context: Include background elements, windows, storage areas from real workspace
+- Artisan details: Age-appropriate hands, clothing, and working posture from video analysis
+
+PHOTOGRAPHIC REALISM SPECIFICATIONS:
+- Depth of field: Realistic bokeh and focus falloff matching actual camera optics
+- Lens characteristics: Simulate specific lens distortion, vignetting, and aberrations
+- Sensor qualities: Include appropriate noise, dynamic range, and color response
+- Motion blur: Authentic hand/tool movement blur during active crafting
+- Lighting physics: Accurate shadow casting, bounce light, and color temperature
+- Material physics: Realistic subsurface scattering, reflectance, and surface properties
+
+CONTENT SYNCHRONIZATION:
+- Extract workshop-specific elements: {"tools": [...], "materials": [...], "lighting": "...", "layout": "..."}
+- Cross-reference video timestamps with audio narration for story-image alignment
+- Match chapter progression to actual crafting process stages shown in video
+- Integrate cultural elements mentioned in audio with visual workshop details
+- Ensure tool usage accuracy based on craft type detected in media analysis
 
 FORMAT: Return JSON with "chapter_images" array containing:
 {
   "chapter": 1-5,
-  "title": "emotionally compelling chapter title",
-  "image_prompt": "detailed REALISTIC photograph description for AI generation",
-  "emotional_goal": "specific feeling this chapter should evoke",
-  "photography_style": "specific camera and lighting techniques",
-  "color_palette": "colors that enhance emotional connection",
-  "focal_elements": "what viewers should notice first"
+  "title": "Chapter title reflecting actual crafting process stage",
+  "image_prompt": "ULTRA-DETAILED photorealistic description: Camera: [specific settings], Lighting: [actual conditions], Subject: [real artisan activity], Environment: [authentic workshop details], Materials: [specific items from video], Post-processing: [realistic film/digital characteristics]",
+  "emotional_goal": "Feeling evoked by this specific stage of the real crafting process",
+  "photography_style": "Professional photography technique matching workshop's natural aesthetic",
+  "color_palette": "HEX codes extracted from actual workshop environment",
+  "focal_elements": "Specific objects/actions/details visible in the source media",
+  "content_source": "Timestamp/photo reference that inspired this realistic representation",
+  "realism_parameters": {
+    "camera_simulation": "Canon 5D Mark IV, 50mm f/1.8, ISO 800, 1/60s",
+    "lighting_conditions": "Golden hour natural light + warm tungsten workshop lamps",
+    "material_accuracy": "Clay moisture content, wood grain direction, metal patina age",
+    "environmental_details": "Dust particles, tool shadows, surface reflections"
+  }
 }
 ''';
 
