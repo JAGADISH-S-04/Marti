@@ -32,8 +32,14 @@ class ChatService {
     return chatRoomId;
   }
 
-  // Send message
-  Future<void> sendMessage(String chatRoomId, String message, {String? imageUrl, String messageType = 'text'}) async {
+  // Send message with voice support
+  Future<void> sendMessage(String chatRoomId, String message, {
+    String? imageUrl, 
+    String? voiceUrl,
+    String? transcription,
+    String messageType = 'text',
+    Duration? voiceDuration,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) {
       print('❌ No authenticated user for sending message');
@@ -42,6 +48,7 @@ class ChatService {
 
     print('📤 Sending message to chatRoomId: $chatRoomId');
     print('📝 Message: $message');
+    print('🎤 Voice URL: $voiceUrl');
 
     // Get the corrected chat room ID
     chatRoomId = await getCorrectChatRoomId(chatRoomId);
@@ -101,6 +108,9 @@ class ChatService {
       senderType: senderType,
       message: message,
       imageUrl: imageUrl,
+      voiceUrl: voiceUrl,
+      transcription: transcription,
+      voiceDuration: voiceDuration,
       timestamp: DateTime.now(),
       messageType: messageType,
     );
@@ -118,9 +128,18 @@ class ChatService {
       // Update chat room with last message using set with merge to avoid update errors
       final unreadField = senderType == 'customer' ? 'artisanUnreadCount' : 'customerUnreadCount';
       
+      String lastMessagePreview;
+      if (messageType == 'voice') {
+        lastMessagePreview = '🎤 Voice message';
+      } else if (messageType == 'image') {
+        lastMessagePreview = '📷 Image';
+      } else {
+        lastMessagePreview = message;
+      }
+      
       print('🔄 Updating chat room last message...');
       await _firestore.collection('chat_rooms').doc(chatRoomId).set({
-        'lastMessage': messageType == 'image' ? '📷 Image' : message,
+        'lastMessage': lastMessagePreview,
         'lastMessageTime': Timestamp.now(),
         unreadField: FieldValue.increment(1),
       }, SetOptions(merge: true));
@@ -179,6 +198,61 @@ class ChatService {
       print('Error uploading chat image: $e');
     }
     return null;
+  }
+
+  // Upload voice message for chat
+  Future<String?> uploadVoiceMessage(File voiceFile, String chatRoomId) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ref = _storage
+          .ref()
+          .child('voice_messages')
+          .child(chatRoomId)
+          .child('$timestamp.wav');
+
+      print('🎤 Uploading voice message to: ${ref.fullPath}');
+      final uploadTask = ref.putFile(voiceFile);
+      final snapshot = await uploadTask;
+      
+      if (snapshot.state == TaskState.success) {
+        final downloadUrl = await ref.getDownloadURL();
+        print('✅ Voice message uploaded successfully: $downloadUrl');
+        return downloadUrl;
+      } else {
+        print('❌ Voice upload failed with state: ${snapshot.state}');
+      }
+    } catch (e) {
+      print('❌ Error uploading voice message: $e');
+    }
+    return null;
+  }
+
+  // Send voice message
+  Future<void> sendVoiceMessage(String chatRoomId, File voiceFile, String? transcription, Duration duration) async {
+    try {
+      print('🎤 Sending voice message...');
+      
+      // Upload voice file
+      final voiceUrl = await uploadVoiceMessage(voiceFile, chatRoomId);
+      
+      if (voiceUrl != null) {
+        // Send message with voice data
+        await sendMessage(
+          chatRoomId,
+          transcription ?? 'Voice message',
+          voiceUrl: voiceUrl,
+          transcription: transcription,
+          messageType: 'voice',
+          voiceDuration: duration,
+        );
+        print('✅ Voice message sent successfully');
+      } else {
+        throw Exception('Failed to upload voice message');
+      }
+    } catch (e) {
+      print('❌ Error sending voice message: $e');
+      rethrow;
+    }
   }
 
   // Helper method to get/fix the correct chat room ID
