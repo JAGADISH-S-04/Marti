@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../models/chat_model.dart';
 import '../../services/chat_service.dart';
+import '../../widgets/CI_chat_voice_recorder.dart';
 
 class ChatScreen extends StatefulWidget {
   final String requestId;
@@ -36,15 +38,25 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
   final ImagePicker _imagePicker = ImagePicker();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   
   bool _isLoading = false;
   String? _currentUserType;
+  String? _currentlyPlayingVoiceId;
 
   @override
   void initState() {
     super.initState();
     _getCurrentUserType();
     _markMessagesAsRead();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   Future<void> _getCurrentUserType() async {
@@ -75,41 +87,151 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
-  Future<void> _sendImage() async {
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 80,
-    );
+  Future<void> _sendVoiceMessage(File voiceFile, String? transcription) async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Calculate duration (you might want to get this from the recorder)
+      final duration = Duration(seconds: 30); // Placeholder
+      
+      await _chatService.sendVoiceMessage(
+        widget.chatRoomId,
+        voiceFile,
+        transcription,
+        duration,
+      );
+      
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send voice message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
-    if (image != null) {
+  Future<void> _playVoiceMessage(String voiceUrl, String messageId) async {
+    try {
+      if (_currentlyPlayingVoiceId == messageId) {
+        // Stop current playback
+        await _audioPlayer.stop();
+        setState(() {
+          _currentlyPlayingVoiceId = null;
+        });
+      } else {
+        // Stop any current playback and play new voice message
+        await _audioPlayer.stop();
+        await _audioPlayer.play(UrlSource(voiceUrl));
+        setState(() {
+          _currentlyPlayingVoiceId = messageId;
+        });
+        
+        // Listen for completion
+        _audioPlayer.onPlayerComplete.listen((event) {
+          setState(() {
+            _currentlyPlayingVoiceId = null;
+          });
+        });
+      }
+    } catch (e) {
+      print('Error playing voice message: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to play voice message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendImage() async {
+    try {
+      // Debug: Check authentication
+      final user = FirebaseAuth.instance.currentUser;
+      print('🔐 Current user: ${user?.uid}');
+      print('🔐 User email: ${user?.email}');
+      print('🔐 Is authenticated: ${user != null}');
+      
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      print('📸 Opening image picker...');
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+
+      print('📸 Image picked: ${image?.path}');
+
+      if (image == null) {
+        print('❌ No image selected - user cancelled');
+        return;
+      }
+
+      print('✅ Image selected successfully: ${image.path}');
+      print('📤 Chat room ID: ${widget.chatRoomId}');
       setState(() => _isLoading = true);
       
       try {
+        print('📤 Starting image upload to path: chat_images/${widget.chatRoomId}');
         final imageUrl = await _chatService.uploadChatImage(
           File(image.path),
           widget.chatRoomId,
         );
 
-        if (imageUrl != null) {
+        print('📤 Image upload result: $imageUrl');
+
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          print('💬 Sending message with image...');
           await _chatService.sendMessage(
             widget.chatRoomId,
             'Shared an image',
             imageUrl: imageUrl,
             messageType: 'image',
           );
+          print('✅ Message sent successfully');
           _scrollToBottom();
+        } else {
+          print('❌ Image upload failed - empty URL');
+          throw Exception('Failed to upload image - empty URL returned');
         }
       } catch (e) {
+        print('❌ Error in upload/send process: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send image: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      print('❌ Error in image picker: $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send image: ${e.toString()}'),
+            content: Text('Failed to pick image: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
-      } finally {
-        setState(() => _isLoading = false);
       }
     }
   }
@@ -176,6 +298,14 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  String _formatDuration(Duration? duration) {
+    if (duration == null) return '0:00';
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String minutes = twoDigits(duration.inMinutes.remainder(60));
+    String seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
 
   @override
@@ -279,6 +409,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       isMe: message.senderId == FirebaseAuth.instance.currentUser?.uid,
                       primaryBrown: widget.primaryBrown,
                       lightBrown: widget.lightBrown,
+                      isPlayingVoice: _currentlyPlayingVoiceId == message.id,
+                      onVoicePlay: () => _playVoiceMessage(message.voiceUrl!, message.id),
+                      formatDuration: _formatDuration,
                     );
                   },
                 );
@@ -314,6 +447,15 @@ class _ChatScreenState extends State<ChatScreen> {
                     onPressed: _sendImage,
                     icon: Icon(Icons.image, color: widget.primaryBrown),
                   ),
+                  
+                  // Voice message recorder
+                  ChatVoiceRecorder(
+                    onVoiceRecorded: _sendVoiceMessage,
+                    primaryColor: widget.primaryBrown,
+                    accentColor: widget.lightBrown,
+                  ),
+                  
+                  const SizedBox(width: 8),
                   
                   // Text input
                   Expanded(
@@ -355,27 +497,26 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
 }
 
-// Message Bubble Widget
+// Message Bubble Widget with Voice Support
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMe;
   final Color primaryBrown;
   final Color lightBrown;
+  final bool isPlayingVoice;
+  final VoidCallback? onVoicePlay;
+  final String Function(Duration?) formatDuration;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
     required this.primaryBrown,
     required this.lightBrown,
+    this.isPlayingVoice = false,
+    this.onVoicePlay,
+    required this.formatDuration,
   });
 
   @override
@@ -447,8 +588,96 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ),
                   
+                  // Voice message
+                  if (message.messageType == 'voice' && message.voiceUrl != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: onVoicePlay,
+                            icon: Icon(
+                              isPlayingVoice ? Icons.pause : Icons.play_arrow,
+                              color: isMe ? Colors.white : primaryBrown,
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.graphic_eq,
+                                    size: 16,
+                                    color: isMe ? Colors.white70 : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    formatDuration(message.voiceDuration),
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (isPlayingVoice)
+                                Text(
+                                  'Playing...',
+                                  style: TextStyle(
+                                    color: isMe ? Colors.white70 : primaryBrown,
+                                    fontSize: 10,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Show transcription if available
+                    if (message.transcription != null && message.transcription!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Transcription:',
+                              style: TextStyle(
+                                color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              message.transcription!,
+                              style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black87,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                  
                   // Image
-                  if (message.imageUrl != null) ...[
+                  if (message.imageUrl != null && message.messageType != 'voice') ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
@@ -482,11 +711,14 @@ class _MessageBubble extends StatelessWidget {
                         },
                       ),
                     ),
-                    if (message.message.isNotEmpty) const SizedBox(height: 8),
+                    if (message.message.isNotEmpty && message.message != 'Shared an image') 
+                      const SizedBox(height: 8),
                   ],
                   
-                  // Message text
-                  if (message.message.isNotEmpty)
+                  // Message text (only show if not empty and not default image message)
+                  if (message.message.isNotEmpty && 
+                      message.message != 'Shared an image' && 
+                      message.messageType != 'voice')
                     Text(
                       message.message,
                       style: TextStyle(
@@ -542,7 +774,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// Progress Update Dialog
+// Progress Update Dialog (unchanged)
 class _ProgressUpdateDialog extends StatefulWidget {
   final TextEditingController controller;
   final Color primaryBrown;
