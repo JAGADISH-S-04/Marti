@@ -12,6 +12,8 @@ import 'package:arti/screens/admin/product_migration_screen.dart';
 import 'package:arti/screens/product_migration_page.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/gemini_service.dart';
+import 'package:arti/services/CI_retailer_analytics_service.dart';
+import 'package:arti/screens/craft_it/seller_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +27,8 @@ void main() async {
   
   // Initialize Gemini Service
   GeminiService.initialize();
+  // Initialize Retailer Analytics Service for AI recommendations
+  RetailerAnalyticsService.initialize();
   
   runApp(
     ChangeNotifierProvider(
@@ -54,6 +58,11 @@ class MyApp extends StatelessWidget {
           case '/migration':
             return MaterialPageRoute(
               builder: (_) => const ProductMigrationPage(),
+            );
+          // Add route for enhanced seller view with AI recommendations
+          case '/enhanced-seller':
+            return MaterialPageRoute(
+              builder: (_) => const SellerRequestsScreen(),
             );
           default:
             return null;
@@ -147,6 +156,8 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const BottomAppNavigator(),
+        // Add the enhanced seller view route
+        '/enhanced-seller': (context) => const SellerRequestsScreen(),
       },
     );
   }
