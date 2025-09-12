@@ -8,15 +8,17 @@ import 'package:path_provider/path_provider.dart';
 import '../services/gemini_service.dart';
 
 class ChatVoiceRecorder extends StatefulWidget {
-  final Function(File, String?) onVoiceRecorded; // audioFile, transcription
+  final Function(File, String?, Duration) onVoiceRecorded; // audioFile, transcription, duration
   final Color primaryColor;
   final Color accentColor;
+  final String targetLanguage; // New parameter for target language
 
   const ChatVoiceRecorder({
     Key? key,
     required this.onVoiceRecorded,
     this.primaryColor = const Color(0xFF8B4513),
     this.accentColor = const Color(0xFFDAA520),
+    this.targetLanguage = 'en', // Default to English
   }) : super(key: key);
 
   @override
@@ -36,6 +38,8 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
   
   File? _recordedAudioFile;
   String? _transcription;
+  String? _originalTranscription;
+  String? _detectedLanguage;
   
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -93,17 +97,15 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
       
       if (await _audioRecorder.hasPermission()) {
         final directory = await getTemporaryDirectory();
-        // Use MP3 format for better compatibility with Gemini
-        final fileName = 'voice_message_${DateTime.now().millisecondsSinceEpoch}.mp3';
+        final fileName = 'voice_message_${DateTime.now().millisecondsSinceEpoch}.wav';
         final filePath = '${directory.path}/$fileName';
         
-        // Improved audio settings for better transcription
         await _audioRecorder.start(
           const RecordConfig(
-            encoder: AudioEncoder.aacLc, // Better encoder for speech
-            bitRate: 192000, // Higher bit rate for better quality
-            sampleRate: 44100, // Standard sample rate
-            numChannels: 1, // Mono for speech
+            encoder: AudioEncoder.wav,
+            bitRate: 128000,
+            sampleRate: 16000,
+            numChannels: 1,
           ),
           path: filePath,
         );
@@ -142,7 +144,6 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
           _recordedAudioFile = File(path);
         });
         
-        // Check if recording is too short
         if (_recordingDuration.inSeconds < 1) {
           _showError('Recording too short. Please record for at least 1 second.');
           _clearRecording();
@@ -163,48 +164,54 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
   }
 
   Future<void> _processAudio() async {
-    if (_recordedAudioFile == null) return;
+  if (_recordedAudioFile == null) return;
+  
+  setState(() {
+    _isProcessing = true;
+  });
+
+  try {
+    print('🎤 Processing audio file: ${_recordedAudioFile!.path}');
+    
+    // ALWAYS transcribe in the original language first
+    final transcriptionResult = await GeminiService.transcribeAudio(
+      _recordedAudioFile!,
+      sourceLanguage: null, // Let Gemini detect the language
+    );
+    
+    _originalTranscription = transcriptionResult['transcription'] ?? '';
+    _detectedLanguage = transcriptionResult['detectedLanguage'] ?? 'unknown';
+    
+    print('🎤 Original transcription: $_originalTranscription');
+    print('🎤 Detected language: $_detectedLanguage');
+    
+    // Store the original transcription - translation will happen on the receiver's side
+    _transcription = _originalTranscription;
     
     setState(() {
-      _isProcessing = true;
+      _isProcessing = false;
     });
-
-    try {
-      print('🎤 Processing audio file: ${_recordedAudioFile!.path}');
-      print('🎤 File size: ${await _recordedAudioFile!.length()} bytes');
-      print('🎤 Recording duration: ${_recordingDuration.inSeconds} seconds');
-      
-      // Transcribe the audio using the correct method signature
-      final transcriptionResult = await GeminiService.transcribeAudio(
-        _recordedAudioFile!,
-        sourceLanguage: 'en', // You can make this dynamic based on user preference
-      );
-      
-      _transcription = transcriptionResult['transcription'];
-      
-      print('🎤 Transcription result: $_transcription');
-      
-      setState(() {
-        _isProcessing = false;
-      });
-      
-      // Show confirmation dialog
-      _showConfirmationDialog();
-    } catch (e) {
-      print('Error processing audio: $e');
-      setState(() {
-        _isProcessing = false;
-      });
-      _showError('Failed to process audio: $e');
-    }
+    
+    _showConfirmationDialog();
+  } catch (e) {
+    print('Error processing audio: $e');
+    setState(() {
+      _isProcessing = false;
+    });
+    _showError('Failed to process audio: $e');
   }
+}
 
   void _showConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Voice Message'),
-        content: Column(
+  final supportedLanguages = GeminiService.getSupportedLanguages();
+  final detectedLanguageName = supportedLanguages[_detectedLanguage] ?? _detectedLanguage;
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Voice Message'),
+      content: SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -257,18 +264,75 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
               ),
             ),
             
+            // Language detection info
+            if (_detectedLanguage != null && _detectedLanguage != 'unknown') ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.language, color: Colors.blue.shade600, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Detected: $detectedLanguageName',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Translation info
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Colors.green.shade600, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'The recipient will see this message automatically translated to their preferred language.',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Original transcription
             if (_transcription != null && _transcription!.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text(
-                'Transcription:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                'What you said:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   _transcription!,
@@ -303,41 +367,42 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
             ],
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (_isPlaying) _stopPlayback();
-              Navigator.of(context).pop();
-              _clearRecording();
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (_isPlaying) _stopPlayback();
-              Navigator.of(context).pop();
-              _clearRecording();
-              _startRecording();
-            },
-            child: const Text('Re-record'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (_isPlaying) _stopPlayback();
-              Navigator.of(context).pop();
-              widget.onVoiceRecorded(_recordedAudioFile!, _transcription);
-              _clearRecording();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.accentColor,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Send'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            if (_isPlaying) _stopPlayback();
+            Navigator.of(context).pop();
+            _clearRecording();
+          },
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (_isPlaying) _stopPlayback();
+            Navigator.of(context).pop();
+            _clearRecording();
+            _startRecording();
+          },
+          child: const Text('Re-record'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_isPlaying) _stopPlayback();
+            Navigator.of(context).pop();
+            widget.onVoiceRecorded(_recordedAudioFile!, _transcription, _recordingDuration);
+            _clearRecording();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.accentColor,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Send'),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<void> _togglePlayback() async {
     if (_isPlaying) {
@@ -384,6 +449,8 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
     setState(() {
       _recordedAudioFile = null;
       _transcription = null;
+      _originalTranscription = null;
+      _detectedLanguage = null;
       _recordingDuration = Duration.zero;
     });
   }
@@ -427,7 +494,10 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Processing...'),
+            Text(
+              widget.targetLanguage != 'en' ? 'Translating...' : 'Processing...',
+              style: const TextStyle(fontSize: 12),
+            ),
           ],
         ),
       );
@@ -442,7 +512,6 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
             return Stack(
               alignment: Alignment.center,
               children: [
-                // Ripple effect
                 AnimatedBuilder(
                   animation: _rippleAnimation,
                   builder: (context, child) {
@@ -459,7 +528,6 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
                     );
                   },
                 ),
-                // Main recording button
                 Transform.scale(
                   scale: _pulseAnimation.value,
                   child: Container(

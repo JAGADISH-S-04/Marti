@@ -4,7 +4,7 @@ class ChatMessage {
   final String id;
   final String senderId;
   final String senderName;
-  final String senderType; // 'customer' or 'artisan'
+  final String senderType;
   final String message;
   final String? imageUrl;
   final String? voiceUrl;
@@ -12,7 +12,8 @@ class ChatMessage {
   final Duration? voiceDuration;
   final DateTime timestamp;
   final bool isRead;
-  final String? messageType; // 'text', 'image', 'voice', 'progress_update'
+  final String? messageType;
+  final String? detectedLanguage; // Add this field
 
   ChatMessage({
     required this.id,
@@ -27,6 +28,7 @@ class ChatMessage {
     required this.timestamp,
     this.isRead = false,
     this.messageType = 'text',
+    this.detectedLanguage, // Add this
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> map, String id) {
@@ -48,6 +50,7 @@ class ChatMessage {
       timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isRead: map['isRead'] ?? false,
       messageType: map['messageType'] ?? 'text',
+      detectedLanguage: map['detectedLanguage'], // Add this
     );
   }
 
@@ -63,6 +66,7 @@ class ChatMessage {
       'timestamp': Timestamp.fromDate(timestamp),
       'isRead': isRead,
       'messageType': messageType,
+      'detectedLanguage': detectedLanguage, // Add this
     };
 
     if (voiceDuration != null) {

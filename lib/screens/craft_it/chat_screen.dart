@@ -7,7 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../models/chat_model.dart';
 import '../../services/chat_service.dart';
+import '../../services/gemini_service.dart';
 import '../../widgets/CI_chat_voice_recorder.dart';
+import '../../widgets/chat_language_select.dart';
 
 class ChatScreen extends StatefulWidget {
   final String requestId;
@@ -43,12 +45,18 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   String? _currentUserType;
   String? _currentlyPlayingVoiceId;
+  String _selectedLanguage = 'en'; // Default to English
+  bool _showLanguageSelector = false;
+  
+  // Translation cache to avoid re-translating
+  final Map<String, Map<String, String>> _translationCache = {};
 
   @override
   void initState() {
     super.initState();
     _getCurrentUserType();
     _markMessagesAsRead();
+    _loadUserLanguagePreference();
   }
 
   @override
@@ -72,6 +80,41 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _loadUserLanguagePreference() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final preferredLanguage = userDoc.data()?['preferredLanguage'] ?? 'en';
+          setState(() {
+            _selectedLanguage = preferredLanguage;
+          });
+        }
+      } catch (e) {
+        print('Error loading language preference: $e');
+      }
+    }
+  }
+
+  Future<void> _saveUserLanguagePreference(String languageCode) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'preferredLanguage': languageCode});
+      } catch (e) {
+        print('Error saving language preference: $e');
+      }
+    }
+  }
+
   Future<void> _markMessagesAsRead() async {
     if (_currentUserType != null) {
       await _chatService.markMessagesAsRead(widget.chatRoomId, _currentUserType!);
@@ -87,54 +130,104 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
-  Future<void> _sendVoiceMessage(File voiceFile, String? transcription) async {
-    try {
-      setState(() => _isLoading = true);
-      
-      // Calculate duration (you might want to get this from the recorder)
-      final duration = Duration(seconds: 30); // Placeholder
-      
-      await _chatService.sendVoiceMessage(
-        widget.chatRoomId,
-        voiceFile,
-        transcription,
-        duration,
-      );
-      
-      _scrollToBottom();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send voice message: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
+  Future<void> _sendVoiceMessage(File voiceFile, String? transcription, Duration duration) async {
+  try {
+    setState(() => _isLoading = true);
+    
+    // Get detected language from voice recorder if available
+    // For now, we'll detect it again or pass it from the voice recorder
+    String? detectedLanguage;
+    
+    if (transcription != null && transcription.isNotEmpty) {
+      try {
+        final languageDetection = await GeminiService.detectLanguage(transcription);
+        detectedLanguage = languageDetection['detectedLanguage'];
+      } catch (e) {
+        print('Failed to detect language: $e');
       }
     }
+    
+    await _chatService.sendVoiceMessage(
+      widget.chatRoomId,
+      voiceFile,
+      transcription,
+      duration,
+      detectedLanguage: detectedLanguage,
+    );
+    
+    _scrollToBottom();
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send voice message: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
+}
+
+  Future<String?> _translateText(String text, String targetLanguage) async {
+  if (targetLanguage == 'en' || text.isEmpty) return text;
+
+  // Check cache first
+  final cacheKey = '$text:$targetLanguage';
+  if (_translationCache.containsKey(cacheKey)) {
+    final cachedResult = _translationCache[cacheKey]!;
+    return cachedResult['translatedText'];
+  }
+
+  try {
+    final result = await GeminiService.translateText(text, targetLanguage);
+    
+    // Handle the response safely
+    String translatedText = text; // Default to original text
+    
+    if (result['translatedText'] != null) {
+      if (result['translatedText'] is String) {
+        translatedText = result['translatedText'] as String;
+      } else {
+        // If it's not a string, convert it
+        translatedText = result['translatedText'].toString();
+      }
+    }
+    
+    print('✅ Translation: "$text" -> "$translatedText"');
+    
+    // Cache the result with safe string conversion
+    _translationCache[cacheKey] = {
+      'translatedText': translatedText,
+      'sourceLanguage': (result['sourceLanguage'] ?? 'unknown').toString(),
+      'targetLanguage': targetLanguage,
+      'confidence': (result['confidence'] ?? 0).toString(),
+    };
+    
+    return translatedText;
+  } catch (e) {
+    print('❌ Translation error: $e');
+    return text; // Return original text if translation fails
+  }
+}
 
   Future<void> _playVoiceMessage(String voiceUrl, String messageId) async {
     try {
       if (_currentlyPlayingVoiceId == messageId) {
-        // Stop current playback
         await _audioPlayer.stop();
         setState(() {
           _currentlyPlayingVoiceId = null;
         });
       } else {
-        // Stop any current playback and play new voice message
         await _audioPlayer.stop();
         await _audioPlayer.play(UrlSource(voiceUrl));
         setState(() {
           _currentlyPlayingVoiceId = messageId;
         });
         
-        // Listen for completion
         _audioPlayer.onPlayerComplete.listen((event) {
           setState(() {
             _currentlyPlayingVoiceId = null;
@@ -156,17 +249,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImage() async {
     try {
-      // Debug: Check authentication
       final user = FirebaseAuth.instance.currentUser;
-      print('🔐 Current user: ${user?.uid}');
-      print('🔐 User email: ${user?.email}');
-      print('🔐 Is authenticated: ${user != null}');
-      
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
-      print('📸 Opening image picker...');
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1024,
@@ -174,49 +261,26 @@ class _ChatScreenState extends State<ChatScreen> {
         imageQuality: 80,
       );
 
-      print('📸 Image picked: ${image?.path}');
+      if (image == null) return;
 
-      if (image == null) {
-        print('❌ No image selected - user cancelled');
-        return;
-      }
-
-      print('✅ Image selected successfully: ${image.path}');
-      print('📤 Chat room ID: ${widget.chatRoomId}');
       setState(() => _isLoading = true);
       
       try {
-        print('📤 Starting image upload to path: chat_images/${widget.chatRoomId}');
         final imageUrl = await _chatService.uploadChatImage(
           File(image.path),
           widget.chatRoomId,
         );
 
-        print('📤 Image upload result: $imageUrl');
-
         if (imageUrl != null && imageUrl.isNotEmpty) {
-          print('💬 Sending message with image...');
           await _chatService.sendMessage(
             widget.chatRoomId,
             'Shared an image',
             imageUrl: imageUrl,
             messageType: 'image',
           );
-          print('✅ Message sent successfully');
           _scrollToBottom();
         } else {
-          print('❌ Image upload failed - empty URL');
-          throw Exception('Failed to upload image - empty URL returned');
-        }
-      } catch (e) {
-        print('❌ Error in upload/send process: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to send image: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          throw Exception('Failed to upload image');
         }
       } finally {
         if (mounted) {
@@ -224,11 +288,11 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error in image picker: $e');
+      print('Error sending image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to pick image: ${e.toString()}'),
+            content: Text('Failed to send image: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -334,6 +398,19 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          // Language selector toggle
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _showLanguageSelector = !_showLanguageSelector;
+              });
+            },
+            icon: Icon(
+              Icons.translate,
+              color: _selectedLanguage != 'en' ? Colors.yellow : Colors.white,
+            ),
+            tooltip: 'Select Language',
+          ),
           if (_currentUserType == 'artisan')
             IconButton(
               onPressed: _sendProgressUpdate,
@@ -344,6 +421,59 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Language selector panel
+          if (_showLanguageSelector)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(screenSize.width * 0.04),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info, color: widget.primaryBrown, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Select your preferred language. Voice messages and text will be automatically translated.',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LanguageSelector(
+                    selectedLanguage: _selectedLanguage,
+                    primaryColor: widget.primaryBrown,
+                    accentColor: widget.lightBrown,
+                    onLanguageChanged: (languageCode, languageName) {
+                      setState(() {
+                        _selectedLanguage = languageCode;
+                        _showLanguageSelector = false;
+                      });
+                      _saveUserLanguagePreference(languageCode);
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Language set to $languageName'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
           // Messages List
           Expanded(
             child: StreamBuilder<List<ChatMessage>>(
@@ -412,6 +542,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       isPlayingVoice: _currentlyPlayingVoiceId == message.id,
                       onVoicePlay: () => _playVoiceMessage(message.voiceUrl!, message.id),
                       formatDuration: _formatDuration,
+                      targetLanguage: _selectedLanguage,
+                      translateText: _translateText,
                     );
                   },
                 );
@@ -448,11 +580,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     icon: Icon(Icons.image, color: widget.primaryBrown),
                   ),
                   
-                  // Voice message recorder
+                  // Voice message recorder with language support
                   ChatVoiceRecorder(
                     onVoiceRecorded: _sendVoiceMessage,
                     primaryColor: widget.primaryBrown,
                     accentColor: widget.lightBrown,
+                    targetLanguage: _selectedLanguage,
                   ),
                   
                   const SizedBox(width: 8),
@@ -499,8 +632,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// Message Bubble Widget with Voice Support
-class _MessageBubble extends StatelessWidget {
+// Enhanced Message Bubble with Translation Support
+class _MessageBubble extends StatefulWidget {
   final ChatMessage message;
   final bool isMe;
   final Color primaryBrown;
@@ -508,6 +641,8 @@ class _MessageBubble extends StatelessWidget {
   final bool isPlayingVoice;
   final VoidCallback? onVoicePlay;
   final String Function(Duration?) formatDuration;
+  final String targetLanguage;
+  final Future<String?> Function(String, String) translateText;
 
   const _MessageBubble({
     required this.message,
@@ -517,21 +652,115 @@ class _MessageBubble extends StatelessWidget {
     this.isPlayingVoice = false,
     this.onVoicePlay,
     required this.formatDuration,
+    required this.targetLanguage,
+    required this.translateText,
   });
 
   @override
+  State<_MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<_MessageBubble> {
+  String? _translatedMessage;
+  String? _translatedTranscription;
+  bool _isTranslating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Translate messages if target language is not English
+    // This applies to both incoming and outgoing messages
+    if (widget.targetLanguage != 'en') {
+      _translateMessages();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_MessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.targetLanguage != oldWidget.targetLanguage) {
+      if (widget.targetLanguage != 'en') {
+        _translateMessages();
+      } else {
+        setState(() {
+          _translatedMessage = null;
+          _translatedTranscription = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _translateMessages() async {
+    // Skip translation if target language is English
+    if (widget.targetLanguage == 'en') return;
+
+    setState(() {
+      _isTranslating = true;
+    });
+
+    try {
+      // Determine if we need to translate the message
+      bool needsTranslation = false;
+      
+      // For voice messages, check if detected language is different from target
+      if (widget.message.messageType == 'voice' && widget.message.detectedLanguage != null) {
+        needsTranslation = widget.message.detectedLanguage != widget.targetLanguage;
+      } else {
+        // For text messages, assume they need translation if target is not English
+        // You could also detect the language of the text message here
+        needsTranslation = true;
+      }
+
+      if (needsTranslation) {
+        // Translate main message if it's not a default message
+        if (widget.message.message.isNotEmpty && 
+            widget.message.message != 'Shared an image' &&
+            widget.message.message != 'Voice message' &&
+            widget.message.messageType != 'voice') {
+          _translatedMessage = await widget.translateText(
+            widget.message.message, 
+            widget.targetLanguage
+          );
+        }
+
+        // Translate transcription if available
+        if (widget.message.transcription != null && 
+            widget.message.transcription!.isNotEmpty) {
+          _translatedTranscription = await widget.translateText(
+            widget.message.transcription!, 
+            widget.targetLanguage
+          );
+        }
+      }
+    } catch (e) {
+      print('Translation error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTranslating = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final displayMessage = _translatedMessage ?? widget.message.message;
+    final displayTranscription = _translatedTranscription ?? widget.message.transcription;
+    final supportedLanguages = GeminiService.getSupportedLanguages();
+    final targetLanguageName = supportedLanguages[widget.targetLanguage] ?? widget.targetLanguage;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-          if (!isMe) ...[
+          if (!widget.isMe) ...[
             CircleAvatar(
               radius: 16,
-              backgroundColor: lightBrown,
+              backgroundColor: widget.lightBrown,
               child: Text(
-                message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?',
+                widget.message.senderName.isNotEmpty ? widget.message.senderName[0].toUpperCase() : '?',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -542,10 +771,10 @@ class _MessageBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isMe ? primaryBrown : Colors.white,
+                color: widget.isMe ? widget.primaryBrown : Colors.white,
                 borderRadius: BorderRadius.circular(16).copyWith(
-                  bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  bottomLeft: widget.isMe ? const Radius.circular(16) : const Radius.circular(4),
+                  bottomRight: widget.isMe ? const Radius.circular(4) : const Radius.circular(16),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -558,8 +787,74 @@ class _MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Translation indicator - show for ANY translated message
+                  if (widget.targetLanguage != 'en' && (_translatedMessage != null || _translatedTranscription != null))
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: widget.isMe 
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.translate, 
+                            size: 10, 
+                            color: widget.isMe ? Colors.white70 : Colors.blue.shade600
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Translated to $targetLanguageName',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: widget.isMe ? Colors.white70 : Colors.blue.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Original language indicator for voice messages
+                  if (widget.message.messageType == 'voice' && 
+                      widget.message.detectedLanguage != null && 
+                      widget.message.detectedLanguage != widget.targetLanguage)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: widget.isMe 
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.language, 
+                            size: 10, 
+                            color: widget.isMe ? Colors.white70 : Colors.green.shade600
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Originally in ${supportedLanguages[widget.message.detectedLanguage] ?? widget.message.detectedLanguage}',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: widget.isMe ? Colors.white70 : Colors.green.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   // Progress update header
-                  if (message.messageType == 'progress_update')
+                  if (widget.message.messageType == 'progress_update')
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -573,7 +868,7 @@ class _MessageBubble extends StatelessWidget {
                           Icon(
                             Icons.update,
                             size: 14,
-                            color: isMe ? Colors.white : Colors.orange.shade800,
+                            color: widget.isMe ? Colors.white : Colors.orange.shade800,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -581,7 +876,7 @@ class _MessageBubble extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isMe ? Colors.white : Colors.orange.shade800,
+                              color: widget.isMe ? Colors.white : Colors.orange.shade800,
                             ),
                           ),
                         ],
@@ -589,21 +884,21 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   
                   // Voice message
-                  if (message.messageType == 'voice' && message.voiceUrl != null) ...[
+                  if (widget.message.messageType == 'voice' && widget.message.voiceUrl != null) ...[
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+                        color: widget.isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            onPressed: onVoicePlay,
+                            onPressed: widget.onVoicePlay,
                             icon: Icon(
-                              isPlayingVoice ? Icons.pause : Icons.play_arrow,
-                              color: isMe ? Colors.white : primaryBrown,
+                              widget.isPlayingVoice ? Icons.pause : Icons.play_arrow,
+                              color: widget.isMe ? Colors.white : widget.primaryBrown,
                             ),
                           ),
                           Column(
@@ -614,23 +909,23 @@ class _MessageBubble extends StatelessWidget {
                                   Icon(
                                     Icons.graphic_eq,
                                     size: 16,
-                                    color: isMe ? Colors.white70 : Colors.grey,
+                                    color: widget.isMe ? Colors.white70 : Colors.grey,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    formatDuration(message.voiceDuration),
+                                    widget.formatDuration(widget.message.voiceDuration),
                                     style: TextStyle(
-                                      color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
                                       fontSize: 12,
                                     ),
                                   ),
                                 ],
                               ),
-                              if (isPlayingVoice)
+                              if (widget.isPlayingVoice)
                                 Text(
                                   'Playing...',
                                   style: TextStyle(
-                                    color: isMe ? Colors.white70 : primaryBrown,
+                                    color: widget.isMe ? Colors.white70 : widget.primaryBrown,
                                     fontSize: 10,
                                     fontStyle: FontStyle.italic,
                                   ),
@@ -642,12 +937,12 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     
                     // Show transcription if available
-                    if (message.transcription != null && message.transcription!.isNotEmpty) ...[
+                    if (displayTranscription != null && displayTranscription.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade50,
+                          color: widget.isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Column(
@@ -656,20 +951,45 @@ class _MessageBubble extends StatelessWidget {
                             Text(
                               'Transcription:',
                               style: TextStyle(
-                                color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              message.transcription!,
-                              style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black87,
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
+                            if (_isTranslating)
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        widget.isMe ? Colors.white70 : widget.primaryBrown,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Translating...',
+                                    style: TextStyle(
+                                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                      fontSize: 10,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              Text(
+                                displayTranscription,
+                                style: TextStyle(
+                                  color: widget.isMe ? Colors.white : Colors.black87,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -677,11 +997,11 @@ class _MessageBubble extends StatelessWidget {
                   ],
                   
                   // Image
-                  if (message.imageUrl != null && message.messageType != 'voice') ...[
+                  if (widget.message.imageUrl != null && widget.message.messageType != 'voice') ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        message.imageUrl!,
+                        widget.message.imageUrl!,
                         width: 200,
                         fit: BoxFit.cover,
                         loadingBuilder: (context, child, loadingProgress) {
@@ -692,7 +1012,7 @@ class _MessageBubble extends StatelessWidget {
                             color: Colors.grey.shade200,
                             child: Center(
                               child: CircularProgressIndicator(
-                                color: primaryBrown,
+                                color: widget.primaryBrown,
                                 value: loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
@@ -711,29 +1031,59 @@ class _MessageBubble extends StatelessWidget {
                         },
                       ),
                     ),
-                    if (message.message.isNotEmpty && message.message != 'Shared an image') 
+                    if (displayMessage.isNotEmpty && displayMessage != 'Shared an image') 
                       const SizedBox(height: 8),
                   ],
                   
                   // Message text (only show if not empty and not default image message)
-                  if (message.message.isNotEmpty && 
-                      message.message != 'Shared an image' && 
-                      message.messageType != 'voice')
-                    Text(
-                      message.message,
-                      style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
-                        fontSize: 14,
-                      ),
+                  if (displayMessage.isNotEmpty && 
+                      displayMessage != 'Shared an image' && 
+                      widget.message.messageType != 'voice')
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isTranslating)
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    widget.isMe ? Colors.white70 : widget.primaryBrown,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Translating...',
+                                style: TextStyle(
+                                  color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                  fontSize: 10,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            displayMessage,
+                            style: TextStyle(
+                              color: widget.isMe ? Colors.white : Colors.black87,
+                              fontSize: 14,
+                            ),
+                          ),
+                      ],
                     ),
                   
                   const SizedBox(height: 4),
                   
                   // Timestamp
                   Text(
-                    _formatTime(message.timestamp),
+                    _formatTime(widget.message.timestamp),
                     style: TextStyle(
-                      color: isMe ? Colors.white70 : Colors.grey.shade600,
+                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
                       fontSize: 12,
                     ),
                   ),
@@ -742,13 +1092,13 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
           
-          if (isMe) ...[
+          if (widget.isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundColor: primaryBrown,
+              backgroundColor: widget.primaryBrown,
               child: Text(
-                message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?',
+                widget.message.senderName.isNotEmpty ? widget.message.senderName[0].toUpperCase() : '?',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
