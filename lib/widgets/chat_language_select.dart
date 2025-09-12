@@ -21,11 +21,17 @@ class LanguageSelector extends StatefulWidget {
 
 class _LanguageSelectorState extends State<LanguageSelector> {
   bool _isExpanded = false;
-  final Map<String, String> _supportedLanguages = GeminiService.getSupportedLanguages();
+  
+  // Get supported languages with Auto option
+  Map<String, String> get _supportedLanguages {
+    final languages = {'auto': 'Auto (Original Language)'}; // Add Auto option first
+    languages.addAll(GeminiService.getSupportedLanguages());
+    return languages;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentLanguageName = _supportedLanguages[widget.selectedLanguage] ?? 'English';
+    final currentLanguageName = _supportedLanguages[widget.selectedLanguage] ?? 'Auto (Original Language)';
     
     return Container(
       decoration: BoxDecoration(
@@ -49,17 +55,20 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.translate,
+                    widget.selectedLanguage == 'auto' ? Icons.auto_awesome : Icons.translate,
                     color: widget.primaryColor,
                     size: 18,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    currentLanguageName,
-                    style: TextStyle(
-                      color: widget.primaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  Flexible(
+                    child: Text(
+                      currentLanguageName,
+                      style: TextStyle(
+                        color: widget.primaryColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -81,6 +90,8 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                 child: Column(
                   children: _supportedLanguages.entries.map((entry) {
                     final isSelected = entry.key == widget.selectedLanguage;
+                    final isAuto = entry.key == 'auto';
+                    
                     return InkWell(
                       onTap: () {
                         widget.onLanguageChanged(entry.key, entry.value);
@@ -91,7 +102,12 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        color: isSelected ? widget.accentColor.withOpacity(0.1) : null,
+                        decoration: BoxDecoration(
+                          color: isSelected ? widget.accentColor.withOpacity(0.1) : null,
+                          border: isAuto ? Border(
+                            bottom: BorderSide(color: Colors.grey.shade300),
+                          ) : null,
+                        ),
                         child: Row(
                           children: [
                             if (isSelected) ...[
@@ -103,6 +119,17 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                               const SizedBox(width: 6),
                             ] else
                               const SizedBox(width: 22),
+                            
+                            // Special icon for Auto option
+                            if (isAuto) ...[
+                              Icon(
+                                Icons.auto_awesome,
+                                color: isSelected ? widget.primaryColor : Colors.grey.shade600,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            
                             Expanded(
                               child: Text(
                                 entry.value,
@@ -113,14 +140,16 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                                 ),
                               ),
                             ),
-                            Text(
-                              entry.key.toUpperCase(),
-                              style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
+                            
+                            if (!isAuto) // Don't show language code for Auto option
+                              Text(
+                                entry.key.toUpperCase(),
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),

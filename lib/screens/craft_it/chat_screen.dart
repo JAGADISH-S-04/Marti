@@ -45,7 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   String? _currentUserType;
   String? _currentlyPlayingVoiceId;
-  String _selectedLanguage = 'en'; // Default to English
+  String _selectedLanguage = 'auto'; // Default to auto (original language)
   bool _showLanguageSelector = false;
   
   // Translation cache to avoid re-translating
@@ -90,7 +90,7 @@ class _ChatScreenState extends State<ChatScreen> {
             .get();
         
         if (userDoc.exists) {
-          final preferredLanguage = userDoc.data()?['preferredLanguage'] ?? 'en';
+          final preferredLanguage = userDoc.data()?['preferredLanguage'] ?? 'auto';
           setState(() {
             _selectedLanguage = preferredLanguage;
           });
@@ -131,88 +131,88 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendVoiceMessage(File voiceFile, String? transcription, Duration duration) async {
-  try {
-    setState(() => _isLoading = true);
-    
-    // Get detected language from voice recorder if available
-    // For now, we'll detect it again or pass it from the voice recorder
-    String? detectedLanguage;
-    
-    if (transcription != null && transcription.isNotEmpty) {
-      try {
-        final languageDetection = await GeminiService.detectLanguage(transcription);
-        detectedLanguage = languageDetection['detectedLanguage'];
-      } catch (e) {
-        print('Failed to detect language: $e');
+    try {
+      setState(() => _isLoading = true);
+      
+      // Get detected language from transcription if available
+      String? detectedLanguage;
+      
+      if (transcription != null && transcription.isNotEmpty) {
+        try {
+          final languageDetection = await GeminiService.detectLanguage(transcription);
+          detectedLanguage = languageDetection['detectedLanguage'];
+        } catch (e) {
+          print('Failed to detect language: $e');
+        }
+      }
+      
+      await _chatService.sendVoiceMessage(
+        widget.chatRoomId,
+        voiceFile,
+        transcription,
+        duration,
+        detectedLanguage: detectedLanguage,
+      );
+      
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send voice message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-    
-    await _chatService.sendVoiceMessage(
-      widget.chatRoomId,
-      voiceFile,
-      transcription,
-      duration,
-      detectedLanguage: detectedLanguage,
-    );
-    
-    _scrollToBottom();
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to send voice message: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
-}
 
   Future<String?> _translateText(String text, String targetLanguage) async {
-  if (targetLanguage == 'en' || text.isEmpty) return text;
+    // Don't translate if target is 'auto' - show original text
+    if (targetLanguage == 'auto' || text.isEmpty) return text;
 
-  // Check cache first
-  final cacheKey = '$text:$targetLanguage';
-  if (_translationCache.containsKey(cacheKey)) {
-    final cachedResult = _translationCache[cacheKey]!;
-    return cachedResult['translatedText'];
-  }
-
-  try {
-    final result = await GeminiService.translateText(text, targetLanguage);
-    
-    // Handle the response safely
-    String translatedText = text; // Default to original text
-    
-    if (result['translatedText'] != null) {
-      if (result['translatedText'] is String) {
-        translatedText = result['translatedText'] as String;
-      } else {
-        // If it's not a string, convert it
-        translatedText = result['translatedText'].toString();
-      }
+    // Check cache first
+    final cacheKey = '$text:$targetLanguage';
+    if (_translationCache.containsKey(cacheKey)) {
+      final cachedResult = _translationCache[cacheKey]!;
+      return cachedResult['translatedText'];
     }
-    
-    print('✅ Translation: "$text" -> "$translatedText"');
-    
-    // Cache the result with safe string conversion
-    _translationCache[cacheKey] = {
-      'translatedText': translatedText,
-      'sourceLanguage': (result['sourceLanguage'] ?? 'unknown').toString(),
-      'targetLanguage': targetLanguage,
-      'confidence': (result['confidence'] ?? 0).toString(),
-    };
-    
-    return translatedText;
-  } catch (e) {
-    print('❌ Translation error: $e');
-    return text; // Return original text if translation fails
+
+    try {
+      final result = await GeminiService.translateText(text, targetLanguage);
+      
+      // Handle the response safely
+      String translatedText = text; // Default to original text
+      
+      if (result['translatedText'] != null) {
+        if (result['translatedText'] is String) {
+          translatedText = result['translatedText'] as String;
+        } else {
+          // If it's not a string, convert it
+          translatedText = result['translatedText'].toString();
+        }
+      }
+      
+      print('✅ Translation: "$text" -> "$translatedText"');
+      
+      // Cache the result with safe string conversion
+      _translationCache[cacheKey] = {
+        'translatedText': translatedText,
+        'sourceLanguage': (result['sourceLanguage'] ?? 'unknown').toString(),
+        'targetLanguage': targetLanguage,
+        'confidence': (result['confidence'] ?? 0).toString(),
+      };
+      
+      return translatedText;
+    } catch (e) {
+      print('❌ Translation error: $e');
+      return text; // Return original text if translation fails
+    }
   }
-}
 
   Future<void> _playVoiceMessage(String voiceUrl, String messageId) async {
     try {
@@ -407,7 +407,7 @@ class _ChatScreenState extends State<ChatScreen> {
             },
             icon: Icon(
               Icons.translate,
-              color: _selectedLanguage != 'en' ? Colors.yellow : Colors.white,
+              color: _selectedLanguage != 'auto' ? Colors.yellow : Colors.white,
             ),
             tooltip: 'Select Language',
           ),
@@ -441,7 +441,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Select your preferred language. Voice messages and text will be automatically translated.',
+                          'Select your preferred language. Messages will be automatically translated to your chosen language.',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,
@@ -464,7 +464,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Language set to $languageName'),
+                          content: Text(languageCode == 'auto' 
+                              ? 'Language set to Auto (Original Language)'
+                              : 'Language set to $languageName'),
                           duration: const Duration(seconds: 2),
                         ),
                       );
@@ -668,9 +670,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
   @override
   void initState() {
     super.initState();
-    // Translate messages if target language is not English
-    // This applies to both incoming and outgoing messages
-    if (widget.targetLanguage != 'en') {
+    // Only translate if target language is not 'auto'
+    if (widget.targetLanguage != 'auto') {
       _translateMessages();
     }
   }
@@ -679,7 +680,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   void didUpdateWidget(_MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.targetLanguage != oldWidget.targetLanguage) {
-      if (widget.targetLanguage != 'en') {
+      if (widget.targetLanguage != 'auto') {
         _translateMessages();
       } else {
         setState(() {
@@ -691,8 +692,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
   }
 
   Future<void> _translateMessages() async {
-    // Skip translation if target language is English
-    if (widget.targetLanguage == 'en') return;
+    // Skip translation if target language is 'auto'
+    if (widget.targetLanguage == 'auto') return;
 
     setState(() {
       _isTranslating = true;
@@ -706,8 +707,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
       if (widget.message.messageType == 'voice' && widget.message.detectedLanguage != null) {
         needsTranslation = widget.message.detectedLanguage != widget.targetLanguage;
       } else {
-        // For text messages, assume they need translation if target is not English
-        // You could also detect the language of the text message here
+        // For text messages, assume they need translation if target is not 'auto'
         needsTranslation = true;
       }
 
@@ -787,8 +787,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Translation indicator - show for ANY translated message
-                  if (widget.targetLanguage != 'en' && (_translatedMessage != null || _translatedTranscription != null))
+                  // Translation indicator - only show if actually translated
+                  if (widget.targetLanguage != 'auto' && (_translatedMessage != null || _translatedTranscription != null))
                     Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -819,8 +819,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       ),
                     ),
 
-                  // Original language indicator for voice messages
-                  if (widget.message.messageType == 'voice' && 
+                  // Original language indicator for voice messages (only if translating)
+                  if (widget.targetLanguage != 'auto' &&
+                      widget.message.messageType == 'voice' && 
                       widget.message.detectedLanguage != null && 
                       widget.message.detectedLanguage != widget.targetLanguage)
                     Container(
@@ -1124,7 +1125,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   }
 }
 
-// Progress Update Dialog (unchanged)
+// Progress Update Dialog
 class _ProgressUpdateDialog extends StatefulWidget {
   final TextEditingController controller;
   final Color primaryBrown;

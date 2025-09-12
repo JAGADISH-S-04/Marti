@@ -18,7 +18,7 @@ class ChatVoiceRecorder extends StatefulWidget {
     required this.onVoiceRecorded,
     this.primaryColor = const Color(0xFF8B4513),
     this.accentColor = const Color(0xFFDAA520),
-    this.targetLanguage = 'en', // Default to English
+    this.targetLanguage = 'auto', // Default to auto
   }) : super(key: key);
 
   @override
@@ -164,125 +164,155 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
   }
 
   Future<void> _processAudio() async {
-  if (_recordedAudioFile == null) return;
-  
-  setState(() {
-    _isProcessing = true;
-  });
+    if (_recordedAudioFile == null) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
 
-  try {
-    print('🎤 Processing audio file: ${_recordedAudioFile!.path}');
-    
-    // ALWAYS transcribe in the original language first
-    final transcriptionResult = await GeminiService.transcribeAudio(
-      _recordedAudioFile!,
-      sourceLanguage: null, // Let Gemini detect the language
-    );
-    
-    _originalTranscription = transcriptionResult['transcription'] ?? '';
-    _detectedLanguage = transcriptionResult['detectedLanguage'] ?? 'unknown';
-    
-    print('🎤 Original transcription: $_originalTranscription');
-    print('🎤 Detected language: $_detectedLanguage');
-    
-    // Store the original transcription - translation will happen on the receiver's side
-    _transcription = _originalTranscription;
-    
-    setState(() {
-      _isProcessing = false;
-    });
-    
-    _showConfirmationDialog();
-  } catch (e) {
-    print('Error processing audio: $e');
-    setState(() {
-      _isProcessing = false;
-    });
-    _showError('Failed to process audio: $e');
+    try {
+      print('🎤 Processing audio file: ${_recordedAudioFile!.path}');
+      
+      // ALWAYS transcribe in the original language first
+      final transcriptionResult = await GeminiService.transcribeAudio(
+        _recordedAudioFile!,
+        sourceLanguage: null, // Let Gemini detect the language
+      );
+      
+      _originalTranscription = transcriptionResult['transcription'] ?? '';
+      _detectedLanguage = transcriptionResult['detectedLanguage'] ?? 'unknown';
+      
+      print('🎤 Original transcription: $_originalTranscription');
+      print('🎤 Detected language: $_detectedLanguage');
+      
+      // Store the original transcription - translation will happen on the receiver's side
+      _transcription = _originalTranscription;
+      
+      setState(() {
+        _isProcessing = false;
+      });
+      
+      _showConfirmationDialog();
+    } catch (e) {
+      print('Error processing audio: $e');
+      setState(() {
+        _isProcessing = false;
+      });
+      _showError('Failed to process audio: $e');
+    }
   }
-}
 
   void _showConfirmationDialog() {
-  final supportedLanguages = GeminiService.getSupportedLanguages();
-  final detectedLanguageName = supportedLanguages[_detectedLanguage] ?? _detectedLanguage;
-  
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Voice Message'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Audio playback
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: widget.accentColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: widget.accentColor.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: _togglePlayback,
-                    icon: Icon(
-                      _isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: widget.primaryColor,
+    final supportedLanguages = GeminiService.getSupportedLanguages();
+    final detectedLanguageName = supportedLanguages[_detectedLanguage] ?? _detectedLanguage;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Voice Message'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Audio playback
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: widget.accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: widget.accentColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _togglePlayback,
+                      icon: Icon(
+                        _isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: widget.primaryColor,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _isPlaying ? 'Playing...' : 'Tap to preview',
-                          style: TextStyle(color: widget.primaryColor),
-                        ),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.graphic_eq,
-                              size: 14,
-                              color: widget.primaryColor.withOpacity(0.7),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatDuration(_recordingDuration),
-                              style: TextStyle(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isPlaying ? 'Playing...' : 'Tap to preview',
+                            style: TextStyle(color: widget.primaryColor),
+                          ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.graphic_eq,
+                                size: 14,
                                 color: widget.primaryColor.withOpacity(0.7),
-                                fontSize: 12,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDuration(_recordingDuration),
+                                style: TextStyle(
+                                  color: widget.primaryColor.withOpacity(0.7),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            
-            // Language detection info
-            if (_detectedLanguage != null && _detectedLanguage != 'unknown') ...[
+              
+              // Language detection info
+              if (_detectedLanguage != null && _detectedLanguage != 'unknown') ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.language, color: Colors.blue.shade600, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Detected: $detectedLanguageName',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Translation info
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.shade200),
+                  border: Border.all(color: Colors.green.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.language, color: Colors.blue.shade600, size: 16),
+                    Icon(Icons.auto_awesome, color: Colors.green.shade600, size: 16),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Detected: $detectedLanguageName',
+                        widget.targetLanguage == 'auto'
+                            ? 'Message will be sent in original language. Recipients can translate if needed.'
+                            : 'The recipient will see this message automatically translated to their preferred language.',
                         style: TextStyle(
-                          color: Colors.blue.shade700,
+                          color: Colors.green.shade700,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -291,118 +321,90 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
                   ],
                 ),
               ),
-            ],
-            
-            // Translation info
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: Colors.green.shade600, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'The recipient will see this message automatically translated to their preferred language.',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+              
+              // Original transcription
+              if (_transcription != null && _transcription!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'What you said:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ],
-              ),
-            ),
-            
-            // Original transcription
-            if (_transcription != null && _transcription!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'What you said:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  child: Text(
+                    _transcription!,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
-                child: Text(
-                  _transcription!,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange.shade600, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No clear speech detected. The voice message will be sent without transcription.',
-                        style: TextStyle(
-                          color: Colors.orange.shade700,
-                          fontSize: 12,
+              ] else ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange.shade600, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No clear speech detected. The voice message will be sent without transcription.',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            if (_isPlaying) _stopPlayback();
-            Navigator.of(context).pop();
-            _clearRecording();
-          },
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            if (_isPlaying) _stopPlayback();
-            Navigator.of(context).pop();
-            _clearRecording();
-            _startRecording();
-          },
-          child: const Text('Re-record'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (_isPlaying) _stopPlayback();
-            Navigator.of(context).pop();
-            widget.onVoiceRecorded(_recordedAudioFile!, _transcription, _recordingDuration);
-            _clearRecording();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: widget.accentColor,
-            foregroundColor: Colors.white,
           ),
-          child: const Text('Send'),
         ),
-      ],
-    ),
-  );
-}
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (_isPlaying) _stopPlayback();
+              Navigator.of(context).pop();
+              _clearRecording();
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (_isPlaying) _stopPlayback();
+              Navigator.of(context).pop();
+              _clearRecording();
+              _startRecording();
+            },
+            child: const Text('Re-record'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_isPlaying) _stopPlayback();
+              Navigator.of(context).pop();
+              widget.onVoiceRecorded(_recordedAudioFile!, _transcription, _recordingDuration);
+              _clearRecording();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.accentColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _togglePlayback() async {
     if (_isPlaying) {
@@ -494,9 +496,9 @@ class _ChatVoiceRecorderState extends State<ChatVoiceRecorder>
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              widget.targetLanguage != 'en' ? 'Translating...' : 'Processing...',
-              style: const TextStyle(fontSize: 12),
+            const Text(
+              'Processing...',
+              style: TextStyle(fontSize: 12),
             ),
           ],
         ),
