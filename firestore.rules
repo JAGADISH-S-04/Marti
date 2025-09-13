@@ -28,64 +28,98 @@ service cloud.firestore {
     }
     
     // ============ USER PROFILE MANAGEMENT ============
-    // Sellers/Artisans - Enhanced profile management
+    // Sellers/Artisans - Enhanced profile management with dual account support
     match /sellers/{sellerId} {
       // Anyone can read seller profiles (for discovery)
       allow read: if true;
       
-      // Only authenticated users can create/update their own seller profile
+      // Allow creation/update if:
+      // 1. Regular account: sellerId matches authenticated UID
+      // 2. Dual account: sellerId starts with authenticated UID followed by '_retailer'
       allow create, update: if request.auth != null && 
-                           request.auth.uid == sellerId;
+                           (request.auth.uid == sellerId ||
+                            sellerId == request.auth.uid + '_retailer');
       
-      // Only the seller can delete their own profile
+      // Allow deletion with same logic as create/update
       allow delete: if request.auth != null && 
-                   request.auth.uid == sellerId;
+                   (request.auth.uid == sellerId ||
+                    sellerId == request.auth.uid + '_retailer');
     }
     
-    // Stores - Enhanced store management for sellers
+    // Stores - Enhanced store management for sellers with dual account support
     match /stores/{storeId} {
       // Anyone can read store information
       allow read: if true;
       
-      // Only authenticated users can manage their own store
+      // Allow management if:
+      // 1. Regular account: storeId matches authenticated UID
+      // 2. Dual account: storeId starts with authenticated UID
       allow create, update, delete: if request.auth != null && 
-                                   request.auth.uid == storeId;
+                                   (request.auth.uid == storeId ||
+                                    storeId == request.auth.uid + '_retailer');
     }
     
-    // Customers - Customer profile management
+    // Customers - Customer profile management with dual account support
     match /customers/{customerId} {
       // Customers can read any customer profile (for social features)
       allow read: if request.auth != null;
       
-      // Only authenticated users can manage their own customer profile
+      // Allow management if:
+      // 1. Regular account: customerId matches authenticated UID
+      // 2. Dual account: customerId starts with authenticated UID followed by '_customer'
       allow create, update, delete: if request.auth != null && 
-                                   request.auth.uid == customerId;
+                                   (request.auth.uid == customerId ||
+                                    customerId == request.auth.uid + '_customer');
       
       // Customer subcollections (cart, favorites, etc.)
       match /{subcollection=**} {
         allow read, write: if request.auth != null && 
-                          request.auth.uid == customerId;
+                          (request.auth.uid == customerId ||
+                           customerId == request.auth.uid + '_customer');
       }
     }
     
-    // Users - General user profiles and authentication data
+    // Users - General user profiles and authentication data with dual account support
     match /users/{userId} {
       // Users can read any user profile (for social features)
       allow read: if request.auth != null;
       
-      // Only authenticated users can manage their own profile
+      // Allow management if:
+      // 1. Regular account: userId matches authenticated UID
+      // 2. Dual account: userId starts with authenticated UID
       allow create, update, delete: if request.auth != null && 
-                                   request.auth.uid == userId;
+                                   (request.auth.uid == userId ||
+                                    userId.matches(request.auth.uid + '_.*'));
       
-      // User subcollections
+      // User subcollections with dual account support
       match /{subcollection=**} {
         allow read, write: if request.auth != null && 
-                          request.auth.uid == userId;
+                          (request.auth.uid == userId ||
+                           userId.matches(request.auth.uid + '_.*'));
       }
+    }
+
+    // ============ RETAILERS COLLECTION ============
+    // Add specific collection for retailers with dual account support
+    match /retailers/{retailerId} {
+      // Anyone can read retailer profiles (for discovery)
+      allow read: if true;
+      
+      // Allow creation/update if:
+      // 1. Regular account: retailerId matches authenticated UID
+      // 2. Dual account: retailerId starts with authenticated UID followed by '_retailer'
+      allow create, update: if request.auth != null && 
+                           (request.auth.uid == retailerId ||
+                            retailerId == request.auth.uid + '_retailer');
+      
+      // Allow deletion with same logic as create/update
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == retailerId ||
+                    retailerId == request.auth.uid + '_retailer');
     }
     
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
-    // Orders - Enhanced order management
+    // ...existing code...
     match /orders/{orderId} {
       // Only order participants can read/write orders
       allow read, write: if request.auth != null && 
@@ -109,7 +143,7 @@ service cloud.firestore {
     }
     
     // ============ REVIEWS AND RATINGS ============
-    // Reviews - Enhanced review management
+    // ...existing code...
     match /reviews/{reviewId} {
       // Anyone can read reviews
       allow read: if true;
@@ -129,7 +163,7 @@ service cloud.firestore {
     }
     
     // ============ FAVORITES AND SOCIAL FEATURES ============
-    // Favorites - User favorites management
+    // ...existing code...
     match /favorites/{favoriteId} {
       // Users can only manage their own favorites
       allow read, write: if request.auth != null && 
@@ -143,7 +177,7 @@ service cloud.firestore {
     }
     
     // ============ COMMUNICATION ============
-    // Chat rooms and messages
+    // ...existing code...
     match /chat_rooms/{chatRoomId} {
       // Only chat participants can access
       allow read, write: if request.auth != null && 
@@ -190,7 +224,7 @@ service cloud.firestore {
     }
     
     // ============ CRAFT REQUESTS ============
-    // Craft requests - Custom order requests from buyers
+    // ...existing code...
     match /craft_requests/{requestId} {
       // Anyone can read requests (for discovery/browsing)
       allow read: if true;
@@ -210,7 +244,7 @@ service cloud.firestore {
     }
 
     // ============ ADMINISTRATIVE AND SYSTEM ============
-    // Categories - Read-only for users
+    // ...existing code...
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if false; // Admin/system only
@@ -270,7 +304,7 @@ service cloud.firestore {
     }
     
     // ============ CHAT SYSTEM ============
-    // Chat rooms collection
+    // ...existing code...
     match /chat_rooms/{chatRoomId} {
       allow read, write: if request.auth != null;
       allow create: if request.auth != null;
@@ -283,7 +317,7 @@ service cloud.firestore {
     }
     
     // ============ LIVING WORKSHOPS ============
-    // Living Workshop collection - AI-powered interactive experiences
+    // ...existing code...
     match /living_workshops/{workshopId} {
       // Anyone can read workshops for public viewing experiences
       allow read: if true;
@@ -313,9 +347,5 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false; // Explicit permissions required
     }
-    
-    // ============ VALIDATION FUNCTIONS ============
-    // Simplified validation - removed overly strict validateLivingWorkshopData
-    // The ownership checks above are sufficient for security
   }
 }

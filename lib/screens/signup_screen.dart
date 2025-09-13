@@ -31,89 +31,86 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  Future<void> _signUpWithEmailAndPassword() async {
-    print("=== SIGNUP ATTEMPT STARTED ===");
+  // ...existing code...
 
-    if (!_validateFields()) {
-      return;
-    }
+Future<void> _signUpWithEmailAndPassword() async {
+  print("=== SIGNUP ATTEMPT STARTED ===");
 
-    // Check username availability
-    bool isUsernameAvailable = await _firestoreService
-        .isUsernameAvailable(usernameController.text.trim());
-    if (!isUsernameAvailable) {
-      _showSnackBar('Username is already taken. Please choose another one.');
-      return;
-    }
+  if (!_validateFields()) {
+    return;
+  }
 
-    // Check if email already exists for the same user type
-    bool emailExistsForType = await _firestoreService
-        .checkEmailExistsForUserType(emailController.text.trim(), isRetailer);
+  setState(() => _isLoading = true);
 
-    if (emailExistsForType) {
-      String userType = isRetailer ? 'Retailer' : 'Customer';
-      _showSnackBar(
-          'This email is already registered as $userType. Please login instead.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
+  try {
+    // First, try to create the Firebase user
+    print("Attempting Firebase signup with AuthService...");
+    
+    UserCredential? userCredential;
+    bool isNewFirebaseUser = true;
+    
     try {
-      print("Attempting Firebase signup with AuthService...");
-      UserCredential userCredential = await _authService.signUpWithEmail(
+      userCredential = await _authService.signUpWithEmail(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        // Email exists in Firebase Auth, try to sign in to get the user
+        try {
+          userCredential = await _authService.signInWithEmail(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+          isNewFirebaseUser = false;
+          print("Signed in with existing Firebase user");
+        } catch (signInError) {
+          _showSnackBar(
+              'This email is already registered with a different password. Please use the correct password or reset it.');
+          return;
+        }
+      } else {
+        String message = _authService.messageFromCode(e);
+        _showSnackBar(message);
+        return;
+      }
+    }
 
-      print("Firebase signup successful!");
-      print("User: ${userCredential.user?.email}");
+    if (userCredential?.user == null) {
+      _showSnackBar('Failed to authenticate user');
+      return;
+    }
 
-      if (userCredential.user != null) {
-        // Check if user already exists in either collection with the same UID
-        final existingUser =
-            await _firestoreService.checkUserExists(userCredential.user!.uid);
+    print("Firebase authentication successful!");
+    print("User: ${userCredential!.user?.email}");
 
-        if (existingUser != null) {
-          // User exists with same UID, check if they're trying to signup as different type
-          bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
+    // Now check if user document already exists in Firestore
+    final existingUser =
+        await _firestoreService.checkUserExists(userCredential.user!.uid);
 
-          if (existingUserIsRetailer != isRetailer) {
-            // User wants to create account for different type with same email
-            // Create a custom document ID for the dual account
-            String customId =
-                '${userCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
+    if (existingUser != null) {
+      // User exists in Firestore, check if they're trying to signup as different type
+      bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
 
-            await _firestoreService.createUserDocumentWithCustomId(
-              customId: customId,
-              email: emailController.text.trim(),
-              fullName: nameController.text.trim(),
-              username: usernameController.text.trim(),
-              mobile: mobileController.text.trim(),
-              location: locationController.text.trim(),
-              isRetailer: isRetailer,
-            );
-
-            print(
-                "Dual account created successfully as ${isRetailer ? 'retailer' : 'customer'}");
-            _showSnackBar(
-                'Account created successfully! You now have both Customer and Retailer accounts.');
-            _navigateToHome();
-            return;
-          } else {
-            // Same type, just login
-            _showSnackBar('Account already exists. Logging you in...');
-            _navigateToHome();
-            return;
+      if (existingUserIsRetailer != isRetailer) {
+        // Check username availability for dual account
+        bool isUsernameAvailable = await _firestoreService
+            .isUsernameAvailable(usernameController.text.trim());
+        if (!isUsernameAvailable) {
+          _showSnackBar('Username is already taken. Please choose another one.');
+          if (isNewFirebaseUser) {
+            // If we just created this Firebase user, we should clean up
+            await userCredential.user!.delete();
           }
+          return;
         }
 
-        // Update display name
-        await _authService.updateDisplayName(nameController.text.trim());
+        // Create dual account with custom ID
+        String customId =
+            '${userCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
 
-        // Store user details in appropriate Firestore collection
-        await _firestoreService.createUserDocument(
-          uid: userCredential.user!.uid,
+        await _firestoreService.createUserDocumentWithCustomId(
+          customId: customId,
           email: emailController.text.trim(),
           fullName: nameController.text.trim(),
           username: usernameController.text.trim(),
@@ -123,72 +120,78 @@ class _SignUpPageState extends State<SignUpPage> {
         );
 
         print(
-            "User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
+            "Dual account created successfully as ${isRetailer ? 'retailer' : 'customer'}");
+        _showSnackBar(
+            'Account created successfully! You now have both Customer and Retailer accounts.');
         _navigateToHome();
-      }
-    } on FirebaseAuthException catch (e) {
-      print("Firebase signup error: ${e.code} - ${e.message}");
-
-      // Handle case where email is already in use by Firebase Auth
-      if (e.code == 'email-already-in-use') {
-        // Try to sign in with existing credentials to get the user
-        try {
-          UserCredential existingUserCredential =
-              await _authService.signInWithEmail(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
-          );
-
-          if (existingUserCredential.user != null) {
-            // Check if user wants to create account for different type
-            final existingUser = await _firestoreService
-                .checkUserExists(existingUserCredential.user!.uid);
-
-            if (existingUser != null) {
-              bool existingUserIsRetailer = existingUser['isRetailer'] ?? false;
-
-              if (existingUserIsRetailer != isRetailer) {
-                // Create dual account
-                String customId =
-                    '${existingUserCredential.user!.uid}_${isRetailer ? 'retailer' : 'customer'}';
-
-                await _firestoreService.createUserDocumentWithCustomId(
-                  customId: customId,
-                  email: emailController.text.trim(),
-                  fullName: nameController.text.trim(),
-                  username: usernameController.text.trim(),
-                  mobile: mobileController.text.trim(),
-                  location: locationController.text.trim(),
-                  isRetailer: isRetailer,
-                );
-
-                print(
-                    "Dual account created successfully as ${isRetailer ? 'retailer' : 'customer'}");
-                _showSnackBar(
-                    'Account created successfully! You now have both Customer and Retailer accounts.');
-                _navigateToHome();
-                return;
-              } else {
-                _showSnackBar(
-                    'This email is already registered as ${isRetailer ? "Retailer" : "Customer"}. Please login instead.');
-              }
-            }
-          }
-        } catch (signInError) {
-          _showSnackBar(
-              'This email is already registered with a different password. Please use the correct password or reset it.');
-        }
+        return;
       } else {
-        String message = _authService.messageFromCode(e);
-        _showSnackBar(message);
+        // Same type already exists
+        _showSnackBar(
+            'This email is already registered as ${isRetailer ? "Retailer" : "Customer"}. Please login instead.');
+        if (isNewFirebaseUser) {
+          // Clean up the Firebase user we just created
+          await userCredential.user!.delete();
+        }
+        return;
       }
-    } catch (e) {
-      print("Unexpected error: $e");
-      _showSnackBar('An unexpected error occurred: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
+
+    // New user - check username availability
+    bool isUsernameAvailable = await _firestoreService
+        .isUsernameAvailable(usernameController.text.trim());
+    if (!isUsernameAvailable) {
+      _showSnackBar('Username is already taken. Please choose another one.');
+      if (isNewFirebaseUser) {
+        // Clean up the Firebase user we just created
+        await userCredential.user!.delete();
+      }
+      return;
+    }
+
+    // Check if email already exists for the same user type in Firestore
+    bool emailExistsForType = await _firestoreService
+        .checkEmailExistsForUserType(emailController.text.trim(), isRetailer);
+
+    if (emailExistsForType) {
+      String userType = isRetailer ? 'Retailer' : 'Customer';
+      _showSnackBar(
+          'This email is already registered as $userType. Please login instead.');
+      if (isNewFirebaseUser) {
+        // Clean up the Firebase user we just created
+        await userCredential.user!.delete();
+      }
+      return;
+    }
+
+    // Update display name for new Firebase users
+    if (isNewFirebaseUser) {
+      await _authService.updateDisplayName(nameController.text.trim());
+    }
+
+    // Store user details in appropriate Firestore collection
+    await _firestoreService.createUserDocument(
+      uid: userCredential.user!.uid,
+      email: emailController.text.trim(),
+      fullName: nameController.text.trim(),
+      username: usernameController.text.trim(),
+      mobile: mobileController.text.trim(),
+      location: locationController.text.trim(),
+      isRetailer: isRetailer,
+    );
+
+    print(
+        "User data stored in Firestore successfully in ${isRetailer ? 'retailers' : 'customers'} collection");
+    _navigateToHome();
+
+  } catch (e) {
+    print("Unexpected error: $e");
+    _showSnackBar('An unexpected error occurred: $e');
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
+
 
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
