@@ -870,16 +870,20 @@ class RequestCard extends StatelessWidget {
     return true;
   }
 
-  bool _canCancelAcceptedQuotation() {
-    final acceptedAt = data['acceptedAt'] as Timestamp?;
-    if (acceptedAt == null) return false;
+bool _canCancelAcceptedQuotation() {
+  final acceptedAt = data['acceptedAt'] as Timestamp?;
+  if (acceptedAt == null) return false;
 
-    final now = DateTime.now();
-    final acceptedTime = acceptedAt.toDate();
-    final difference = now.difference(acceptedTime);
+  // Don't allow cancellation if request is completed
+  final status = data['status']?.toString().toLowerCase() ?? 'open';
+  if (status == 'completed') return false;
 
-    return difference.inHours < 24;
-  }
+  final now = DateTime.now();
+  final acceptedTime = acceptedAt.toDate();
+  final difference = now.difference(acceptedTime);
+
+  return difference.inHours < 24;
+}
 
   String _getTimeRemaining(Timestamp timestamp) {
     final now = DateTime.now();
