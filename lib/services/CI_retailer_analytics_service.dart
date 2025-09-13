@@ -18,6 +18,7 @@ class RetailerAnalyticsService {
       ),
     );
   }
+  
 
   /// Get comprehensive retailer profile for recommendations
   static Future<Map<String, dynamic>> getRetailerProfile(String retailerId) async {
@@ -515,6 +516,7 @@ Base all insights on their ACTUAL store products and performance data.''';
       throw Exception('Failed to parse AI response');
     }
   }
+  
 
   /// Default specialties based on actual retailer data
   static Map<String, dynamic> _getDefaultSpecialties(Map<String, dynamic> profile) {
