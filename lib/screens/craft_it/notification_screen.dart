@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notification_service.dart';
@@ -21,7 +22,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    print('NotificationsScreen: initState called');
+    if (kDebugMode) {
+      print('NotificationsScreen: initState called');
+    }
   }
 
   @override

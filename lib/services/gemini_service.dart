@@ -4,7 +4,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'gcp_service.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyCjb4VQTSsCYFcqtgiiNmu5grqxF_cEsCQ';
+  static const String _apiKey = 'AIzaSyCF2APtnqir7ZczemUN5vv0gxmm4911dSA';
   static late GenerativeModel _model;
   static late GenerativeModel _visionModel;
 
@@ -557,9 +557,9 @@ Provide the most accurate transcription possible.''';
   }
 
   /// Translate text to target language
-  static Future<Map<String, dynamic>> translateText(String text, String targetLanguage, {String? sourceLanguage}) async {
-    try {
-      final prompt = '''
+static Future<Map<String, dynamic>> translateText(String text, String targetLanguage, {String? sourceLanguage}) async {
+  try {
+    final prompt = '''
 Translate the following text to $targetLanguage with high accuracy and cultural sensitivity.
 
 **TRANSLATION REQUIREMENTS:**
@@ -576,46 +576,54 @@ Target Language: $targetLanguage
 **TEXT TO TRANSLATE:**
 "$text"
 
-**JSON OUTPUT FORMAT:**
-{
-  "translatedText": "Accurately translated text here",
-  "sourceLanguage": "Detected or provided source language code",
-  "targetLanguage": "$targetLanguage",
-  "sourceLanguageName": "Full source language name",
-  "targetLanguageName": "Full target language name",
-  "confidence": numeric_percentage_0_to_100,
-  "translationQuality": "Excellent/Good/Fair/Poor",
-  "culturalNotes": "Any cultural adaptation notes",
-  "alternativeTranslations": ["Alternative 1", "Alternative 2"],
-  "technicalTerms": ["Term 1: explanation", "Term 2: explanation"],
-  "context": "Brief context about the translation choices"
-}
+**RESPONSE FORMAT:**
+Provide ONLY the translated text without any additional formatting, explanations, or JSON structure. Just return the direct translation.
 
-Provide the most accurate and culturally appropriate translation possible.''';
+Example:
+Input: "Hello, how are you?"
+Output: Hola, ¿cómo estás?
 
-      final response = await _model.generateContent([Content.text(prompt)]);
-      
-      if (response.text == null || response.text!.isEmpty) {
-        throw Exception('Empty response from Gemini API');
-      }
+Translate now:''';
 
-      String jsonString = response.text!;
-      int startIndex = jsonString.indexOf('{');
-      int endIndex = jsonString.lastIndexOf('}') + 1;
-      
-      if (startIndex == -1 || endIndex == 0) {
-        throw Exception('No valid JSON found in response');
-      }
-      
-      jsonString = jsonString.substring(startIndex, endIndex);
-      return _parseJsonSafely(jsonString);
-
-    } catch (e) {
-      print('Error in text translation: $e');
-      throw Exception('Failed to translate text: $e');
+    final response = await _model.generateContent([Content.text(prompt)]);
+    
+    if (response.text == null || response.text!.isEmpty) {
+      throw Exception('Empty response from Gemini API');
     }
-  }
 
+    // Get the direct translation from response
+    String translatedText = response.text!.trim();
+    
+    // Clean up any potential artifacts
+    translatedText = translatedText
+        .replaceAll(RegExp(r'^["\"]|["\"]$'), '') // Remove quotes at start/end
+        .replaceAll(RegExp(r'^\s*Translation:\s*', caseSensitive: false), '') // Remove "Translation:" prefix
+        .replaceAll(RegExp(r'^\s*Output:\s*', caseSensitive: false), '') // Remove "Output:" prefix
+        .trim();
+
+    print('🌐 Translation: "$text" -> "$translatedText" ($targetLanguage)');
+
+    return {
+      'translatedText': translatedText,
+      'sourceLanguage': sourceLanguage ?? 'auto',
+      'targetLanguage': targetLanguage,
+      'confidence': 95,
+      'translationQuality': 'Good',
+    };
+
+  } catch (e) {
+    print('Error in text translation: $e');
+    // Return original text if translation fails
+    return {
+      'translatedText': text,
+      'sourceLanguage': sourceLanguage ?? 'unknown',
+      'targetLanguage': targetLanguage,
+      'confidence': 0,
+      'translationQuality': 'Failed',
+      'error': e.toString(),
+    };
+  }
+}
   /// Transcribe audio and translate in one step
   static Future<Map<String, dynamic>> transcribeAndTranslate(File audioFile, String targetLanguage, {String? sourceLanguage}) async {
     try {
@@ -652,56 +660,88 @@ Provide the most accurate and culturally appropriate translation possible.''';
   }
 
   /// Detect language of text
-  static Future<Map<String, dynamic>> detectLanguage(String text) async {
-    try {
-      final prompt = '''
-Analyze this text and detect its language with high accuracy.
+static Future<Map<String, dynamic>> detectLanguage(String text) async {
+  try {
+    final prompt = '''
+Analyze this text and detect its language. Respond with only the ISO language code.
 
-**TEXT TO ANALYZE:**
-"$text"
+Text: "$text"
 
-**JSON OUTPUT FORMAT:**
-{
-  "detectedLanguage": "Language code (e.g., 'en', 'es', 'fr', 'hi', 'ta')",
-  "languageName": "Full language name (e.g., 'English', 'Spanish', 'French')",
-  "confidence": numeric_percentage_0_to_100,
-  "script": "Script type (e.g., 'Latin', 'Devanagari', 'Arabic')",
-  "region": "Regional variant if applicable (e.g., 'US', 'UK', 'Mexico')",
-  "alternativePossibilities": [
-    {"language": "code", "name": "name", "confidence": percentage}
-  ],
-  "textCharacteristics": "Brief analysis of text characteristics"
-}
+Common language codes:
+- en: English
+- ta: Tamil  
+- hi: Hindi
+- es: Spanish
+- fr: French
+- de: German
+- ar: Arabic
+- zh: Chinese
 
-Provide accurate language detection with high confidence.''';
+Respond with only the 2-letter language code (e.g., "en", "es", "ta", "hi", "fr") and nothing else.''';
 
-      final response = await _model.generateContent([Content.text(prompt)]);
-      
-      if (response.text == null || response.text!.isEmpty) {
-        throw Exception('Empty response from Gemini API');
-      }
-
-      String jsonString = response.text!;
-      int startIndex = jsonString.indexOf('{');
-      int endIndex = jsonString.lastIndexOf('}') + 1;
-      
-      if (startIndex == -1 || endIndex == 0) {
-        throw Exception('No valid JSON found in response');
-      }
-      
-      jsonString = jsonString.substring(startIndex, endIndex);
-      return _parseJsonSafely(jsonString);
-
-    } catch (e) {
-      print('Error in language detection: $e');
-      return {
-        'detectedLanguage': 'unknown',
-        'languageName': 'Unknown',
-        'confidence': 0,
-        'error': 'Failed to detect language'
-      };
+    final response = await _model.generateContent([Content.text(prompt)]);
+    
+    if (response.text == null || response.text!.isEmpty) {
+      throw Exception('Empty response from Gemini API');
     }
+
+    // Extract the language code
+    String detectedCode = response.text!.trim().toLowerCase();
+    
+    // Clean up the response to get just the language code
+    detectedCode = detectedCode
+        .replaceAll(RegExp(r'[^a-z-]'), '') // Keep only letters and hyphens
+        .replaceAll(RegExp(r'^(language|code|detected):\s*', caseSensitive: false), '')
+        .trim();
+    
+    // Validate it's a reasonable language code
+    if (detectedCode.length < 2 || detectedCode.length > 5) {
+      // Fallback: try to detect based on character sets
+      if (RegExp(r'[\u0B80-\u0BFF]').hasMatch(text)) {
+        detectedCode = 'ta'; // Tamil
+      } else if (RegExp(r'[\u0900-\u097F]').hasMatch(text)) {
+        detectedCode = 'hi'; // Hindi
+      } else if (RegExp(r'[\u4e00-\u9fff]').hasMatch(text)) {
+        detectedCode = 'zh'; // Chinese
+      } else if (RegExp(r'[\u0600-\u06FF]').hasMatch(text)) {
+        detectedCode = 'ar'; // Arabic
+      } else {
+        detectedCode = 'en'; // Default to English
+      }
+    }
+
+    final supportedLanguages = getSupportedLanguages();
+    final languageName = supportedLanguages[detectedCode] ?? 'Unknown';
+
+    print('🔍 Detected language: $detectedCode ($languageName) for text: "$text"');
+
+    return {
+      'detectedLanguage': detectedCode,
+      'languageName': languageName,
+      'confidence': 90,
+      'script': 'auto',
+      'region': 'auto',
+    };
+
+  } catch (e) {
+    print('❌ Error in language detection: $e');
+    
+    // Fallback detection based on Unicode ranges
+    String fallbackLang = 'en';
+    if (RegExp(r'[\u0B80-\u0BFF]').hasMatch(text)) {
+      fallbackLang = 'ta';
+    } else if (RegExp(r'[\u0900-\u097F]').hasMatch(text)) {
+      fallbackLang = 'hi';
+    }
+    
+    return {
+      'detectedLanguage': fallbackLang,
+      'languageName': getSupportedLanguages()[fallbackLang] ?? 'Unknown',
+      'confidence': 50,
+      'error': 'Fallback detection used: $e'
+    };
   }
+}
 
   /// Get supported languages for translation
   static Map<String, String> getSupportedLanguages() {

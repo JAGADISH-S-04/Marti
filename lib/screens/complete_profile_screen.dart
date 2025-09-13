@@ -45,59 +45,61 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     usernameController.text = widget.username;
   }
 
-  Future<void> _completeProfile() async {
-    if (!_validateFields()) {
-      return;
-    }
+  // ...existing code...
 
-    // Check username availability if it was changed
-    if (usernameController.text.trim() != widget.username) {
-      bool isUsernameAvailable = await _firestoreService
-          .isUsernameAvailable(usernameController.text.trim());
-      if (!isUsernameAvailable) {
-        _showSnackBar('Username is already taken. Please choose another one.');
-        return;
-      }
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      if (widget.isDualAccount && widget.customId != null) {
-        // Create dual account with custom ID
-        await _firestoreService.createUserDocumentWithCustomId(
-          customId: widget.customId!,
-          email: widget.email,
-          fullName: widget.fullName,
-          username: usernameController.text.trim(),
-          mobile: mobileController.text.trim(),
-          location: locationController.text.trim(),
-          isRetailer: widget.isRetailer,
-          profileImageUrl: widget.profileImageUrl,
-        );
-      } else {
-        // Create regular account
-        await _firestoreService.createUserDocument(
-          uid: widget.uid,
-          email: widget.email,
-          fullName: widget.fullName,
-          username: usernameController.text.trim(),
-          mobile: mobileController.text.trim(),
-          location: locationController.text.trim(),
-          isRetailer: widget.isRetailer,
-          profileImageUrl: widget.profileImageUrl,
-        );
-      }
-
-      _showSnackBar('Profile completed successfully!', isSuccess: true);
-      _navigateToHome();
-    } catch (e) {
-      print('Error completing profile: $e');
-      _showSnackBar('Failed to complete profile. Please try again.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+Future<void> _completeProfile() async {
+  if (!_validateFields()) {
+    return;
   }
+
+  // Always check username availability when completing profile
+  bool isUsernameAvailable = await _firestoreService
+      .isUsernameAvailable(usernameController.text.trim());
+  if (!isUsernameAvailable) {
+    _showSnackBar('Username is already taken. Please choose another one.');
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    if (widget.isDualAccount && widget.customId != null) {
+      // Create dual account with custom ID
+      await _firestoreService.createUserDocumentWithCustomId(
+        customId: widget.customId!,
+        email: widget.email,
+        fullName: widget.fullName,
+        username: usernameController.text.trim(),
+        mobile: mobileController.text.trim(),
+        location: locationController.text.trim(),
+        isRetailer: widget.isRetailer,
+        profileImageUrl: widget.profileImageUrl,
+      );
+    } else {
+      // Create regular account
+      await _firestoreService.createUserDocument(
+        uid: widget.uid,
+        email: widget.email,
+        fullName: widget.fullName,
+        username: usernameController.text.trim(),
+        mobile: mobileController.text.trim(),
+        location: locationController.text.trim(),
+        isRetailer: widget.isRetailer,
+        profileImageUrl: widget.profileImageUrl,
+      );
+    }
+
+    _showSnackBar('Profile completed successfully!', isSuccess: true);
+    _navigateToHome();
+  } catch (e) {
+    print('Error completing profile: $e');
+    _showSnackBar('Failed to complete profile. Please try again.');
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
+// ...existing code...
   
 void _navigateToHome() async {
   try {
