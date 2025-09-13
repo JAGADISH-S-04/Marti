@@ -28,14 +28,15 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
         .snapshots();
   }
 
-  void _openChat(BuildContext context, String requestId, Map<String, dynamic> requestData) async {
+  void _openChat(BuildContext context, String requestId,
+      Map<String, dynamic> requestData) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
       // Get customer info
       final customerId = requestData['userId'] ?? '';
-      
+
       // Get customer name
       String customerName = 'Customer';
       try {
@@ -44,9 +45,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
             .doc(customerId)
             .get();
         if (customerDoc.exists && customerDoc.data() != null) {
-          customerName = customerDoc.data()!['name'] ?? 
-                       customerDoc.data()!['email']?.split('@')[0] ?? 
-                       'Customer';
+          customerName = customerDoc.data()!['name'] ??
+              customerDoc.data()!['email']?.split('@')[0] ??
+              'Customer';
         }
       } catch (e) {
         print('Error fetching customer info: $e');
@@ -60,18 +61,18 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
             .doc(user.uid)
             .get();
         if (artisanDoc.exists && artisanDoc.data() != null) {
-          artisanName = artisanDoc.data()!['fullName'] ?? 
-                       artisanDoc.data()!['name'] ?? 
-                       user.email?.split('@')[0] ?? 
-                       'Artisan';
+          artisanName = artisanDoc.data()!['fullName'] ??
+              artisanDoc.data()!['name'] ??
+              user.email?.split('@')[0] ??
+              'Artisan';
         }
       } catch (e) {
         print('Error fetching artisan info: $e');
       }
-      
+
       // Create chat room ID (same format as customer side)
       final chatRoomId = '${requestId}_${customerId}_${user.uid}';
-      
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -114,13 +115,13 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
         actions: [
           // Notification bell with badge
           StreamBuilder<int>(
-            stream: FirebaseAuth.instance.currentUser != null 
+            stream: FirebaseAuth.instance.currentUser != null
                 ? NotificationService.getUnreadNotificationCount(
                     FirebaseAuth.instance.currentUser!.uid)
                 : Stream.value(0),
             builder: (context, snapshot) {
               final unreadCount = snapshot.data ?? 0;
-              
+
               return Stack(
                 children: [
                   IconButton(
@@ -417,24 +418,25 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
   Widget _buildRequestCard(
       BuildContext context, String requestId, Map<String, dynamic> data) {
     final quotations = data['quotations'] as List? ?? [];
-    final status = data['status'] ?? 'open';
+    final status = (data['status'] ?? 'open').toString().toLowerCase();
     final images = data['images'] as List? ?? [];
 
     // Don't show cancelled or deleted requests (double-check)
-    if (status.toLowerCase() == 'cancelled' ||
-        status.toLowerCase() == 'deleted') {
+    if (status == 'cancelled' || status == 'deleted') {
       return const SizedBox.shrink();
     }
 
-    // Check if current user already submitted a quotation
     final currentUser = FirebaseAuth.instance.currentUser;
-    final hasQuoted = quotations.any((q) => q['artisanId'] == currentUser?.uid);
+    final userId = currentUser?.uid;
+
+    // Check if current user already submitted a quotation
+    final hasQuoted = quotations.any((q) => q['artisanId'] == userId);
 
     // Check if request has an accepted quotation
     final acceptedQuotation = data['acceptedQuotation'];
     final isAccepted = acceptedQuotation != null;
     final isMyQuotationAccepted =
-        isAccepted && acceptedQuotation['artisanId'] == currentUser?.uid;
+        isAccepted && acceptedQuotation['artisanId'] == userId;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -566,15 +568,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Action buttons section - Fixed layout to prevent overflow
+            // Action buttons section
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // First row - View Details button (always present)
+                // View Details button (always present)
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
-                    onPressed: () => _showRequestDetails(context, requestId, data),
+                    onPressed: () =>
+                        _showRequestDetails(context, requestId, data),
                     icon: Icon(Icons.visibility, size: 16, color: primaryBrown),
                     label: Text(
                       'View Details',
@@ -589,16 +592,15 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
-                
-                // Second row - Status-specific action buttons
-                if (isMyQuotationAccepted) ...[
-                  // Chat and Accepted status for accepted artisan
-                  Row(
-                    children: [
+
+                // Buttons row for Chat, Accepted, Completed, Edit, Submit Quotation
+                Row(
+                  children: [
+                    if (isMyQuotationAccepted) ...[
                       Expanded(
-                        flex: 2,
+                        flex: 3,
                         child: ElevatedButton.icon(
                           onPressed: () => _openChat(context, requestId, data),
                           icon: Icon(Icons.chat, size: 16),
@@ -615,7 +617,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        flex: 3,
+                        flex: 2,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
@@ -626,8 +628,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle, size: 16, color: Colors.green.shade800),
-                              SizedBox(width: 4),
+                              Icon(Icons.check_circle,
+                                  size: 16, color: Colors.green.shade800),
+                              const SizedBox(width: 4),
                               Text(
                                 'Accepted',
                                 style: TextStyle(
@@ -640,54 +643,303 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen> {
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ] else if (hasQuoted) ...[
-                  // Quoted status
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check, size: 16, color: Colors.blue.shade800),
-                        SizedBox(width: 8),
-                        Text(
-                          'Quotation Submitted',
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                      if (status != 'completed') ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('craft_requests')
+                                    .doc(requestId)
+                                    .update({
+                                  'status': 'completed',
+                                  'completedAt': Timestamp.now(),
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Request marked as completed!'),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Error marking completed: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: Icon(Icons.done_all, size: 16),
+                            label: Text('Completed',
+                                style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ] else if (status.toLowerCase() == 'open') ...[
-                  // Submit Quote button for open requests
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showQuotationDialog(context, requestId, data),
-                      icon: Icon(Icons.add_business, size: 16),
-                      label: Text('Submit Quotation'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryBrown,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    ] else if (hasQuoted) ...[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showEditQuotationDialog(
+                              context, requestId, data, userId),
+                          icon: Icon(Icons.edit, size: 16, color: primaryBrown),
+                          label: Text('Edit',
+                              style: TextStyle(color: primaryBrown)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: primaryBrown),
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ] else if (status == 'open') ...[
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              _showQuotationDialog(context, requestId, data),
+                          icon: Icon(Icons.add_business, size: 16),
+                          label: Text('Submit Quotation'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryBrown,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditQuotationDialog(BuildContext context, String requestId,
+      Map<String, dynamic> requestData, String? userId) {
+    if (userId == null) return;
+
+    final quotations = requestData['quotations'] as List? ?? [];
+    final existingQuotation = quotations.firstWhere(
+      (q) => q['artisanId'] == userId,
+      orElse: () => null,
+    );
+
+    if (existingQuotation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No existing quotation found to edit.')),
+      );
+      return;
+    }
+
+    final priceController =
+        TextEditingController(text: existingQuotation['price']?.toString());
+    final deliveryController =
+        TextEditingController(text: existingQuotation['deliveryTime']);
+    final messageController =
+        TextEditingController(text: existingQuotation['message']);
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            'Edit Quotation',
+            style: TextStyle(color: primaryBrown, fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Request: ${requestData['title'] ?? 'Untitled'}',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                          'Budget: ₹${requestData['budget']?.toString() ?? '0'}'),
+                      Text('Category: ${requestData['category'] ?? 'Unknown'}'),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Your Price (₹) *',
+                    hintText: 'Enter your quoted price',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: Icon(Icons.currency_rupee, color: primaryBrown),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: deliveryController,
+                  decoration: InputDecoration(
+                    labelText: 'Delivery Time *',
+                    hintText: 'e.g., 2 weeks, 10 days',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: Icon(Icons.schedule, color: primaryBrown),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: messageController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Message (Optional)',
+                    hintText:
+                        'Tell the customer about your approach, experience, etc.',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: Icon(Icons.message, color: primaryBrown),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed:
+                  isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBrown,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      // Validate input
+                      if (priceController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Please enter your price')),
+                        );
+                        return;
+                      }
+                      if (deliveryController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Please enter delivery time')),
+                        );
+                        return;
+                      }
+                      final price =
+                          double.tryParse(priceController.text.trim());
+                      if (price == null || price <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Please enter a valid price')),
+                        );
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) throw Exception('Not authenticated');
+
+                        final updatedQuotation = {
+                          'artisanId': userId,
+                          'artisanName': existingQuotation['artisanName'] ??
+                              'Anonymous Artisan',
+                          'artisanEmail': user.email ?? '',
+                          'price': price,
+                          'deliveryTime': deliveryController.text.trim(),
+                          'message': messageController.text.trim(),
+                          'submittedAt': Timestamp.now(),
+                        };
+
+                        await FirebaseFirestore.instance
+                            .runTransaction((transaction) async {
+                          DocumentReference docRef = FirebaseFirestore.instance
+                              .collection('craft_requests')
+                              .doc(requestId);
+                          final freshSnap = await transaction.get(docRef);
+                          if (!freshSnap.exists)
+                            throw Exception('Request no longer exists');
+
+                          List quotations = freshSnap.get('quotations') ?? [];
+                          quotations
+                              .removeWhere((q) => q['artisanId'] == userId);
+                          quotations.add(updatedQuotation);
+
+                          transaction
+                              .update(docRef, {'quotations': quotations});
+                        });
+
+                        Navigator.of(dialogContext).pop();
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Quotation updated successfully!'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } catch (e) {
+                        print('Error updating quotation: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Error updating quotation: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } finally {
+                        setState(() => isSubmitting = false);
+                      }
+                    },
+              child: isSubmitting
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Update Quotation'),
             ),
           ],
         ),

@@ -36,7 +36,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
   final ImagePicker _imagePicker = ImagePicker();
-  
+
   bool _isLoading = false;
   String? _currentUserType;
 
@@ -62,7 +62,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _markMessagesAsRead() async {
     if (_currentUserType != null) {
-      await _chatService.markMessagesAsRead(widget.chatRoomId, _currentUserType!);
+      await _chatService.markMessagesAsRead(
+          widget.chatRoomId, _currentUserType!);
     }
   }
 
@@ -85,7 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (image != null) {
       setState(() => _isLoading = true);
-      
+
       try {
         final imageUrl = await _chatService.uploadChatImage(
           File(image.path),
@@ -116,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendProgressUpdate() async {
     final TextEditingController progressController = TextEditingController();
-    
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _ProgressUpdateDialog(
@@ -136,7 +137,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (result != null) {
       setState(() => _isLoading = true);
-      
+
       try {
         String? imageUrl;
         if (result['image'] != null) {
@@ -151,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
           result['message'] as String,
           imageUrl: imageUrl,
         );
-        
+
         _scrollToBottom();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -181,7 +182,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       backgroundColor: widget.backgroundBrown,
       appBar: AppBar(
@@ -191,7 +192,9 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _currentUserType == 'artisan' ? widget.customerName : widget.artisanName,
+              _currentUserType == 'artisan'
+                  ? widget.customerName
+                  : widget.artisanName,
               style: GoogleFonts.playfairDisplay(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -221,7 +224,8 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
-                    child: CircularProgressIndicator(color: widget.primaryBrown),
+                    child:
+                        CircularProgressIndicator(color: widget.primaryBrown),
                   );
                 }
 
@@ -253,7 +257,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _currentUserType == 'artisan' 
+                          _currentUserType == 'artisan'
                               ? 'Share progress updates with your customer'
                               : 'Ask questions about your custom order',
                           style: TextStyle(
@@ -276,7 +280,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     final message = messages[index];
                     return _MessageBubble(
                       message: message,
-                      isMe: message.senderId == FirebaseAuth.instance.currentUser?.uid,
+                      isMe: message.senderId ==
+                          FirebaseAuth.instance.currentUser?.uid,
                       primaryBrown: widget.primaryBrown,
                       lightBrown: widget.lightBrown,
                     );
@@ -314,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     onPressed: _sendImage,
                     icon: Icon(Icons.image, color: widget.primaryBrown),
                   ),
-                  
+
                   // Text input
                   Expanded(
                     child: TextField(
@@ -336,9 +341,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // Send button
                   CircleAvatar(
                     backgroundColor: widget.primaryBrown,
@@ -383,28 +388,35 @@ class _MessageBubble extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isMe) ...[
             CircleAvatar(
               radius: 16,
               backgroundColor: lightBrown,
               child: Text(
-                message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                message.senderName.isNotEmpty
+                    ? message.senderName[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 8),
           ],
-          
           Flexible(
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isMe ? primaryBrown : Colors.white,
                 borderRadius: BorderRadius.circular(16).copyWith(
-                  bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  bottomLeft: isMe
+                      ? const Radius.circular(16)
+                      : const Radius.circular(4),
+                  bottomRight: isMe
+                      ? const Radius.circular(4)
+                      : const Radius.circular(16),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -421,7 +433,8 @@ class _MessageBubble extends StatelessWidget {
                   if (message.messageType == 'progress_update')
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
@@ -440,13 +453,14 @@ class _MessageBubble extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isMe ? Colors.white : Colors.orange.shade800,
+                              color:
+                                  isMe ? Colors.white : Colors.orange.shade800,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  
+
                   // Image
                   if (message.imageUrl != null) ...[
                     ClipRRect(
@@ -464,7 +478,8 @@ class _MessageBubble extends StatelessWidget {
                             child: Center(
                               child: CircularProgressIndicator(
                                 color: primaryBrown,
-                                value: loadingProgress.expectedTotalBytes != null
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
                                     : null,
@@ -484,7 +499,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     if (message.message.isNotEmpty) const SizedBox(height: 8),
                   ],
-                  
+
                   // Message text
                   if (message.message.isNotEmpty)
                     Text(
@@ -494,9 +509,9 @@ class _MessageBubble extends StatelessWidget {
                         fontSize: 14,
                       ),
                     ),
-                  
+
                   const SizedBox(height: 4),
-                  
+
                   // Timestamp
                   Text(
                     _formatTime(message.timestamp),
@@ -509,15 +524,17 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-          
           if (isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
               backgroundColor: primaryBrown,
               child: Text(
-                message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                message.senderName.isNotEmpty
+                    ? message.senderName[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -529,7 +546,7 @@ class _MessageBubble extends StatelessWidget {
   String _formatTime(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inDays > 0) {
       return '${timestamp.day}/${timestamp.month}';
     } else if (difference.inHours > 0) {
@@ -566,7 +583,8 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
     return AlertDialog(
       title: Text(
         'Send Progress Update',
-        style: TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
+        style:
+            TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,

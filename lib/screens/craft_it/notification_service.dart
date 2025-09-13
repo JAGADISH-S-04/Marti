@@ -12,24 +12,24 @@ class NotificationService {
   }) async {
     try {
       // Get all quotations except the accepted one
-      final rejectedQuotations = allQuotations.where((quotation) => 
-          quotation['artisanId'] != acceptedArtisanId).toList();
+      final rejectedQuotations = allQuotations
+          .where((quotation) => quotation['artisanId'] != acceptedArtisanId)
+          .toList();
 
       // Create notification batch
       final batch = _firestore.batch();
 
       for (final quotation in rejectedQuotations) {
         final artisanId = quotation['artisanId'];
-        final notificationRef = _firestore
-            .collection('notifications')
-            .doc();
+        final notificationRef = _firestore.collection('notifications').doc();
 
         final notification = {
           'id': notificationRef.id,
           'userId': artisanId,
           'type': 'quotation_rejected',
           'title': 'Quotation Not Selected',
-          'message': 'Your quotation for "$requestTitle" was not selected. Another artisan\'s quotation was accepted.',
+          'message':
+              'Your quotation for "$requestTitle" was not selected. Another artisan\'s quotation was accepted.',
           'data': {
             'requestId': requestId,
             'requestTitle': requestTitle,
@@ -46,7 +46,8 @@ class NotificationService {
 
       // Commit all notifications at once
       await batch.commit();
-      print('Notification batch committed successfully for ${rejectedQuotations.length} artisans');
+      print(
+          'Notification batch committed successfully for ${rejectedQuotations.length} artisans');
     } catch (e) {
       print('Error sending quotation rejected notifications: $e');
     }
@@ -59,16 +60,15 @@ class NotificationService {
     required double acceptedPrice,
   }) async {
     try {
-      final notificationRef = _firestore
-          .collection('notifications')
-          .doc();
+      final notificationRef = _firestore.collection('notifications').doc();
 
       final notification = {
         'id': notificationRef.id,
         'userId': acceptedArtisanId,
         'type': 'quotation_accepted',
         'title': 'Quotation Accepted! 🎉',
-        'message': 'Congratulations! Your quotation for "$requestTitle" has been accepted. You can now start working on this project.',
+        'message':
+            'Congratulations! Your quotation for "$requestTitle" has been accepted. You can now start working on this project.',
         'data': {
           'requestId': requestId,
           'requestTitle': requestTitle,
@@ -108,10 +108,7 @@ class NotificationService {
   // Mark notification as read
   static Future<void> markAsRead(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({
+      await _firestore.collection('notifications').doc(notificationId).update({
         'isRead': true,
         'updatedAt': Timestamp.now(),
       });
