@@ -1370,343 +1370,353 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     );
   }
 
-    Widget _buildRequestCard(
-      BuildContext context, String requestId, Map<String, dynamic> data) {
-    final quotations = data['quotations'] as List? ?? [];
-    final status = (data['status'] ?? 'open').toString().toLowerCase();
-    final images = data['images'] as List? ?? [];
 
-    // Don't show cancelled or deleted requests (double-check)
-    if (status == 'cancelled' || status == 'deleted') {
-      return const SizedBox.shrink();
-    }
+Widget _buildRequestCard(
+    BuildContext context, String requestId, Map<String, dynamic> data) {
+  final quotations = data['quotations'] as List? ?? [];
+  final status = (data['status'] ?? 'open').toString().toLowerCase();
+  final images = data['images'] as List? ?? [];
 
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final userId = currentUser?.uid;
+  // Don't show cancelled or deleted requests (double-check)
+  if (status == 'cancelled' || status == 'deleted') {
+    return const SizedBox.shrink();
+  }
 
-    // Check if current user already submitted a quotation
-    final hasQuoted = quotations.any((q) => q['artisanId'] == userId);
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final userId = currentUser?.uid;
 
-    // Check if request has an accepted quotation
-    final acceptedQuotation = data['acceptedQuotation'];
-    final isAccepted = acceptedQuotation != null;
-    final isMyQuotationAccepted =
-        isAccepted && acceptedQuotation['artisanId'] == userId;
+  // Check if current user already submitted a quotation
+  final hasQuoted = quotations.any((q) => q['artisanId'] == userId);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        // Make the entire card clickable
-        onTap: () => _showRequestDetails(context, requestId, data),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      data['title'] ?? 'Untitled Request',
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primaryBrown,
-                      ),
+  // Check if request has an accepted quotation
+  final acceptedQuotation = data['acceptedQuotation'];
+  final isAccepted = acceptedQuotation != null;
+  final isMyQuotationAccepted =
+      isAccepted && acceptedQuotation['artisanId'] == userId;
+
+  return Card(
+    margin: const EdgeInsets.only(bottom: 16),
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: InkWell(
+      // Make the entire card clickable
+      onTap: () => _showRequestDetails(context, requestId, data),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data['title'] ?? 'Untitled Request',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primaryBrown,
                     ),
                   ),
-                  _buildStatusChip(status),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Request Details
-              Text(
-                data['description'] ?? 'No description provided',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                  height: 1.4,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
+                _buildStatusChip(status),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-              // Category and Budget
-              Row(
-                children: [
-                  Icon(Icons.category, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    data['category'] ?? 'Unknown',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.currency_rupee,
-                      size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    '₹${data['budget']?.toString() ?? '0'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            // Request Details
+            Text(
+              data['description'] ?? 'No description provided',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                height: 1.4,
               ),
-              const SizedBox(height: 12),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
 
-              // Images (if any) - Show preview
-              if (images.isNotEmpty) ...[
+            // Category and Budget
+            Row(
+              children: [
+                Icon(Icons.category, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
                 Text(
-                  'Images: ${images.length} attached',
+                  data['category'] ?? 'Unknown',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.currency_rupee,
+                    size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  '₹${data['budget']?.toString() ?? '0'}',
                   style: TextStyle(
                     fontSize: 12,
+                    color: Colors.grey.shade600,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 60,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: images.length > 3 ? 3 : images.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        width: 60,
-                        height: 60,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Stack(
-                            children: [
-                              Image.network(
-                                images[index],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey.shade200,
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: Colors.grey.shade400,
-                                      size: 20,
-                                    ),
-                                  );
-                                },
-                              ),
-                              if (index == 2 && images.length > 3)
-                                Container(
-                                  color: Colors.black.withOpacity(0.6),
-                                  child: Center(
-                                    child: Text(
-                                      '+${images.length - 3}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              // Quotations info
-              Row(
-                children: [
-                  Icon(Icons.format_quote, size: 16, color: primaryBrown),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${quotations.length} Quotation${quotations.length != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: primaryBrown,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Action button based on status
-              if (isMyQuotationAccepted) ...[
-                // Chat button for accepted artisan
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openChat(context, requestId, data),
-                    icon: const Icon(Icons.chat, size: 16),
-                    label: const Text('Chat with Customer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Buttons row for Chat, Accepted, Completed, Edit, Submit Quotation
-                Row(
-                  children: [
-                    if (isMyQuotationAccepted) ...[
-                      Expanded(
-                        flex: 3,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _openChat(context, requestId, data),
-                          icon: Icon(Icons.chat, size: 16),
-                          label: Text('Chat', style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.check_circle,
-                                  size: 16, color: Colors.green.shade800),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Accepted',
-                                style: TextStyle(
-                                  color: Colors.green.shade800,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (status != 'completed') ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection('craft_requests')
-                                    .doc(requestId)
-                                    .update({
-                                  'status': 'completed',
-                                  'completedAt': Timestamp.now(),
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content:
-                                        Text('Request marked as completed!'),
-                                    backgroundColor: Colors.green,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Error marking completed: ${e.toString()}'),
-                                    backgroundColor: Colors.red,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
-                            icon: Icon(Icons.done_all, size: 16),
-                            label: Text('Completed',
-                                style: TextStyle(fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ] else if (hasQuoted) ...[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showEditQuotationDialog(
-                              context, requestId, data, userId),
-                          icon: Icon(Icons.edit, size: 16, color: primaryBrown),
-                          label: Text('Edit',
-                              style: TextStyle(color: primaryBrown)),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: primaryBrown),
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else if (status == 'open') ...[
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              _showQuotationDialog(context, requestId, data),
-                          icon: Icon(Icons.add_business, size: 16),
-                          label: Text('Submit Quotation'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBrown,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+
+            // Images (if any) - Show preview
+            if (images.isNotEmpty) ...[
+              Text(
+                'Images: ${images.length} attached',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 60,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: images.length > 3 ? 3 : images.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 60,
+                      height: 60,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(
+                          children: [
+                            Image.network(
+                              images[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey.shade200,
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey.shade400,
+                                    size: 20,
+                                  ),
+                                );
+                              },
+                            ),
+                            if (index == 2 && images.length > 3)
+                              Container(
+                                color: Colors.black.withOpacity(0.6),
+                                child: Center(
+                                  child: Text(
+                                    '+${images.length - 3}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Quotations info
+            Row(
+              children: [
+                Icon(Icons.format_quote, size: 16, color: primaryBrown),
+                const SizedBox(width: 4),
+                Text(
+                  '${quotations.length} Quotation${quotations.length != 1 ? 's' : ''}',
+                  style: TextStyle(
+                    color: primaryBrown,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Action buttons based on status and quotation state
+            if (isMyQuotationAccepted) ...[
+              // For accepted quotations - show chat and status
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openChat(context, requestId, data),
+                      icon: const Icon(Icons.chat, size: 16),
+                      label: const Text('Chat', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle,
+                              size: 16, color: Colors.green.shade800),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Accepted',
+                            style: TextStyle(
+                              color: Colors.green.shade800,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (status != 'completed') ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('craft_requests')
+                                .doc(requestId)
+                                .update({
+                              'status': 'completed',
+                              'completedAt': Timestamp.now(),
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Request marked as completed!'),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Error marking completed: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.done_all, size: 16),
+                        label: const Text('Completed',
+                            style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ] else if (hasQuoted) ...[
+              // For submitted but not accepted quotations - show edit button
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Quotation submitted - awaiting response',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showEditQuotationDialog(
+                      context, requestId, data, userId),
+                  icon: Icon(Icons.edit, size: 16, color: primaryBrown),
+                  label: Text('Edit Quotation',
+                      style: TextStyle(color: primaryBrown)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: primaryBrown),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ] else if (status == 'open') ...[
+              // For open requests where user hasn't quoted - show submit quotation button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      _showQuotationDialog(context, requestId, data),
+                  icon: const Icon(Icons.add_business, size: 16),
+                  label: const Text('Submit Quotation'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBrown,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   void _showEditQuotationDialog(BuildContext context, String requestId,
       Map<String, dynamic> requestData, String? userId) {
