@@ -1,3 +1,5 @@
+import 'package:arti/screens/craft_it/notfication_screen_customer.dart';
+import 'package:arti/screens/craft_it/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +12,7 @@ import 'chat_screen.dart';
 
 class CraftItScreen extends StatefulWidget {
   final int initialTab;
-  
+
   const CraftItScreen({super.key, this.initialTab = 0});
 
   @override
@@ -29,7 +31,8 @@ class _CraftItScreenState extends State<CraftItScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
+    _tabController =
+        TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
   }
 
   @override
@@ -49,6 +52,59 @@ class _CraftItScreenState extends State<CraftItScreen>
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          StreamBuilder<int>(
+            // Stream providing unread notification count for current user
+            stream: FirebaseAuth.instance.currentUser != null
+                ? NotificationService.getUnreadNotificationCount(
+                    FirebaseAuth.instance.currentUser!.uid)
+                : Stream.value(0),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CustomerNotificationsScreen(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Notifications',
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -264,7 +320,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
         'budget': double.tryParse(_budgetController.text.trim()) ?? 0.0,
         'deadline': _deadlineController.text.trim(),
         'images': imageUrls,
-        'buyerId': user.uid,  // Changed from userId to buyerId
+        'buyerId': user.uid, // Changed from userId to buyerId
         'userEmail': user.email,
         'status': 'open',
         'createdAt': Timestamp.now(),
@@ -666,7 +722,8 @@ class MyRequestsTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('craft_requests')
-          .where('buyerId', isEqualTo: user.uid)  // Changed from userId to buyerId
+          .where('buyerId',
+              isEqualTo: user.uid) // Changed from userId to buyerId
           // Temporarily removed .orderBy to avoid index requirement
           // .orderBy('createdAt', descending: true)
           .snapshots(),
@@ -717,11 +774,11 @@ class MyRequestsTab extends StatelessWidget {
           final bData = b.data() as Map<String, dynamic>;
           final aCreatedAt = aData['createdAt'] as Timestamp?;
           final bCreatedAt = bData['createdAt'] as Timestamp?;
-          
+
           if (aCreatedAt == null && bCreatedAt == null) return 0;
           if (aCreatedAt == null) return 1;
           if (bCreatedAt == null) return -1;
-          
+
           // Descending order (newest first)
           return bCreatedAt.compareTo(aCreatedAt);
         });
@@ -810,24 +867,17 @@ class RequestCard extends StatelessWidget {
   });
 
   bool _canCancelRequest() {
-    final createdAt = data['createdAt'] as Timestamp?;
-    if (createdAt == null) return false;
-    
-    final now = DateTime.now();
-    final createdTime = createdAt.toDate();
-    final difference = now.difference(createdTime);
-    
-    return difference.inHours < 24;
+    return true;
   }
 
   bool _canCancelAcceptedQuotation() {
     final acceptedAt = data['acceptedAt'] as Timestamp?;
     if (acceptedAt == null) return false;
-    
+
     final now = DateTime.now();
     final acceptedTime = acceptedAt.toDate();
     final difference = now.difference(acceptedTime);
-    
+
     return difference.inHours < 24;
   }
 
@@ -836,7 +886,7 @@ class RequestCard extends StatelessWidget {
     final targetTime = timestamp.toDate();
     final difference = now.difference(targetTime);
     final hoursLeft = 24 - difference.inHours;
-    
+
     if (hoursLeft <= 0) return '';
     if (hoursLeft < 1) {
       final minutesLeft = 60 - difference.inMinutes % 60;
@@ -849,7 +899,8 @@ class RequestCard extends StatelessWidget {
     if (!_canCancelRequest()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Request can only be cancelled within 24 hours of creation'),
+          content:
+              Text('Request can only be cancelled within 24 hours of creation'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -941,7 +992,8 @@ class RequestCard extends StatelessWidget {
     if (!_canCancelAcceptedQuotation()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Accepted quotation can only be cancelled within 24 hours'),
+          content:
+              Text('Accepted quotation can only be cancelled within 24 hours'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1014,7 +1066,8 @@ class RequestCard extends StatelessWidget {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Accepted quotation cancelled. Request is now open for new quotations.'),
+            content: Text(
+                'Accepted quotation cancelled. Request is now open for new quotations.'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -1040,14 +1093,17 @@ class RequestCard extends StatelessWidget {
     final status = data['status'] ?? 'open';
     final acceptedQuotation = data['acceptedQuotation'];
     final isAccepted = acceptedQuotation != null;
-    
+
     // Don't render cancelled or deleted requests
-    if (status.toLowerCase() == 'cancelled' || status.toLowerCase() == 'deleted') {
+    if (status.toLowerCase() == 'cancelled' ||
+        status.toLowerCase() == 'deleted') {
       return const SizedBox.shrink();
     }
-    
-    final canCancelRequest = status.toLowerCase() == 'open' && _canCancelRequest();
-    final canCancelAcceptedQuotation = isAccepted && _canCancelAcceptedQuotation();
+
+    final canCancelRequest =
+        status.toLowerCase() == 'open' && _canCancelRequest();
+    final canCancelAcceptedQuotation =
+        isAccepted && _canCancelAcceptedQuotation();
 
     return Container(
       margin: EdgeInsets.only(bottom: screenSize.height * 0.02),
@@ -1127,7 +1183,8 @@ class RequestCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.currency_rupee, size: 14, color: Colors.grey.shade600),
+                  Icon(Icons.currency_rupee,
+                      size: 14, color: Colors.grey.shade600),
                   SizedBox(width: 4),
                   Text(
                     '₹${data['budget']?.toString() ?? '0'}',
@@ -1170,7 +1227,8 @@ class RequestCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                      Icon(Icons.check_circle,
+                          color: Colors.green.shade700, size: 16),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1184,7 +1242,8 @@ class RequestCard extends StatelessWidget {
                       ),
                       if (canCancelAcceptedQuotation)
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(4),
@@ -1211,14 +1270,21 @@ class RequestCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Price: ₹${acceptedQuotation['price']?.toString() ?? '0'}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
-                      if (acceptedQuotation['deliveryTime']?.toString().isNotEmpty == true)
+                      if (acceptedQuotation['deliveryTime']
+                              ?.toString()
+                              .isNotEmpty ==
+                          true)
                         Expanded(
                           child: Text(
                             'Delivery: ${acceptedQuotation['deliveryTime']}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade700),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1286,7 +1352,7 @@ class RequestCard extends StatelessWidget {
                 ),
                 SizedBox(width: 8),
               ],
-              
+
               // Action buttons in a flexible layout
               Wrap(
                 spacing: 4,
@@ -1300,50 +1366,64 @@ class RequestCard extends StatelessWidget {
 
                         try {
                           // Get artisan info from accepted quotation
-                          final artisanId = acceptedQuotation['artisanId'] ?? '';
-                          final artisanName = acceptedQuotation['artisanName'] ?? 'Artisan';
-                          
+                          final artisanId =
+                              acceptedQuotation['artisanId'] ?? '';
+                          final artisanName =
+                              acceptedQuotation['artisanName'] ?? 'Artisan';
+
                           // Get customer info from request data
                           print('🔍 Debug: Full request data: $data');
                           print('🔍 Debug: Current user: ${user.uid}');
-                          print('🔍 Debug: Current user type: retailer (artisan)');
-                          
+                          print(
+                              '🔍 Debug: Current user type: retailer (artisan)');
+
                           String customerId = data['buyerId'] ?? '';
                           print('🔍 Debug: Extracted buyerId: "$customerId"');
-                          
+
                           // If buyerId is empty, check if the current user is actually the buyer
                           if (customerId.isEmpty) {
                             // Check if current user created this request (they would be the buyer)
-                            if (data['buyerId'] == null || data['buyerId'] == '') {
+                            if (data['buyerId'] == null ||
+                                data['buyerId'] == '') {
                               // Try to get buyerId from a different field or use current user if they're the request creator
                               // This might happen if the field name is different or data is corrupted
-                              print('⚠️ BuyerId is empty, checking alternative fields...');
-                              print('🔍 Available fields: ${data.keys.toList()}');
-                              
+                              print(
+                                  '⚠️ BuyerId is empty, checking alternative fields...');
+                              print(
+                                  '🔍 Available fields: ${data.keys.toList()}');
+
                               // You might need to adjust this based on your actual data structure
-                              customerId = user.uid; // Fallback: assume current user is the customer
-                              print('🔧 Using current user as customerId fallback: $customerId');
+                              customerId = user
+                                  .uid; // Fallback: assume current user is the customer
+                              print(
+                                  '🔧 Using current user as customerId fallback: $customerId');
                             }
                           }
-                          
+
                           if (customerId.isEmpty) {
-                            print('❌ Customer ID is still empty in request data');
+                            print(
+                                '❌ Customer ID is still empty in request data');
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Unable to start chat: Customer ID not found')),
+                              const SnackBar(
+                                  content: Text(
+                                      'Unable to start chat: Customer ID not found')),
                             );
                             return;
                           }
-                          
+
                           final userDoc = await FirebaseFirestore.instance
                               .collection('users')
                               .doc(customerId)
                               .get();
-                          final customerName = userDoc.data()?['name'] ?? 'Customer';
+                          final customerName =
+                              userDoc.data()?['name'] ?? 'Customer';
 
                           // Create or get chat room with proper IDs
-                          final chatRoomId = '${request.id}_${customerId}_$artisanId';
-                          print('Creating chat room: $chatRoomId (Customer: $customerId, Artisan: $artisanId, Current User: ${user.uid})');
-                          
+                          final chatRoomId =
+                              '${request.id}_${customerId}_$artisanId';
+                          print(
+                              'Creating chat room: $chatRoomId (Customer: $customerId, Artisan: $artisanId, Current User: ${user.uid})');
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -1361,7 +1441,8 @@ class RequestCard extends StatelessWidget {
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error opening chat: ${e.toString()}'),
+                              content:
+                                  Text('Error opening chat: ${e.toString()}'),
                               backgroundColor: Colors.red,
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -1369,7 +1450,8 @@ class RequestCard extends StatelessWidget {
                         }
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1382,19 +1464,21 @@ class RequestCard extends StatelessWidget {
                             SizedBox(width: 4),
                             Text(
                               'Chat',
-                              style: TextStyle(color: Colors.blue, fontSize: 11),
+                              style:
+                                  TextStyle(color: Colors.blue, fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  
+
                   // Cancel button (only show for open requests within 24 hours)
                   if (canCancelRequest)
                     InkWell(
                       onTap: () => _cancelRequest(context),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1403,7 +1487,8 @@ class RequestCard extends StatelessWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.cancel_outlined, size: 12, color: Colors.red),
+                            Icon(Icons.cancel_outlined,
+                                size: 12, color: Colors.red),
                             SizedBox(width: 4),
                             Text(
                               'Cancel',
@@ -1413,7 +1498,7 @@ class RequestCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  
+
                   // View button
                   InkWell(
                     onTap: () {
@@ -1439,7 +1524,9 @@ class RequestCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            quotations.isNotEmpty ? Icons.visibility : Icons.info_outline,
+                            quotations.isNotEmpty
+                                ? Icons.visibility
+                                : Icons.info_outline,
                             size: 12,
                             color: Colors.white,
                           ),

@@ -117,7 +117,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _markMessagesAsRead() async {
     if (_currentUserType != null) {
-      await _chatService.markMessagesAsRead(widget.chatRoomId, _currentUserType!);
+      await _chatService.markMessagesAsRead(
+          widget.chatRoomId, _currentUserType!);
     }
   }
 
@@ -264,7 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (image == null) return;
 
       setState(() => _isLoading = true);
-      
+
       try {
         final imageUrl = await _chatService.uploadChatImage(
           File(image.path),
@@ -302,7 +303,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendProgressUpdate() async {
     final TextEditingController progressController = TextEditingController();
-    
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _ProgressUpdateDialog(
@@ -322,7 +323,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (result != null) {
       setState(() => _isLoading = true);
-      
+
       try {
         String? imageUrl;
         if (result['image'] != null) {
@@ -337,7 +338,7 @@ class _ChatScreenState extends State<ChatScreen> {
           result['message'] as String,
           imageUrl: imageUrl,
         );
-        
+
         _scrollToBottom();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -375,7 +376,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       backgroundColor: widget.backgroundBrown,
       appBar: AppBar(
@@ -385,7 +386,9 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _currentUserType == 'artisan' ? widget.customerName : widget.artisanName,
+              _currentUserType == 'artisan'
+                  ? widget.customerName
+                  : widget.artisanName,
               style: GoogleFonts.playfairDisplay(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -483,7 +486,8 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
-                    child: CircularProgressIndicator(color: widget.primaryBrown),
+                    child:
+                        CircularProgressIndicator(color: widget.primaryBrown),
                   );
                 }
 
@@ -515,7 +519,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _currentUserType == 'artisan' 
+                          _currentUserType == 'artisan'
                               ? 'Share progress updates with your customer'
                               : 'Ask questions about your custom order',
                           style: TextStyle(
@@ -538,7 +542,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     final message = messages[index];
                     return _MessageBubble(
                       message: message,
-                      isMe: message.senderId == FirebaseAuth.instance.currentUser?.uid,
+                      isMe: message.senderId ==
+                          FirebaseAuth.instance.currentUser?.uid,
                       primaryBrown: widget.primaryBrown,
                       lightBrown: widget.lightBrown,
                       isPlayingVoice: _currentlyPlayingVoiceId == message.id,
@@ -591,7 +596,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   
                   const SizedBox(width: 8),
-                  
                   // Text input
                   Expanded(
                     child: TextField(
@@ -613,9 +617,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 8),
-                  
+
                   // Send button
                   CircleAvatar(
                     backgroundColor: widget.primaryBrown,
@@ -766,7 +770,6 @@ class _MessageBubbleState extends State<_MessageBubble> {
             ),
             const SizedBox(width: 8),
           ],
-          
           Flexible(
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -858,7 +861,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   if (widget.message.messageType == 'progress_update')
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
@@ -996,7 +1000,6 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       ),
                     ],
                   ],
-                  
                   // Image
                   if (widget.message.imageUrl != null && widget.message.messageType != 'voice') ...[
                     ClipRRect(
@@ -1034,8 +1037,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                     ),
                     if (displayMessage.isNotEmpty && displayMessage != 'Shared an image') 
                       const SizedBox(height: 8),
-                  ],
-                  
+                  ],                  
                   // Message text (only show if not empty and not default image message)
                   if (displayMessage.isNotEmpty && 
                       displayMessage != 'Shared an image' && 
@@ -1077,9 +1079,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           ),
                       ],
                     ),
-                  
+
                   const SizedBox(height: 4),
-                  
+
                   // Timestamp
                   Text(
                     _formatTime(widget.message.timestamp),
@@ -1091,8 +1093,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 ],
               ),
             ),
-          ),
-          
+          ),          
           if (widget.isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
@@ -1112,7 +1113,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   String _formatTime(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inDays > 0) {
       return '${timestamp.day}/${timestamp.month}';
     } else if (difference.inHours > 0) {
@@ -1149,7 +1150,8 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
     return AlertDialog(
       title: Text(
         'Send Progress Update',
-        style: TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
+        style:
+            TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,

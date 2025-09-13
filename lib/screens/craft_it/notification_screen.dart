@@ -16,7 +16,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);
   final Color lightBrown = const Color.fromARGB(255, 139, 98, 87);
   final Color backgroundBrown = const Color.fromARGB(255, 245, 240, 235);
-  
+
   bool _useSimpleQuery = false;
 
   @override
@@ -36,10 +36,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     print('NotificationsScreen: build called');
-    
+
     final currentUser = FirebaseAuth.instance.currentUser;
     print('NotificationsScreen: currentUser = ${currentUser?.uid}');
-    
+
     if (currentUser == null) {
       print('NotificationsScreen: No current user, showing login message');
       return Scaffold(
@@ -88,15 +88,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
         body: StreamBuilder<QuerySnapshot>(
-          stream: _useSimpleQuery 
+          stream: _useSimpleQuery
               ? NotificationService.getUserNotificationsSimple(currentUser.uid)
               : NotificationService.getUserNotifications(currentUser.uid),
           builder: (context, snapshot) {
-            print('NotificationsScreen: StreamBuilder state = ${snapshot.connectionState}');
+            print(
+                'NotificationsScreen: StreamBuilder state = ${snapshot.connectionState}');
             print('NotificationsScreen: Has error = ${snapshot.hasError}');
             print('NotificationsScreen: Error = ${snapshot.error}');
             print('NotificationsScreen: Has data = ${snapshot.hasData}');
-            print('NotificationsScreen: Data count = ${snapshot.data?.docs.length ?? 0}');
+            print(
+                'NotificationsScreen: Data count = ${snapshot.data?.docs.length ?? 0}');
 
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(
@@ -113,9 +115,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
             if (snapshot.hasError) {
               print('NotificationsScreen: Stream error = ${snapshot.error}');
-              
+
               // Check if it's an index error and switch to simple query
-              if (snapshot.error.toString().contains('failed-precondition') || 
+              if (snapshot.error.toString().contains('failed-precondition') ||
                   snapshot.error.toString().contains('index')) {
                 if (!_useSimpleQuery) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -135,7 +137,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   );
                 }
               }
-              
+
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +150,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      _useSimpleQuery 
+                      _useSimpleQuery
                           ? 'Using simplified view (index building)'
                           : 'Error: ${snapshot.error}',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -174,7 +176,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             }
 
             final notifications = snapshot.data?.docs ?? [];
-            print('NotificationsScreen: Building with ${notifications.length} notifications');
+            print(
+                'NotificationsScreen: Building with ${notifications.length} notifications');
 
             if (notifications.isEmpty) {
               return Center(
@@ -228,10 +231,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 try {
                   final doc = notifications[index];
                   final notification = doc.data() as Map<String, dynamic>;
-                  
+
                   return _buildNotificationCard(notification);
                 } catch (e) {
-                  print('NotificationsScreen: Error building notification card at index $index: $e');
+                  print(
+                      'NotificationsScreen: Error building notification card at index $index: $e');
                   return Container(
                     margin: EdgeInsets.only(bottom: 12),
                     child: Card(
@@ -258,7 +262,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final isRead = notification['isRead'] ?? false;
       final type = notification['type'] ?? '';
       final timestamp = notification['createdAt'] as Timestamp?;
-      
+
       Color cardColor;
       IconData iconData;
       Color iconColor;
@@ -286,8 +290,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         color: isRead ? Colors.white : cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: isRead 
-              ? BorderSide.none 
+          side: isRead
+              ? BorderSide.none
               : BorderSide(color: iconColor.withOpacity(0.3), width: 1),
         ),
         child: InkWell(
@@ -332,8 +336,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               notification['title'] ?? 'Notification',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                                color: isRead ? Colors.grey.shade700 : primaryBrown,
+                                fontWeight:
+                                    isRead ? FontWeight.w500 : FontWeight.bold,
+                                color: isRead
+                                    ? Colors.grey.shade700
+                                    : primaryBrown,
                               ),
                             ),
                           ),
@@ -368,7 +375,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ],
                       // Show quotation details if available
-                      if (notification['data'] != null && type == 'quotation_rejected') ...[
+                      if (notification['data'] != null &&
+                          type == 'quotation_rejected') ...[
                         SizedBox(height: 8),
                         Container(
                           padding: EdgeInsets.all(8),
@@ -454,14 +462,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             title: Text(notification['title'] ?? 'Notification Details'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(notification['message'] ?? ''),
-                if (type == 'quotation_rejected' && data['yourQuotedPrice'] != null) ...[
+                if (type == 'quotation_rejected' &&
+                    data['yourQuotedPrice'] != null) ...[
                   SizedBox(height: 16),
                   Container(
                     padding: EdgeInsets.all(12),
@@ -521,7 +531,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .where('isRead', isEqualTo: false)
           .get();
 
-      print('NotificationsScreen: Found ${notifications.docs.length} unread notifications');
+      print(
+          'NotificationsScreen: Found ${notifications.docs.length} unread notifications');
 
       for (final doc in notifications.docs) {
         batch.update(doc.reference, {
@@ -532,14 +543,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       await batch.commit();
       print('NotificationsScreen: All notifications marked as read');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('All notifications marked as read'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -551,7 +563,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             content: Text('Error updating notifications'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
