@@ -551,12 +551,12 @@ class _ArtisanMediaUploadScreenState extends State<ArtisanMediaUploadScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.auto_awesome),
-            const SizedBox(width: 8),
-            const Text('Generate My Living Workshop'),
+            Icon(Icons.auto_awesome),
+            SizedBox(width: 8),
+            Text('Generate My Living Workshop'),
           ],
         ),
       ),

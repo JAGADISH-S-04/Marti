@@ -1,12 +1,8 @@
 import 'package:arti/screens/buyer_screen.dart';
-import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/craft_it/craft_it_screen.dart';
-import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BottomAppNavigator extends StatefulWidget {
   final String? initialUserType;
@@ -26,7 +22,6 @@ class BottomAppNavigator extends StatefulWidget {
 class _BottomAppNavigatorState extends State<BottomAppNavigator> {
   late int _selectedIndex;
   bool _isLoading = true;
-  final bool _isRetailer = false;
   
   // Using the seed color
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);

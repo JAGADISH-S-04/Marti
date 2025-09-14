@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_null_comparison
+
 import 'package:arti/screens/craft_it/notfication_screen_customer.dart';
 import 'package:arti/screens/craft_it/notification_service.dart';
 import 'package:flutter/material.dart';
@@ -64,7 +66,7 @@ class _CraftItScreenState extends State<CraftItScreen>
               return Stack(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.notifications),
+                    icon: const Icon(Icons.notifications),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -740,16 +742,16 @@ class MyRequestsTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error, color: Colors.red, size: 48),
-                SizedBox(height: 16),
-                Text('Error loading requests'),
-                SizedBox(height: 8),
+                const Icon(Icons.error, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                const Text('Error loading requests'),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () {
                     // Force rebuild to retry
                     (context as Element).markNeedsBuild();
                   },
-                  child: Text('Retry'),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
@@ -802,7 +804,7 @@ class MyRequestsTab extends StatelessWidget {
             size: 64,
             color: Colors.grey.shade400,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'No active requests',
             style: TextStyle(
@@ -810,7 +812,7 @@ class MyRequestsTab extends StatelessWidget {
               color: Colors.grey.shade600,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Create your first custom craft request!',
             style: TextStyle(
@@ -902,7 +904,7 @@ bool _canCancelAcceptedQuotation() {
   Future<void> _cancelRequest(BuildContext context) async {
     if (!_canCancelRequest()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content:
               Text('Request can only be cancelled within 24 hours of creation'),
           backgroundColor: Colors.orange,
@@ -923,14 +925,14 @@ bool _canCancelAcceptedQuotation() {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Are you sure you want to cancel this request? This action cannot be undone.',
               style: TextStyle(fontSize: 14),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             if (data['createdAt'] != null)
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -949,7 +951,7 @@ bool _canCancelAcceptedQuotation() {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('No', style: TextStyle(color: Colors.grey)),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -957,7 +959,7 @@ bool _canCancelAcceptedQuotation() {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Yes, Cancel'),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
@@ -974,7 +976,7 @@ bool _canCancelAcceptedQuotation() {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Request cancelled successfully'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
@@ -995,7 +997,7 @@ bool _canCancelAcceptedQuotation() {
   Future<void> _cancelAcceptedQuotation(BuildContext context) async {
     if (!_canCancelAcceptedQuotation()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content:
               Text('Accepted quotation can only be cancelled within 24 hours'),
           backgroundColor: Colors.orange,
@@ -1008,7 +1010,7 @@ bool _canCancelAcceptedQuotation() {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
+        title: const Text(
           'Cancel Accepted Quotation',
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
@@ -1016,14 +1018,14 @@ bool _canCancelAcceptedQuotation() {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Are you sure you want to cancel the accepted quotation? This will reopen the request for new quotations.',
               style: TextStyle(fontSize: 14),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             if (data['acceptedAt'] != null)
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -1042,7 +1044,7 @@ bool _canCancelAcceptedQuotation() {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('No', style: TextStyle(color: Colors.grey)),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1050,7 +1052,7 @@ bool _canCancelAcceptedQuotation() {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Yes, Cancel'),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
@@ -1069,7 +1071,7 @@ bool _canCancelAcceptedQuotation() {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
                 'Accepted quotation cancelled. Request is now open for new quotations.'),
             backgroundColor: Colors.green,
@@ -1141,7 +1143,7 @@ bool _canCancelAcceptedQuotation() {
                   maxLines: 2,
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1160,7 +1162,7 @@ bool _canCancelAcceptedQuotation() {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           // Category and Budget
           Wrap(
@@ -1171,7 +1173,7 @@ bool _canCancelAcceptedQuotation() {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.category, size: 14, color: Colors.grey.shade600),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       data['category'] ?? '',
@@ -1189,7 +1191,7 @@ bool _canCancelAcceptedQuotation() {
                 children: [
                   Icon(Icons.currency_rupee,
                       size: 14, color: Colors.grey.shade600),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
                     '₹${data['budget']?.toString() ?? '0'}',
                     style: TextStyle(
@@ -1202,7 +1204,7 @@ bool _canCancelAcceptedQuotation() {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // Description
           Text(
@@ -1215,12 +1217,12 @@ bool _canCancelAcceptedQuotation() {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           // Show accepted quotation if exists
           if (isAccepted) ...[
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(12),
@@ -1233,7 +1235,7 @@ bool _canCancelAcceptedQuotation() {
                     children: [
                       Icon(Icons.check_circle,
                           color: Colors.green.shade700, size: 16),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Accepted Quotation',
@@ -1247,7 +1249,7 @@ bool _canCancelAcceptedQuotation() {
                       if (canCancelAcceptedQuotation)
                         Container(
                           padding:
-                              EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(4),
@@ -1263,7 +1265,7 @@ bool _canCancelAcceptedQuotation() {
                         ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Artisan: ${acceptedQuotation['artisanName'] ?? 'Unknown'}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
@@ -1295,20 +1297,20 @@ bool _canCancelAcceptedQuotation() {
                     ],
                   ),
                   if (canCancelAcceptedQuotation) ...[
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => _cancelAcceptedQuotation(context),
-                        icon: Icon(Icons.cancel_outlined, size: 14),
-                        label: Text(
+                        icon: const Icon(Icons.cancel_outlined, size: 14),
+                        label: const Text(
                           'Cancel Accepted Quotation',
                           style: TextStyle(fontSize: 11),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(6),
                           ),
@@ -1319,14 +1321,14 @@ bool _canCancelAcceptedQuotation() {
                 ],
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
           ],
 
           // Quotations count and action buttons
           Row(
             children: [
               Icon(Icons.format_quote, size: 14, color: primaryBrown),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   '${quotations.length} Quote${quotations.length != 1 ? 's' : ''}',
@@ -1340,7 +1342,7 @@ bool _canCancelAcceptedQuotation() {
               ),
               if (quotations.isNotEmpty && !isAccepted) ...[
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(6),
@@ -1354,7 +1356,7 @@ bool _canCancelAcceptedQuotation() {
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
               ],
 
               // Action buttons in a flexible layout
@@ -1455,7 +1457,7 @@ bool _canCancelAcceptedQuotation() {
                       },
                       child: Container(
                         padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1482,7 +1484,7 @@ bool _canCancelAcceptedQuotation() {
                       onTap: () => _cancelRequest(context),
                       child: Container(
                         padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1519,7 +1521,7 @@ bool _canCancelAcceptedQuotation() {
                       );
                     },
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: primaryBrown,
                         borderRadius: BorderRadius.circular(6),
@@ -1534,10 +1536,10 @@ bool _canCancelAcceptedQuotation() {
                             size: 12,
                             color: Colors.white,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
                             quotations.isNotEmpty ? 'View' : 'Details',
-                            style: TextStyle(fontSize: 11, color: Colors.white),
+                            style: const TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ],
                       ),

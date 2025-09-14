@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notification_service.dart';
 
@@ -27,22 +26,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
   bool _isCancelling = false;
   bool _showAllQuotations = false;
   late AnimationController _animationController;
-  late Animation<double> _rotationAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 0.5,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
   }
 
   @override
@@ -89,10 +80,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Are you sure you want to accept this quotation?'),
-          SizedBox(height: 12),
+          const Text('Are you sure you want to accept this quotation?'),
+          const SizedBox(height: 12),
           Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
@@ -106,9 +97,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               ],
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.orange.shade50,
               borderRadius: BorderRadius.circular(8),
@@ -117,7 +108,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
             child: Row(
               children: [
                 Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Other artisans will be notified that their quotation was not selected.',
@@ -135,7 +126,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(true),
@@ -143,7 +134,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
             backgroundColor: widget.primaryBrown,
             foregroundColor: Colors.white,
           ),
-          child: Text('Accept Quotation'),
+          child: const Text('Accept Quotation'),
         ),
       ],
     ),
@@ -198,7 +189,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Quotation accepted successfully! All artisans have been notified.'),
+            content: const Text('Quotation accepted successfully! All artisans have been notified.'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -229,7 +220,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     if (!_canCancelAcceptedQuotation(data)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Accepted quotation can only be cancelled within 24 hours'),
+          content: const Text('Accepted quotation can only be cancelled within 24 hours'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -242,7 +233,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
+        title: const Text(
           'Cancel Accepted Quotation',
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
@@ -250,14 +241,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Are you sure you want to cancel the accepted quotation? This will reopen the request for new quotations.',
               style: TextStyle(fontSize: 14),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             if (data['acceptedAt'] != null)
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -276,7 +267,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('No', style: TextStyle(color: Colors.grey)),
+            child: const Text('No', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -285,7 +276,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Yes, Cancel'),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
@@ -308,7 +299,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Accepted quotation cancelled. Request is now open for new quotations.'),
+              content: const Text('Accepted quotation cancelled. Request is now open for new quotations.'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -334,6 +325,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     }
   }
 
+  // ignore: unused_element
   void _toggleQuotations() {
     setState(() {
       _showAllQuotations = !_showAllQuotations;
@@ -376,11 +368,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               _buildSliverAppBar(data),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
                       _buildMainCard(data, images, acceptedQuotation, quotations, status),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -398,14 +390,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
       appBar: AppBar(
         backgroundColor: widget.primaryBrown,
         foregroundColor: Colors.white,
-        title: Text('Request Details'),
+        title: const Text('Request Details'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error_outline, size: 80, color: Colors.grey.shade400),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Request not found',
               style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
@@ -463,7 +455,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -496,7 +488,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
 
   Widget _buildHeaderSection(Map<String, dynamic> data) {
     return Padding(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -513,7 +505,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: _getStatusColor(data['status'] ?? 'open').withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -533,13 +525,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Row(
             children: [
               _buildQuickInfo(Icons.category_outlined, data['category'] ?? 'Unknown'),
-              SizedBox(width: 20),
+              const SizedBox(width: 20),
               _buildQuickInfo(Icons.currency_rupee, '₹${data['budget']?.toString() ?? '0'}'),
-              SizedBox(width: 20),
+              const SizedBox(width: 20),
               _buildQuickInfo(Icons.schedule_outlined, data['deadline'] ?? 'Not set'),
             ],
           ),
@@ -553,7 +545,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
       child: Row(
         children: [
           Icon(icon, size: 16, color: Colors.grey.shade600),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Expanded(
             child: Text(
               text,
@@ -572,7 +564,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
 
   Widget _buildDetailsSection(Map<String, dynamic> data, List images) {
     return Padding(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -584,7 +576,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               color: widget.primaryBrown,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             data['description'] ?? 'No description provided',
             style: TextStyle(
@@ -595,7 +587,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
           ),
           
           if (images.isNotEmpty) ...[
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
               'Reference Images',
               style: TextStyle(
@@ -604,7 +596,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                 color: widget.primaryBrown,
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
+            // ignore: sized_box_for_whitespace
             Container(
               height: 100,
               child: ListView.builder(
@@ -614,14 +607,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                   return Container(
                     width: 100,
                     height: 100,
-                    margin: EdgeInsets.only(right: 12),
+                    margin: const EdgeInsets.only(right: 12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 8,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -668,7 +661,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     final canCancel = _canCancelAcceptedQuotation(data);
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -683,14 +676,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.green,
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: Icon(Icons.check, color: Colors.white, size: 16),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Accepted Quotation',
@@ -703,7 +696,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               ),
               if (canCancel)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.red.shade100,
                     borderRadius: BorderRadius.circular(12),
@@ -719,26 +712,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                 ),
             ],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           
           _buildQuotationContent(acceptedQuotation, isAccepted: true),
           
           if (canCancel) ...[
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _isCancelling ? null : () => _cancelAcceptedQuotation(data),
                 icon: _isCancelling
-                    ? SizedBox(
+                    ? const SizedBox(
                         height: 16,
                         width: 16,
                         child: CircularProgressIndicator(
@@ -746,10 +739,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(Icons.cancel_outlined, size: 16),
+                    : const Icon(Icons.cancel_outlined, size: 16),
                 label: Text(
                   _isCancelling ? 'Cancelling...' : 'Cancel Quotation',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -766,10 +759,10 @@ Widget _buildQuotationsToggleSection(List quotations, String status, bool hasAcc
       backgroundColor: Colors.transparent,
       collapsedBackgroundColor: Colors.transparent,
       initiallyExpanded: false,
-      tilePadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       childrenPadding: EdgeInsets.zero,
-      shape: Border(),
-      collapsedShape: Border(),
+      shape: const Border(),
+      collapsedShape: const Border(),
       leading: Icon(
         Icons.format_quote, 
         color: widget.primaryBrown,
@@ -798,9 +791,9 @@ Widget _buildQuotationsToggleSection(List quotations, String status, bool hasAcc
 Widget _buildQuotationsList(List quotations, String status, bool hasAcceptedQuotation) {
   if (quotations.isEmpty) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Container(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
@@ -808,7 +801,7 @@ Widget _buildQuotationsList(List quotations, String status, bool hasAcceptedQuot
         child: Column(
           children: [
             Icon(Icons.hourglass_empty, size: 48, color: Colors.grey.shade400),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               'No other quotations received',
               style: TextStyle(
@@ -824,11 +817,11 @@ Widget _buildQuotationsList(List quotations, String status, bool hasAcceptedQuot
   }
 
   return Container(
-    padding: EdgeInsets.only(left: 20, right: 20, bottom: 20),
+    padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
     child: Column(
       children: [
         for (int index = 0; index < quotations.length; index++) ...[
-          if (index > 0) SizedBox(height: 12),
+          if (index > 0) const SizedBox(height: 12),
           _buildQuotationCard(quotations[index], status, hasAcceptedQuotation),
         ],
       ],
@@ -840,7 +833,7 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
 
   return Container(
     width: double.infinity,
-    padding: EdgeInsets.all(16),
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: Colors.grey.shade50,
       borderRadius: BorderRadius.circular(16),
@@ -849,7 +842,7 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
         BoxShadow(
           color: Colors.black.withOpacity(0.03),
           blurRadius: 6,
-          offset: Offset(0, 2),
+          offset: const Offset(0, 2),
         ),
       ],
     ),
@@ -860,14 +853,14 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
         _buildQuotationContent(quotation),
         
         if (canAccept) ...[
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.primaryBrown,
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -914,7 +907,7 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
               child: Center(
                 child: Text(
                   (quotation['artisanName'] ?? 'A')[0].toUpperCase(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -922,7 +915,7 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -947,7 +940,7 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
               ),
             ),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: isAccepted 
                     ? Colors.green.shade100 
@@ -967,12 +960,12 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         
         Row(
           children: [
             Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
               'Delivery: ${quotation['deliveryTime'] ?? 'Not specified'}',
               style: TextStyle(
@@ -984,10 +977,10 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
         ),
         
         if (quotation['message']?.toString().isNotEmpty == true) ...[
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),

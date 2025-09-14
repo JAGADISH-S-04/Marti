@@ -1,8 +1,8 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/product.dart';
-import '../services/product_database_service.dart';
-import 'product_detail_screen.dart';
+
 
 class LivingWorkshopScreen extends StatefulWidget {
   final Map<String, dynamic> workshopData;
@@ -33,19 +33,19 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   String _emotionalTheme = 'connection';
   
   final Map<String, Color> _moodColors = {
-    'contemplative': Color(0xFF2D3142),
-    'inspired': Color(0xFF9B4192),
-    'focused': Color(0xFF1B4332),
-    'joyful': Color(0xFFE9C46A),
-    'peaceful': Color(0xFF264653),
-    'devotion': Color(0xFF8B4F75),
-    'tranquility': Color(0xFF5A8A8A),
-    'passion': Color(0xFFD63031),
-    'wisdom': Color(0xFF74B9FF),
-    'wonder': Color(0xFFB983FF),
-    'reverence': Color(0xFF6C7B7F),
-    'curiosity': Color(0xFF00B894),
-    'connection': Color(0xFFFEBC2C),
+    'contemplative': const Color(0xFF2D3142),
+    'inspired': const Color(0xFF9B4192),
+    'focused': const Color(0xFF1B4332),
+    'joyful': const Color(0xFFE9C46A),
+    'peaceful': const Color(0xFF264653),
+    'devotion': const Color(0xFF8B4F75),
+    'tranquility': const Color(0xFF5A8A8A),
+    'passion': const Color(0xFFD63031),
+    'wisdom': const Color(0xFF74B9FF),
+    'wonder': const Color(0xFFB983FF),
+    'reverence': const Color(0xFF6C7B7F),
+    'curiosity': const Color(0xFF00B894),
+    'connection': const Color(0xFFFEBC2C),
   };
 
   @override
@@ -109,11 +109,11 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   void _setupAnimations() {
     _fadeController = AnimationController(
-      duration: Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
     _slideController = AnimationController(
-      duration: Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     
@@ -122,14 +122,14 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     );
     
     _slideAnimation = Tween<Offset>(
-      begin: Offset(0.0, 0.3),
+      begin: const Offset(0.0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
   }
 
   void _startImmersiveExperience() {
     _fadeController.forward();
-    Future.delayed(Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       _slideController.forward();
     });
   }
@@ -206,7 +206,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildEmotionalHeader() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
         children: [
           Row(
@@ -229,7 +229,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               Icon(Icons.favorite_border, color: Colors.white.withOpacity(0.6)),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             '~ connection ~',
             style: GoogleFonts.inter(
@@ -246,14 +246,14 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildImmersiveWorkshop() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           
           // Chapter indicator
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
@@ -269,17 +269,17 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             ),
           ),
           
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
           
           // AI-Generated Chapter Image
           _buildChapterImage(),
           
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           
           // Preview of next chapter's AI image (if available)
           if (_currentChapter < _interactiveStory.length - 1) _buildNextChapterPreview(),
           
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
           
           // Main story text
           Text(
@@ -294,7 +294,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             textAlign: TextAlign.center,
           ),
           
-          SizedBox(height: 60),
+          const SizedBox(height: 60),
           
           // Interactive hotspots simulation
           _buildInteractiveHotspots(),
@@ -325,7 +325,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
               blurRadius: 10,
-              offset: Offset(0, 5),
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -374,7 +374,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                             size: 48,
                             color: Colors.white.withOpacity(0.9),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             'AI Generated',
                             style: GoogleFonts.playfairDisplay(
@@ -410,7 +410,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -418,7 +418,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                       Row(
                         children: [
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
@@ -432,7 +432,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                                   size: 12,
                                   color: Colors.white.withOpacity(0.9),
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   'AI Generated',
                                   style: GoogleFonts.inter(
@@ -446,7 +446,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         imageTitle,
                         style: GoogleFonts.playfairDisplay(
@@ -456,7 +456,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         ),
                       ),
                       if (description.isNotEmpty) ...[
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           description,
                           style: GoogleFonts.inter(
@@ -498,7 +498,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
             blurRadius: 10,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -549,9 +549,9 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                       children: [
                         Text(
                           currentTheme['icon'] as String,
-                          style: TextStyle(fontSize: 48),
+                          style: const TextStyle(fontSize: 48),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'AI Generated',
                           style: GoogleFonts.playfairDisplay(
@@ -587,7 +587,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               left: 0,
               right: 0,
               child: Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -595,7 +595,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -609,7 +609,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                                 size: 12,
                                 color: Colors.white.withOpacity(0.9),
                               ),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
                                 'AI Generated',
                                 style: GoogleFonts.inter(
@@ -623,7 +623,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       currentTheme['title'] as String,
                       style: GoogleFonts.playfairDisplay(
@@ -632,7 +632,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Chapter ${_currentChapter + 1} of the artisan\'s journey',
                       style: GoogleFonts.inter(
@@ -663,7 +663,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       
       return Container(
         height: 120,
-        margin: EdgeInsets.symmetric(horizontal: 40),
+        margin: const EdgeInsets.symmetric(horizontal: 40),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withOpacity(0.2)),
@@ -719,7 +719,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
@@ -735,7 +735,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         ),
                       ],
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       imageTitle,
                       style: GoogleFonts.playfairDisplay(
@@ -760,7 +760,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildInteractiveHotspots() {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
@@ -773,7 +773,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             color: Colors.white.withOpacity(0.7),
             size: 32,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             'Feel the Story',
             style: GoogleFonts.playfairDisplay(
@@ -782,7 +782,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               fontWeight: FontWeight.w400,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Touch the screen to sense the artisan\'s energy and emotions flowing through their work',
             style: GoogleFonts.inter(
@@ -799,7 +799,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildNavigationControls() {
     return Container(
-      padding: EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -814,7 +814,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                 });
               },
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(25),
@@ -825,7 +825,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                   children: [
                     Icon(Icons.arrow_back_ios, 
                          color: Colors.white.withOpacity(0.8), size: 16),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Text(
                       'Previous',
                       style: GoogleFonts.inter(
@@ -838,11 +838,11 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               ),
             )
           else
-            SizedBox(width: 80),
+            const SizedBox(width: 80),
           
           // Chapter progress indicator
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
@@ -862,7 +862,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             GestureDetector(
               onTap: _advanceChapter,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(25),
@@ -879,8 +879,8 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios, 
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_ios, 
                          color: Colors.white, size: 16),
                   ],
                 ),
@@ -890,7 +890,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             GestureDetector(
               onTap: _showCompletionDialog,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
@@ -906,8 +906,8 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.favorite, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.favorite, color: Colors.white, size: 16),
                   ],
                 ),
               ),
@@ -919,7 +919,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildCompletionScreen() {
     return Container(
-      padding: EdgeInsets.all(32),
+      padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -928,7 +928,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             size: 64,
             color: Colors.white.withOpacity(0.9),
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           Text(
             'Connection Complete',
             style: GoogleFonts.playfairDisplay(
@@ -938,7 +938,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'You have journeyed through the artisan\'s world, feeling every emotion, understanding every choice. This connection will remain with you forever.',
             style: GoogleFonts.inter(
@@ -948,18 +948,18 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 32),
+          const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white.withOpacity(0.2),
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
             ),
-            child: Text('Continue Experience'),
+            child: const Text('Continue Experience'),
           ),
         ],
       ),
@@ -991,7 +991,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: Text(
+            child: const Text(
               'Continue Shopping',
               style: TextStyle(color: Colors.white),
             ),

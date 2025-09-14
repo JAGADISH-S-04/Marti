@@ -36,13 +36,13 @@ class _CustomerNotificationsScreenState
             ),
           ),
         ),
-        body: Center(
+        body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.login, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text('Please log in to view notifications'),
+              SizedBox(height: 16),
+              Text('Please log in to view notifications'),
             ],
           ),
         ),
@@ -121,11 +121,11 @@ class _CustomerNotificationsScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error, color: Colors.red, size: 48),
+                  const Icon(Icons.error, color: Colors.red, size: 48),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Error loading notifications',
-                    style: const TextStyle(fontSize: 16, color: Colors.red),
+                    style: TextStyle(fontSize: 16, color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -177,7 +177,7 @@ class _CustomerNotificationsScreenState
                     onPressed: () {
                       setState(() {});
                     },
-                    icon: Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh),
                     label: const Text('Refresh'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBrown,

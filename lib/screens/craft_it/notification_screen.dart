@@ -47,9 +47,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         appBar: AppBar(
           backgroundColor: primaryBrown,
           foregroundColor: Colors.white,
-          title: Text('Notifications'),
+          title: const Text('Notifications'),
         ),
-        body: Center(
+        body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -81,7 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.mark_email_read),
+              icon: const Icon(Icons.mark_email_read),
               onPressed: _markAllAsRead,
               tooltip: 'Mark all as read',
             ),
@@ -106,8 +106,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(color: primaryBrown),
-                    SizedBox(height: 16),
-                    Text('Loading notifications...'),
+                    const SizedBox(height: 16),
+                    const Text('Loading notifications...'),
                   ],
                 ),
               );
@@ -130,8 +130,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(color: primaryBrown),
-                        SizedBox(height: 16),
-                        Text('Switching to fallback mode...'),
+                        const SizedBox(height: 16),
+                        const Text('Switching to fallback mode...'),
                       ],
                     ),
                   );
@@ -142,21 +142,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error, color: Colors.red, size: 48),
-                    SizedBox(height: 16),
-                    Text(
+                    const Icon(Icons.error, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    const Text(
                       'Error loading notifications',
                       style: TextStyle(fontSize: 16, color: Colors.red),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       _useSimpleQuery
                           ? 'Using simplified view (index building)'
                           : 'Error: ${snapshot.error}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
                         print('NotificationsScreen: Retry button pressed');
@@ -168,7 +168,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         backgroundColor: primaryBrown,
                         foregroundColor: Colors.white,
                       ),
-                      child: Text('Retry'),
+                      child: const Text('Retry'),
                     ),
                   ],
                 ),
@@ -189,7 +189,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       size: 64,
                       color: Colors.grey.shade400,
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Text(
                       'No notifications yet',
                       style: TextStyle(
@@ -197,7 +197,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         color: Colors.grey.shade600,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'You\'ll receive updates about your quotations here',
                       style: TextStyle(
@@ -206,14 +206,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     ElevatedButton.icon(
                       onPressed: () {
                         print('NotificationsScreen: Refresh button pressed');
                         setState(() {});
                       },
-                      icon: Icon(Icons.refresh),
-                      label: Text('Refresh'),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Refresh'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBrown,
                         foregroundColor: Colors.white,
@@ -225,7 +225,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             }
 
             return ListView.builder(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 try {
@@ -237,8 +237,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   print(
                       'NotificationsScreen: Error building notification card at index $index: $e');
                   return Container(
-                    margin: EdgeInsets.only(bottom: 12),
-                    child: Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: const Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
@@ -285,7 +285,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
 
       return Card(
-        margin: EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 12),
         elevation: isRead ? 1 : 4,
         color: isRead ? Colors.white : cardColor,
         shape: RoundedRectangleBorder(
@@ -308,12 +308,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             }
           },
           child: Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -324,7 +324,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     size: 24,
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,7 +355,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                         ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         notification['message'] ?? '',
                         style: TextStyle(
@@ -365,7 +365,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ),
                       if (timestamp != null) ...[
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           _formatTimestamp(timestamp),
                           style: TextStyle(
@@ -377,9 +377,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       // Show quotation details if available
                       if (notification['data'] != null &&
                           type == 'quotation_rejected') ...[
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Container(
-                          padding: EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(6),
@@ -394,7 +394,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Text(
                                 'Delivery: ${notification['data']['yourDeliveryTime'] ?? 'N/A'}',
                                 style: TextStyle(
@@ -417,12 +417,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       print('NotificationsScreen: Error in _buildNotificationCard: $e');
       return Card(
-        margin: EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 12),
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Text(
             'Error displaying notification: $e',
-            style: TextStyle(color: Colors.red),
+            style: const TextStyle(color: Colors.red),
           ),
         ),
       );
@@ -472,9 +472,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Text(notification['message'] ?? ''),
                 if (type == 'quotation_rejected' &&
                     data['yourQuotedPrice'] != null) ...[
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Container(
-                    padding: EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -482,11 +482,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Your quotation details:',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text('Price: ₹${data['yourQuotedPrice']}'),
                         Text('Delivery Time: ${data['yourDeliveryTime']}'),
                       ],
@@ -498,7 +498,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('OK'),
+                child: const Text('OK'),
               ),
             ],
           ),
@@ -507,7 +507,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       print('NotificationsScreen: Error handling notification tap: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Error opening notification details'),
           backgroundColor: Colors.red,
         ),
@@ -547,7 +547,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('All notifications marked as read'),
+            content: const Text('All notifications marked as read'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -560,7 +560,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating notifications'),
+            content: const Text('Error updating notifications'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape:

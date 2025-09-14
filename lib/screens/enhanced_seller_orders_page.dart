@@ -1019,7 +1019,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
               color: primaryBrown.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.inventory,
               color: primaryBrown,
               size: 24,
@@ -1336,8 +1336,8 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
                       ),
                       titlesData: FlTitlesData(
                         show: true,
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,

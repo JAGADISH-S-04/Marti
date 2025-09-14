@@ -4,7 +4,6 @@ import 'package:arti/screens/signup_screen.dart';
 import 'package:arti/services/auth_service.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';

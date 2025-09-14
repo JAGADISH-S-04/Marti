@@ -39,6 +39,7 @@ class _StoreAudioRecorderState extends State<StoreAudioRecorder>
   // Recording states
   bool _isRecording = false;
   bool _isPlaying = false;
+  // ignore: unused_field
   bool _isProcessingAudio = false;
   bool _isUploadingAudio = false;
   Duration _recordingDuration = Duration.zero;
