@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
@@ -14,7 +16,6 @@ import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'store_audio_management_page.dart';
-import 'seller_orders_page.dart';
 import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';

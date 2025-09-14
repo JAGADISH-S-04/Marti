@@ -117,7 +117,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           );
         } catch (retryError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Failed to like product. Please try again.'),
               backgroundColor: Colors.red,
             ),
@@ -125,7 +125,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Failed to like product. Please try again.'),
             backgroundColor: Colors.red,
           ),

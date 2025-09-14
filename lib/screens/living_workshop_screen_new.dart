@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/product.dart';
-import '../services/product_database_service.dart';
-import 'product_detail_screen.dart';
+
 
 class LivingWorkshopScreen extends StatefulWidget {
   final Map<String, dynamic> workshopData;
@@ -26,7 +24,6 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   late Animation<Offset> _slideAnimation;
   
   int _currentChapter = 0;
-  bool _isRevealing = false;
   String _currentMood = 'contemplative';
   
   final List<String> _interactiveStory = [
@@ -38,11 +35,11 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   ];
   
   final Map<String, Color> _moodColors = {
-    'contemplative': Color(0xFF2D3142),
-    'inspired': Color(0xFF9B4192),
-    'focused': Color(0xFF1B4332),
-    'joyful': Color(0xFFE9C46A),
-    'peaceful': Color(0xFF264653),
+    'contemplative': const Color(0xFF2D3142),
+    'inspired': const Color(0xFF9B4192),
+    'focused': const Color(0xFF1B4332),
+    'joyful': const Color(0xFFE9C46A),
+    'peaceful': const Color(0xFF264653),
   };
 
   @override
@@ -54,11 +51,11 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   void _setupAnimations() {
     _fadeController = AnimationController(
-      duration: Duration(seconds: 2),
+      duration: const Duration(seconds: 2),
       vsync: this,
     );
     _slideController = AnimationController(
-      duration: Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     
@@ -67,14 +64,14 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     );
     
     _slideAnimation = Tween<Offset>(
-      begin: Offset(0, 0.5),
+      begin: const Offset(0, 0.5),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
   }
 
   void _startImmersiveExperience() {
     _fadeController.forward();
-    Future.delayed(Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       _slideController.forward();
     });
   }
@@ -82,14 +79,12 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
   void _advanceChapter() {
     if (_currentChapter < _interactiveStory.length - 1) {
       setState(() {
-        _isRevealing = true;
         _currentMood = ['contemplative', 'inspired', 'focused', 'joyful', 'peaceful'][_currentChapter];
       });
       
       _slideController.reverse().then((_) {
         setState(() {
           _currentChapter++;
-          _isRevealing = false;
         });
         _slideController.forward();
       });
@@ -117,7 +112,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             ),
             child: SafeArea(
               child: Padding(
-                padding: EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -136,7 +131,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                       ),
                     ),
                     
-                    SizedBox(height: 60),
+                    const SizedBox(height: 60),
                     
                     // Main story content
                     Expanded(
@@ -163,7 +158,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
 
   Widget _buildInteractiveStoryCard() {
     return Container(
-      padding: EdgeInsets.all(32.0),
+      padding: const EdgeInsets.all(32.0),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
@@ -172,7 +167,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -190,7 +185,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             ),
           ),
           
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
           
           // Main story text
           Text(
@@ -205,7 +200,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
             textAlign: TextAlign.center,
           ),
           
-          SizedBox(height: 60),
+          const SizedBox(height: 60),
           
           // Interactive hotspots simulation
           _buildInteractiveHotspots(),
@@ -255,9 +250,9 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           children: [
             Text(
               icon,
-              style: TextStyle(fontSize: 24),
+              style: const TextStyle(fontSize: 24),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
               title,
               style: GoogleFonts.inter(
@@ -279,7 +274,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
         // Progress indicator
         Container(
           height: 4,
-          margin: EdgeInsets.symmetric(horizontal: 40),
+          margin: const EdgeInsets.symmetric(horizontal: 40),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.2),
             borderRadius: BorderRadius.circular(2),
@@ -296,7 +291,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           ),
         ),
         
-        SizedBox(height: 30),
+        const SizedBox(height: 30),
         
         // Navigation buttons
         Row(
@@ -316,7 +311,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                 },
               ),
             
-            Spacer(),
+            const Spacer(),
             
             // Next/Continue button
             if (_currentChapter < _interactiveStory.length - 1)
@@ -341,7 +336,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(25),
@@ -351,7 +346,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.white, size: 20),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
               label,
               style: GoogleFonts.inter(
@@ -371,10 +366,10 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: _moodColors[_currentMood]!.withOpacity(0.95),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -387,7 +382,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
                 fontWeight: FontWeight.w300,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               hint,
               style: GoogleFonts.inter(
@@ -397,7 +392,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Text(
               'This moment invites you to pause and connect with the artisan\'s world. Feel the texture, hear the sounds, breathe in the atmosphere of creation.',
               style: GoogleFonts.inter(
@@ -407,18 +402,18 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.2),
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(25),
                 ),
               ),
-              child: Text('Continue Experience'),
+              child: const Text('Continue Experience'),
             ),
           ],
         ),
@@ -452,7 +447,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: Text(
+            child: const Text(
               'Return Home',
               style: TextStyle(color: Colors.white),
             ),
@@ -467,7 +462,7 @@ class _LivingWorkshopScreenState extends State<LivingWorkshopScreen>
               _slideController.reset();
               _slideController.forward();
             },
-            child: Text(
+            child: const Text(
               'Experience Again',
               style: TextStyle(color: Colors.white),
             ),

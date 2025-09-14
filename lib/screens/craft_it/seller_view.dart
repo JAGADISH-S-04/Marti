@@ -1730,7 +1730,7 @@ Widget _buildRequestCard(
 
     if (existingQuotation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No existing quotation found to edit.')),
+        const SnackBar(content: Text('No existing quotation found to edit.')),
       );
       return;
     }
@@ -1759,7 +1759,7 @@ Widget _buildRequestCard(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -1769,7 +1769,7 @@ Widget _buildRequestCard(
                     children: [
                       Text(
                         'Request: ${requestData['title'] ?? 'Untitled'}',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Text(
                           'Budget: ₹${requestData['budget']?.toString() ?? '0'}'),
@@ -1777,7 +1777,7 @@ Widget _buildRequestCard(
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
@@ -1789,7 +1789,7 @@ Widget _buildRequestCard(
                     prefixIcon: Icon(Icons.currency_rupee, color: primaryBrown),
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextField(
                   controller: deliveryController,
                   decoration: InputDecoration(
@@ -1800,7 +1800,7 @@ Widget _buildRequestCard(
                     prefixIcon: Icon(Icons.schedule, color: primaryBrown),
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextField(
                   controller: messageController,
                   maxLines: 3,
@@ -1878,8 +1878,9 @@ Widget _buildRequestCard(
                               .collection('craft_requests')
                               .doc(requestId);
                           final freshSnap = await transaction.get(docRef);
-                          if (!freshSnap.exists)
+                          if (!freshSnap.exists) {
                             throw Exception('Request no longer exists');
+                          }
 
                           List quotations = freshSnap.get('quotations') ?? [];
                           quotations
@@ -1893,7 +1894,7 @@ Widget _buildRequestCard(
                         Navigator.of(dialogContext).pop();
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text('Quotation updated successfully!'),
                             backgroundColor: Colors.green,
                             behavior: SnackBarBehavior.floating,
@@ -1914,7 +1915,7 @@ Widget _buildRequestCard(
                       }
                     },
               child: isSubmitting
-                  ? SizedBox(
+                  ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(

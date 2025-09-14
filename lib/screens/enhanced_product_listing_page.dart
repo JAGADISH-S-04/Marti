@@ -1509,7 +1509,7 @@ class _EnhancedProductListingPageState
           children: [
             Text(
               isEditMode 
-                ? '${totalImages} Photos (${existingImages.length} existing, ${_selectedImages.length} new)'
+                ? '$totalImages Photos (${existingImages.length} existing, ${_selectedImages.length} new)'
                 : '${_selectedImages.length} Photos Selected',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
@@ -2759,9 +2759,9 @@ class _EnhancedProductListingPageState
                   // Header
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: primaryBrown,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
@@ -2834,9 +2834,9 @@ class _EnhancedProductListingPageState
                 // Header
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: primaryBrown,
-                    borderRadius: const BorderRadius.only(
+                    borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(16),
                       topRight: Radius.circular(16),
                     ),
@@ -3011,7 +3011,7 @@ class _EnhancedProductListingPageState
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: accentGold, width: 2),
+                            borderSide: const BorderSide(color: accentGold, width: 2),
                           ),
                           contentPadding: const EdgeInsets.all(12),
                           hintText: 'Edit your transcription...',
@@ -3146,9 +3146,9 @@ class _EnhancedProductListingPageState
                   // Header
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: primaryBrown,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
@@ -3218,9 +3218,9 @@ class _EnhancedProductListingPageState
                   // Header
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: primaryBrown,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
@@ -3320,7 +3320,7 @@ class _EnhancedProductListingPageState
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: accentGold, width: 2),
+                    borderSide: const BorderSide(color: accentGold, width: 2),
                   ),
                 ),
               ),
@@ -3521,7 +3521,7 @@ class _EnhancedProductListingPageState
                                 _audioDuration.inMilliseconds
                             : 0.0,
                         backgroundColor: Colors.grey.shade300,
-                        valueColor: AlwaysStoppedAnimation<Color>(accentGold),
+                        valueColor: const AlwaysStoppedAnimation<Color>(accentGold),
                         minHeight: 3,
                       ),
                       const SizedBox(height: 2),

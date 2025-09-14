@@ -13,6 +13,7 @@ class EnhancedProductUploadScreen extends StatefulWidget {
 
 class _EnhancedProductUploadScreenState extends State<EnhancedProductUploadScreen> {
   final ProductDatabaseService _productService = ProductDatabaseService();
+  // ignore: unused_field
   final FirebaseStorageService _storageService = FirebaseStorageService();
   final ImagePicker _picker = ImagePicker();
   

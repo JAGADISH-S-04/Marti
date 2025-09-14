@@ -394,7 +394,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text(
+            const Text(
               'Order Chat',
               style: TextStyle(fontSize: 12, color: Colors.white70),
             ),

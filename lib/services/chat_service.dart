@@ -353,7 +353,7 @@ Future<void> sendVoiceMessage(String chatRoomId, File voiceFile, String? transcr
   // Get chat rooms for current user
   Stream<QuerySnapshot> getChatRooms() {
     final user = _auth.currentUser;
-    if (user == null) return Stream.empty();
+    if (user == null) return const Stream.empty();
 
     return _firestore
         .collection('chat_rooms')

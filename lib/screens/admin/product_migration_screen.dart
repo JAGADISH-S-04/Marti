@@ -193,11 +193,11 @@ class _ProductMigrationScreenState extends State<ProductMigrationScreen> {
                   border: Border.all(color: Colors.green),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    Icon(Icons.check_circle, color: Colors.green),
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text(
                         'All products have been migrated to the new structure!',
                         style: TextStyle(color: Colors.green),

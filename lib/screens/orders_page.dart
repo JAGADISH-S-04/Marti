@@ -170,7 +170,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                       print('🧪 Creating sample order...');
                       await _orderService.createSampleOrder();
                       setState(() {}); // Refresh the orders
-                      final snackBar = const SnackBar(
+                      const snackBar = SnackBar(
                         content: Text('✅ Sample order created'),
                         backgroundColor: Colors.green,
                       );
