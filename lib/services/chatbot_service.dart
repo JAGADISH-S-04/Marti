@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -60,6 +61,16 @@ class ChatbotService {
       'keywords': ['account', 'profile', 'dual account', 'seller account'],
       'answer': 'You can have both a customer and seller account using the same email! Switch between your buyer and seller profiles easily from your profile section.',
       'actions': ['View Profile', 'Switch to Seller Mode']
+    },
+    'room_analysis': {
+      'keywords': ['room photo', 'room image', 'room picture', 'decorate room', 'room style', 'interior design'],
+      'answer': '📸 I can analyze your room photos and suggest perfect handcrafted pieces! Upload a photo of your room and I\'ll help you find items that match your style, colors, and space perfectly.',
+      'actions': ['Upload Room Photo', 'Browse Home Decor']
+    },
+    'room_help': {
+      'keywords': ['how to upload room', 'room analysis help', 'photo help'],
+      'answer': '📱 To get personalized room recommendations: 1) Take a clear photo of your room 2) Upload it in our chat 3) I\'ll analyze your space and suggest beautiful handcrafted pieces that match your style!',
+      'actions': ['Upload Room Photo']
     }
   };
 
@@ -133,6 +144,203 @@ class ChatbotService {
     }
   }
 
+  /// Gets an enhanced welcome message that introduces key features
+  Future<Map<String, dynamic>> getWelcomeMessage() async {
+    final userProfile = await getUserProfile();
+    final userName = userProfile?['name'] ?? 'friend';
+    
+    return {
+      'textResponse': '👋 Hello ${userName}! I\'m Arti, your shopping assistant!\n\n'
+                     'I\'m here to help you find amazing handcrafted treasures. What are you looking for today? ✨\n\n'
+                     '💡 Pro tip: You can upload photos of your room and I\'ll suggest perfect decor pieces that match your style!',
+      'recommendedProducts': <Product>[],
+      'hasProducts': false,
+      'actions': ['📸 Upload Room Photo', 'Browse Products', 'Craft It', 'Help'],
+      'responseType': 'welcome',
+      'showImageUpload': true,
+    };
+  }
+
+  /// Analyzes room image/video and provides personalized recommendations
+  Future<Map<String, dynamic>> analyzeRoomAndRecommend({
+    required Uint8List imageData,
+    String? userMessage,
+    String? mimeType,
+  }) async {
+    try {
+      final userProfile = await getUserProfile();
+      final allProducts = await getAllProducts();
+      
+      // Prepare the prompt for room analysis
+      final analysisPrompt = '''
+You are Arti, an enthusiastic interior design assistant for a handcrafted marketplace! 🏠✨
+
+ANALYZE this room image and provide:
+1. A warm, personal greeting about their beautiful space
+2. Room characteristics (style, colors, lighting, size, current decor)
+3. What's missing or could be enhanced
+4. Specific product recommendations from our database
+
+PERSONALITY: 
+- Warm, excited, and appreciative
+- Use the user's name if available: ${userProfile?['name'] ?? 'friend'}
+- Be specific about what you see
+- Create excitement about the potential
+
+USER CONTEXT: ${userProfile != null ? userProfile.toString() : 'New user'}
+USER MESSAGE: ${userMessage ?? 'Please analyze my room'}
+
+RESPONSE FORMAT:
+🏠 [Warm greeting about their room - be specific about what you see]
+🎨 [Room analysis - style, colors, mood, strengths] 
+✨ [Enhancement suggestions - what would make it even better]
+🛍️ [Product recommendations - be specific about placement and why they'd work]
+
+Available Products: ${allProducts.map((p) => {
+        'id': p.id,
+        'name': p.name,
+        'category': p.category,
+        'price': p.price,
+        'materials': p.materials,
+        'description': p.description,
+      }).toList()}
+
+Focus on home decor, pottery, art pieces, and decorative items that would enhance their space!
+''';
+
+      // Create the vision model request
+      final content = [
+        Content.multi([
+          TextPart(analysisPrompt),
+          DataPart(mimeType ?? 'image/jpeg', imageData),
+        ])
+      ];
+
+      final response = await _model.generateContent(content);
+      final responseText = response.text ?? 
+        '🏠 What a lovely space you have! Let me suggest some beautiful handcrafted pieces that would enhance your room perfectly! ✨';
+
+      // Extract recommended products based on the response
+      final recommendedProducts = _extractProductsFromRoomAnalysis(
+        allProducts, 
+        responseText, 
+        userMessage ?? ''
+      );
+
+      return {
+        'textResponse': responseText,
+        'recommendedProducts': recommendedProducts,
+        'hasProducts': recommendedProducts.isNotEmpty,
+        'actions': recommendedProducts.isNotEmpty 
+          ? ['View Products', 'Get More Suggestions'] 
+          : ['Browse Home Decor', 'Upload Another Photo'],
+        'responseType': 'room_analysis',
+        'roomAnalysis': true,
+      };
+
+    } catch (e) {
+      return {
+        'textResponse': '🏠 I love seeing your space! While I\'m having trouble analyzing the image right now, I can still help you find beautiful handcrafted pieces for your home. What style are you going for? 🎨',
+        'recommendedProducts': await _getHomeDecorProducts(),
+        'hasProducts': true,
+        'actions': ['Browse Home Decor', 'Try Upload Again'],
+        'responseType': 'room_analysis_error',
+        'roomAnalysis': true,
+      };
+    }
+  }
+
+  /// Analyzes room video and provides personalized recommendations
+  Future<Map<String, dynamic>> analyzeRoomVideoAndRecommend({
+    required Uint8List videoData,
+    String? userMessage,
+    String? mimeType,
+  }) async {
+    try {
+      final userProfile = await getUserProfile();
+      final allProducts = await getAllProducts();
+      
+      // Prepare the prompt for room video analysis
+      final analysisPrompt = '''
+You are Arti, an enthusiastic interior design assistant for a handcrafted marketplace! 🏠✨
+
+ANALYZE this room video and provide:
+1. A warm, personal greeting about their beautiful space
+2. Room tour analysis (different angles, lighting, flow, functionality)
+3. Style assessment and mood of the space
+4. Enhancement opportunities you noticed
+5. Specific product recommendations from our database
+
+PERSONALITY: 
+- Warm, excited, and appreciative
+- Use the user's name if available: ${userProfile?['name'] ?? 'friend'}
+- Comment on the room tour experience
+- Create excitement about transformation possibilities
+
+USER CONTEXT: ${userProfile != null ? userProfile.toString() : 'New user'}
+USER MESSAGE: ${userMessage ?? 'Please analyze my room'}
+
+RESPONSE FORMAT:
+🎬 [Greeting about their amazing room tour]
+🏠 [Room flow and layout analysis - what you noticed from different angles]
+🎨 [Style and color analysis across the space]
+✨ [Enhancement suggestions for different areas]
+🛍️ [Product recommendations with specific placement ideas]
+
+Available Products: ${allProducts.map((p) => {
+        'id': p.id,
+        'name': p.name,
+        'category': p.category,
+        'price': p.price,
+        'materials': p.materials,
+        'description': p.description,
+      }).toList()}
+
+Focus on pieces that would enhance the flow and aesthetic of their space!
+''';
+
+      // Create the vision model request for video
+      final content = [
+        Content.multi([
+          TextPart(analysisPrompt),
+          DataPart(mimeType ?? 'video/mp4', videoData),
+        ])
+      ];
+
+      final response = await _model.generateContent(content);
+      final responseText = response.text ?? 
+        '🎬 Thanks for the amazing room tour! I can see so much potential in your space. Let me suggest some beautiful handcrafted pieces that would enhance different areas! ✨';
+
+      // Extract recommended products based on the response
+      final recommendedProducts = _extractProductsFromRoomAnalysis(
+        allProducts, 
+        responseText, 
+        userMessage ?? ''
+      );
+
+      return {
+        'textResponse': responseText,
+        'recommendedProducts': recommendedProducts,
+        'hasProducts': recommendedProducts.isNotEmpty,
+        'actions': recommendedProducts.isNotEmpty 
+          ? ['View Products', 'Get More Suggestions'] 
+          : ['Browse Home Decor', 'Upload Another Video'],
+        'responseType': 'room_video_analysis',
+        'roomAnalysis': true,
+      };
+
+    } catch (e) {
+      return {
+        'textResponse': '🎬 What an interesting room tour! While I\'m having trouble analyzing the video right now, I can still help you find beautiful handcrafted pieces for your home. Tell me about your style preferences! 🎨',
+        'recommendedProducts': await _getHomeDecorProducts(),
+        'hasProducts': true,
+        'actions': ['Browse Home Decor', 'Try Upload Again'],
+        'responseType': 'room_video_analysis_error',
+        'roomAnalysis': true,
+      };
+    }
+  }
+
   Map<String, dynamic>? _checkFAQ(String prompt) {
     for (final faq in faqData.entries) {
       final keywords = faq.value['keywords'] as List<String>;
@@ -156,7 +364,11 @@ class ChatbotService {
       'show', 'recommend', 'suggest', 'looking for', 'want', 'buy', 'purchase',
       'pottery', 'jewelry', 'home decor', 'accessories', 'art', 'handmade',
       'gift', 'trending', 'popular', 'cheap', 'expensive', 'under', 'price',
-      'type of products', 'what products', 'browse products'
+      'type of products', 'what products', 'browse products',
+      // Room and interior design keywords
+      'room', 'living room', 'bedroom', 'kitchen', 'dining room', 'bathroom',
+      'decorate', 'decoration', 'interior', 'furniture', 'wall art', 'lighting',
+      'centerpiece', 'accent', 'style my room', 'room makeover', 'home styling'
     ];
     return productKeywords.any((keyword) => prompt.contains(keyword));
   }
@@ -169,26 +381,29 @@ class ChatbotService {
       response = '🗺️ I can help you navigate Arti! Here\'s what you can do:\n\n'
                 '📱 Browse handcrafted products\n'
                 '🛠️ Use "Craft It" for custom orders\n'
-                '📋 Check your orders and requests\n'
+                '� Upload room photos for personalized decor suggestions\n'
+                '�📋 Check your orders and requests\n'
                 '👤 Manage your profile\n\n'
                 'What would you like to explore?';
-      actions = ['Browse Products', 'Craft It', 'My Orders', 'Profile'];
+      actions = ['Browse Products', 'Craft It', 'Upload Room Photo', 'My Orders', 'Profile'];
     } else if (prompt.contains('help')) {
       response = '💡 I\'m here to help! I can assist you with:\n\n'
                 '🛍️ Finding perfect products\n'
+                '🏠 Analyzing your room for decor suggestions\n'
                 '❓ Answering questions about Arti\n'
                 '🛠️ Guiding you through Craft It\n'
                 '📦 Order and shipping info\n\n'
                 'What do you need help with?';
-      actions = ['Product Help', 'Craft It Help', 'Order Help', 'General FAQ'];
+      actions = ['Product Help', 'Room Analysis', 'Craft It Help', 'Order Help', 'General FAQ'];
     } else {
       response = '🤔 I\'m not sure I understand. Try asking me about:\n\n'
                 '• Products you\'re looking for\n'
+                '• Uploading room photos for decor suggestions\n'
                 '• How Arti works\n'
                 '• Craft It custom orders\n'
                 '• Your orders and account\n\n'
                 'Or simply say "help" for more options!';
-      actions = ['Help', 'Browse Products', 'Craft It'];
+      actions = ['Help', 'Browse Products', 'Upload Room Photo', 'Craft It'];
     }
     
     return {
@@ -213,11 +428,12 @@ class ChatbotService {
                        '🎭 Art & Sculptures\n'
                        '🧵 Textiles & Fabrics\n'
                        '🎁 Gift Items\n\n'
-                       'Which category catches your eye? Or tell me what you\'re shopping for! ✨',
+                       'Which category catches your eye? Or better yet, upload a photo of your room and I\'ll suggest pieces that match your style perfectly! 📸✨',
         'recommendedProducts': <Product>[],
         'hasProducts': false,
-        'actions': ['🏺 Pottery', '💎 Jewelry', '🏠 Home Decor', '🎭 Art Pieces', '🎁 Gifts'],
-        'responseType': 'categories'
+        'actions': ['📸 Upload Room Photo', '🏺 Pottery', '💎 Jewelry', '🏠 Home Decor', '🎭 Art Pieces', '🎁 Gifts'],
+        'responseType': 'categories',
+        'showImageUpload': true,
       };
     }
     
@@ -368,6 +584,146 @@ class ChatbotService {
         .where((entry) => entry.value > 0)
         .take(3)
         .map((entry) => entry.key)
+        .toList();
+  }
+
+  /// Extracts relevant products from room analysis response
+  List<Product> _extractProductsFromRoomAnalysis(
+    List<Product> allProducts, 
+    String analysisResponse, 
+    String userMessage
+  ) {
+    final responseLower = analysisResponse.toLowerCase();
+    final messageLower = userMessage.toLowerCase();
+    
+    // Look for specific product recommendations in the AI response
+    final scoredProducts = allProducts.map((product) {
+      int score = 0;
+      final productName = product.name.toLowerCase();
+      final productCategory = product.category.toLowerCase();
+      final productDescription = product.description.toLowerCase();
+      
+      // Prioritize home decor and room-relevant categories
+      if (_isRoomRelevantCategory(product.category)) {
+        score += 40;
+      }
+      
+      // Check if AI response mentions this product or category
+      if (responseLower.contains(productName)) {
+        score += 60;
+      }
+      if (responseLower.contains(productCategory)) {
+        score += 30;
+      }
+      
+      // Look for style matches in the analysis
+      final styleKeywords = ['modern', 'traditional', 'minimalist', 'rustic', 'contemporary', 'vintage', 'bohemian', 'industrial'];
+      for (final style in styleKeywords) {
+        if (responseLower.contains(style) && 
+            (productDescription.contains(style) || productName.contains(style))) {
+          score += 25;
+        }
+      }
+      
+      // Color analysis
+      final colors = ['blue', 'red', 'green', 'yellow', 'white', 'black', 'brown', 'grey', 'gold', 'silver', 'orange', 'purple'];
+      for (final color in colors) {
+        if (responseLower.contains(color) && 
+            (productDescription.contains(color) || productName.contains(color))) {
+          score += 20;
+        }
+      }
+      
+      // Room type matching
+      final roomTypes = ['living room', 'bedroom', 'kitchen', 'dining', 'bathroom', 'office', 'study'];
+      for (final room in roomTypes) {
+        if (messageLower.contains(room) || responseLower.contains(room)) {
+          if (_isProductSuitableForRoom(product, room)) {
+            score += 15;
+          }
+        }
+      }
+      
+      // Material preferences
+      for (final material in product.materials) {
+        if (responseLower.contains(material.toLowerCase())) {
+          score += 10;
+        }
+      }
+      
+      return MapEntry(product, score);
+    }).toList();
+    
+    // Sort by score and return top 4 products for room recommendations
+    scoredProducts.sort((a, b) => b.value.compareTo(a.value));
+    
+    return scoredProducts
+        .where((entry) => entry.value > 0)
+        .take(4)
+        .map((entry) => entry.key)
+        .toList();
+  }
+
+  /// Checks if a product category is relevant for room decoration
+  bool _isRoomRelevantCategory(String category) {
+    final roomCategories = [
+      'home decor', 'home & living', 'decor', 'furniture', 
+      'lighting', 'wall art', 'pottery', 'ceramics', 
+      'textiles', 'art', 'sculptures', 'vases', 'plants'
+    ];
+    
+    return roomCategories.any((roomCat) => 
+      category.toLowerCase().contains(roomCat) || 
+      roomCat.contains(category.toLowerCase())
+    );
+  }
+
+  /// Determines if a product is suitable for a specific room type
+  bool _isProductSuitableForRoom(Product product, String roomType) {
+    final productLower = '${product.name} ${product.description} ${product.category}'.toLowerCase();
+    
+    switch (roomType.toLowerCase()) {
+      case 'living room':
+        return productLower.contains('sofa') || 
+               productLower.contains('cushion') ||
+               productLower.contains('table') ||
+               productLower.contains('lamp') ||
+               productLower.contains('wall art') ||
+               productLower.contains('decoration');
+      
+      case 'bedroom':
+        return productLower.contains('bed') ||
+               productLower.contains('nightstand') ||
+               productLower.contains('lamp') ||
+               productLower.contains('mirror') ||
+               productLower.contains('dresser');
+      
+      case 'kitchen':
+        return productLower.contains('kitchen') ||
+               productLower.contains('dining') ||
+               productLower.contains('pottery') ||
+               productLower.contains('ceramic') ||
+               productLower.contains('bowl') ||
+               productLower.contains('plate');
+      
+      case 'dining':
+        return productLower.contains('dining') ||
+               productLower.contains('table') ||
+               productLower.contains('chair') ||
+               productLower.contains('centerpiece') ||
+               productLower.contains('pottery');
+      
+      default:
+        return _isRoomRelevantCategory(product.category);
+    }
+  }
+
+  /// Gets home decor products as fallback
+  Future<List<Product>> _getHomeDecorProducts() async {
+    final allProducts = await getAllProducts();
+    return allProducts
+        .where((product) => _isRoomRelevantCategory(product.category))
+        .take(4)
         .toList();
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import '../services/chatbot_service.dart';
 import '../models/product.dart';
 import 'product_detail_screen.dart';
@@ -34,6 +36,7 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
   final List<String> quickActions = [
     '🎁 Gift Ideas',
     '🏠 Home Decor',
+    '📸 Room Analysis',
     '🏺 Pottery',
     '👜 Accessories',
     '🎨 Art Pieces',
@@ -50,13 +53,23 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
       vsync: this,
     )..repeat();
     
-    // Add simple and engaging welcome message
-    _messages.add({
-      'sender': 'bot',
-      'text': '👋 Hello! I\'m Arti, your shopping assistant!\n\nI\'m here to help you find amazing handcrafted treasures. What are you looking for today? ✨',
-      'products': <Product>[],
-      'hasProducts': false,
-      'timestamp': DateTime.now(),
+    // Add enhanced welcome message
+    _loadWelcomeMessage();
+  }
+
+  void _loadWelcomeMessage() async {
+    final welcomeResponse = await _chatbotService.getWelcomeMessage();
+    setState(() {
+      _messages.add({
+        'sender': 'bot',
+        'text': welcomeResponse['textResponse'],
+        'products': welcomeResponse['recommendedProducts'] ?? <Product>[],
+        'hasProducts': welcomeResponse['hasProducts'] ?? false,
+        'actions': welcomeResponse['actions'] ?? <String>[],
+        'responseType': welcomeResponse['responseType'] ?? 'welcome',
+        'showImageUpload': welcomeResponse['showImageUpload'] ?? false,
+        'timestamp': DateTime.now(),
+      });
     });
   }
   
@@ -112,11 +125,348 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
         'hasProducts': response['hasProducts'] ?? false,
         'actions': response['actions'] ?? <String>[],
         'responseType': response['responseType'] ?? 'general',
+        'showImageUpload': response['showImageUpload'] ?? false,
         'timestamp': DateTime.now(),
       });
       _isLoading = false;
     });
     _scrollToBottom();
+  }
+
+  void _pickImageForRoomAnalysis() async {
+    final ImagePicker picker = ImagePicker();
+    
+    // Show enhanced options dialog with tips
+    final result = await showDialog<Map<String, dynamic>?>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      backgroundBrown.withOpacity(0.1),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                // Header with camera emoji and title
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [accentGold, accentGold.withOpacity(0.8)],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '📸 Upload Room Photo/Video',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: primaryBrown,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Choose how you\'d like to share your room with me:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                
+                // Photo options
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: backgroundBrown.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: lightBrown.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '📷 PHOTOS',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: primaryBrown,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildOptionButton(
+                              icon: Icons.camera_alt,
+                              label: 'Take Photo',
+                              description: 'Capture live',
+                              onTap: () => Navigator.pop(context, {
+                                'type': 'image',
+                                'source': ImageSource.camera,
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildOptionButton(
+                              icon: Icons.photo_library,
+                              label: 'From Gallery',
+                              description: 'Choose existing',
+                              onTap: () => Navigator.pop(context, {
+                                'type': 'image',
+                                'source': ImageSource.gallery,
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Video options
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accentGold.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: accentGold.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '🎬 VIDEOS',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: primaryBrown,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildOptionButton(
+                              icon: Icons.videocam,
+                              label: 'Record Video',
+                              description: 'Room tour',
+                              onTap: () => Navigator.pop(context, {
+                                'type': 'video',
+                                'source': ImageSource.camera,
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildOptionButton(
+                              icon: Icons.video_library,
+                              label: 'From Gallery',
+                              description: 'Choose existing',
+                              onTap: () => Navigator.pop(context, {
+                                'type': 'video',
+                                'source': ImageSource.gallery,
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Tips section
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.blue[700],
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Tip: Include furniture, lighting, and decor for better recommendations!',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Cancel button
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ], // Column children
+            ), // Column
+          ), // Container
+        ), // SingleChildScrollView
+      ), // ConstrainedBox
+    ); // Dialog
+      },
+    );
+
+    if (result == null) return;
+
+    try {
+      final String mediaType = result['type'];
+      final ImageSource source = result['source'];
+      
+      // Show photography tips before capture
+      if (source == ImageSource.camera) {
+        final shouldProceed = await _showPhotographyTips(mediaType);
+        if (!shouldProceed) return;
+      }
+
+      XFile? mediaFile;
+      
+      if (mediaType == 'video') {
+        mediaFile = await picker.pickVideo(
+          source: source,
+          maxDuration: const Duration(minutes: 2),
+        );
+      } else {
+        mediaFile = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
+      }
+
+      if (mediaFile != null) {
+        setState(() {
+          _isLoading = true;
+          _messages.add({
+            'sender': 'user',
+            'text': mediaType == 'video' 
+              ? '🎬 Room video uploaded! Please analyze my space and suggest products.'
+              : '📸 Room photo uploaded! Please analyze my space and suggest products.',
+            'products': <Product>[],
+            'hasProducts': false,
+            'timestamp': DateTime.now(),
+          });
+        });
+
+        // Add typing indicator
+        setState(() {
+          _messages.add({
+            'sender': 'bot',
+            'text': 'typing',
+            'products': <Product>[],
+            'hasProducts': false,
+            'isTyping': true,
+            'timestamp': DateTime.now(),
+          });
+        });
+        _scrollToBottom();
+
+        // Get media bytes and analyze
+        final Uint8List mediaBytes = await mediaFile.readAsBytes();
+        
+        Map<String, dynamic> response;
+        if (mediaType == 'video') {
+          response = await _chatbotService.analyzeRoomVideoAndRecommend(
+            videoData: mediaBytes,
+            userMessage: 'Please analyze my room video and suggest products',
+            mimeType: 'video/mp4',
+          );
+        } else {
+          response = await _chatbotService.analyzeRoomAndRecommend(
+            imageData: mediaBytes,
+            userMessage: 'Please analyze my room photo and suggest products',
+            mimeType: 'image/jpeg',
+          );
+        }
+
+        setState(() {
+          // Remove typing indicator
+          _messages.removeWhere((msg) => msg['isTyping'] == true);
+          
+          _messages.add({
+            'sender': 'bot',
+            'text': response['textResponse'],
+            'products': response['recommendedProducts'] ?? <Product>[],
+            'hasProducts': response['hasProducts'] ?? false,
+            'actions': response['actions'] ?? <String>[],
+            'responseType': response['responseType'] ?? 'room_analysis',
+            'roomAnalysis': response['roomAnalysis'] ?? false,
+            'timestamp': DateTime.now(),
+          });
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _messages.add({
+          'sender': 'bot',
+          'text': '😅 I had trouble analyzing your ${result['type']}. Please try uploading again or describe your room to me!',
+          'products': <Product>[],
+          'hasProducts': false,
+          'actions': ['📸 Try Again', 'Browse Home Decor'],
+          'timestamp': DateTime.now(),
+        });
+      });
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -264,7 +614,13 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
               itemBuilder: (context, index) {
                 final action = quickActions[index];
                 return GestureDetector(
-                  onTap: () => _sendMessage(action),
+                  onTap: () {
+                    if (action == '📸 Room Analysis') {
+                      _pickImageForRoomAnalysis();
+                    } else {
+                      _sendMessage(action);
+                    }
+                  },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     child: Column(
@@ -332,6 +688,42 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
       child: SafeArea(
         child: Row(
           children: [
+            // Camera/Gallery Upload Button
+            Tooltip(
+              message: 'Upload room photo or video for personalized recommendations',
+              child: Container(
+                width: 48,
+                height: 48,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [accentGold, accentGold.withOpacity(0.8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentGold.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: _isLoading ? null : _pickImageForRoomAnalysis,
+                    child: const Icon(
+                      Icons.camera_alt_outlined,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -794,6 +1186,12 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
       case 'view all products':
         _sendMessage('What type of products are you looking for?');
         break;
+      case '📸 room analysis':
+      case 'room analysis':
+      case '📸 upload room photo':
+      case 'upload room photo':
+        _pickImageForRoomAnalysis();
+        break;
       case '🏺 pottery':
       case 'pottery':
         _sendMessage('Show me pottery items');
@@ -879,5 +1277,225 @@ class _BuyerChatbotScreenState extends State<BuyerChatbotScreen> with TickerProv
         _sendMessage(action);
         break;
     }
+  }
+
+  // Helper method for building option buttons in the dialog
+  Widget _buildOptionButton({
+    required IconData icon,
+    required String label,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: lightBrown.withOpacity(0.2),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryBrown.withOpacity(0.08),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: primaryBrown,
+                size: 24,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: primaryBrown,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Photography tips dialog
+  Future<bool> _showPhotographyTips(String mediaType) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white,
+                  backgroundBrown.withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.blue.shade300],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    mediaType == 'video' ? Icons.videocam : Icons.camera_alt,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  mediaType == 'video' ? '🎬 Video Tips' : '📸 Photo Tips',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: primaryBrown,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'For the best room analysis results:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Tips container
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: backgroundBrown.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTipItem('💡', 'Include good lighting - natural light works best'),
+                      _buildTipItem('🏠', 'Show the entire room or main areas'),
+                      _buildTipItem('🪑', 'Capture existing furniture and decor'),
+                      _buildTipItem('🔍', 'Keep the camera steady and focused'),
+                      if (mediaType == 'video') ...[
+                        _buildTipItem('🎬', 'Slowly pan around the room'),
+                        _buildTipItem('⏱️', 'Keep it under 2 minutes'),
+                      ] else ...[
+                        _buildTipItem('📐', 'Take from multiple angles if needed'),
+                        _buildTipItem('🔄', 'Hold phone horizontally for wider view'),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBrown,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Got it! Continue',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    
+    return result ?? false;
+  }
+
+  Widget _buildTipItem(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            emoji,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: primaryBrown,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
