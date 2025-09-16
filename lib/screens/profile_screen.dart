@@ -43,24 +43,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final photoUrl = user?.photoURL;
     final displayName = user?.displayName ?? 'User';
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'My Profile',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF2C1810),
-      ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(
@@ -68,15 +55,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Profile Header
                   _buildProfileHeader(photoUrl, displayName, user?.email ?? ''),
                   const SizedBox(height: 30),
-                  
+
                   // Statistics Cards
                   _buildStatsSection(),
                   const SizedBox(height: 30),
-                  
+
                   // Action Buttons
                   _buildActionButtons(context),
                   const SizedBox(height: 30),
-                  
+
                   // Account Information
                   _buildAccountInfo(user),
                 ],
@@ -86,7 +73,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(String? photoUrl, String displayName, String email) {
+  Widget _buildProfileHeader(
+      String? photoUrl, String displayName, String email) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -215,7 +203,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -290,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Account Settings Button
         SizedBox(
           width: double.infinity,
@@ -348,10 +337,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 15),
           _buildInfoRow('Email', user?.email ?? 'Not provided'),
           _buildInfoRow('Phone', user?.phoneNumber ?? 'Not provided'),
-          _buildInfoRow('Member Since', _formatDate(user?.metadata.creationTime)),
-          _buildInfoRow('Last Sign In', _formatDate(user?.metadata.lastSignInTime)),
+          _buildInfoRow(
+              'Member Since', _formatDate(user?.metadata.creationTime)),
+          _buildInfoRow(
+              'Last Sign In', _formatDate(user?.metadata.lastSignInTime)),
           const SizedBox(height: 20),
-          
+
           // Logout Button
           SizedBox(
             width: double.infinity,
@@ -361,13 +352,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await UserProfileService.trackUserActivity('logout', {
                     'timestamp': DateTime.now().toIso8601String(),
                   });
-                  
+
                   // Sign out from Firebase
                   await FirebaseAuth.instance.signOut();
-                  
+
                   // Clear stored authentication state
                   await StorageService.clearUserType();
-                  
+
                   // Navigate to login screen
                   Navigator.pushNamedAndRemoveUntil(
                       context, '/login', (route) => false);
@@ -471,7 +462,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: const Icon(Icons.notifications_outlined, color: Color(0xFF2C1810)),
+              leading: const Icon(Icons.notifications_outlined,
+                  color: Color(0xFF2C1810)),
               title: const Text('Notifications'),
               subtitle: const Text('Manage your notification preferences'),
               trailing: const Icon(Icons.chevron_right),
@@ -481,7 +473,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.security_outlined, color: Color(0xFF2C1810)),
+              leading:
+                  const Icon(Icons.security_outlined, color: Color(0xFF2C1810)),
               title: const Text('Privacy & Security'),
               subtitle: const Text('Manage your privacy settings'),
               trailing: const Icon(Icons.chevron_right),

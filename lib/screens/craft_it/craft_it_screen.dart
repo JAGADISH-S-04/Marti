@@ -1,7 +1,6 @@
 // ignore_for_file: unnecessary_null_comparison
 
-import 'package:arti/screens/craft_it/notfication_screen_customer.dart';
-import 'package:arti/screens/craft_it/notification_service.dart';
+import 'package:arti/widgets/notification_app_bar_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +10,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'request_details_screen.dart';
 import 'chat_screen.dart';
+import '../../utils/deadline_utils.dart';
 
 class CraftItScreen extends StatefulWidget {
   final int initialTab;
@@ -55,57 +55,8 @@ class _CraftItScreenState extends State<CraftItScreen>
           ),
         ),
         actions: [
-          StreamBuilder<int>(
-            // Stream providing unread notification count for current user
-            stream: FirebaseAuth.instance.currentUser != null
-                ? NotificationService.getUnreadNotificationCount(
-                    FirebaseAuth.instance.currentUser!.uid)
-                : Stream.value(0),
-            builder: (context, snapshot) {
-              final unreadCount = snapshot.data ?? 0;
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CustomerNotificationsScreen(),
-                        ),
-                      );
-                    },
-                    tooltip: 'Notifications',
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          unreadCount > 99 ? '99+' : unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          const NotificationAppBarIcon(),
+          const SizedBox(width: 8),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -165,11 +116,11 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
-  final TextEditingController _deadlineController = TextEditingController();
 
   String _selectedCategory = 'Pottery';
   List<File> _selectedImages = [];
   bool _isLoading = false;
+  DateTime? _selectedDeadline;
 
   final List<String> _categories = [
     'Pottery',
@@ -276,6 +227,37 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate deadline is selected
+    if (_selectedDeadline == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select a deadline for your request'),
+          backgroundColor: Colors.red,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // Check if deadline is at least 24 hours from now
+    final now = DateTime.now();
+    if (_selectedDeadline!.isBefore(now.add(const Duration(hours: 24)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Deadline must be at least 24 hours from now'),
+          backgroundColor: Colors.red,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -320,7 +302,9 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
         'description': _descriptionController.text.trim(),
         'category': _selectedCategory,
         'budget': double.tryParse(_budgetController.text.trim()) ?? 0.0,
-        'deadline': _deadlineController.text.trim(),
+        'deadline': _selectedDeadline != null
+            ? Timestamp.fromDate(_selectedDeadline!)
+            : null,
         'images': imageUrls,
         'buyerId': user.uid, // Changed from userId to buyerId
         'userEmail': user.email,
@@ -333,10 +317,10 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
       _titleController.clear();
       _descriptionController.clear();
       _budgetController.clear();
-      _deadlineController.clear();
       setState(() {
         _selectedImages.clear();
         _selectedCategory = 'Pottery';
+        _selectedDeadline = null;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -465,12 +449,7 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
                 ),
                 SizedBox(width: screenSize.width * 0.04),
                 Expanded(
-                  child: _buildTextField(
-                    controller: _deadlineController,
-                    label: 'Deadline',
-                    hint: 'e.g., 2 weeks',
-                    icon: Icons.schedule,
-                  ),
+                  child: _buildDatePickerField(),
                 ),
               ],
             ),
@@ -572,6 +551,291 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
         });
       },
     );
+  }
+
+  Widget _buildDatePickerField() {
+    final screenSize = MediaQuery.of(context).size;
+    final isTablet = screenSize.width > 600;
+    final isSmallScreen = screenSize.width < 360;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: widget.primaryBrown.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          onTap: () async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: context,
+              initialDate:
+                  _selectedDeadline ?? now.add(const Duration(days: 7)),
+              firstDate: now,
+              lastDate: now.add(const Duration(days: 365)),
+              helpText: 'Select Deadline',
+              cancelText: 'Cancel',
+              confirmText: 'Set Deadline',
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: widget.primaryBrown,
+                      onPrimary: Colors.white,
+                      onSurface: Colors.black,
+                      surface: Colors.white,
+                    ),
+                    textButtonTheme: TextButtonThemeData(
+                      style: TextButton.styleFrom(
+                        foregroundColor: widget.primaryBrown,
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    dialogTheme: DialogTheme(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 10,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (picked != null) {
+              setState(() {
+                _selectedDeadline = picked;
+              });
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.all(isTablet
+                ? 20
+                : isSmallScreen
+                    ? 12
+                    : 16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _selectedDeadline != null
+                    ? widget.primaryBrown.withOpacity(0.3)
+                    : widget.lightBrown.withOpacity(0.3),
+                width: _selectedDeadline != null ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(15),
+              color: Colors.white,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Label and Clear Button Row
+                Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      color: _selectedDeadline != null
+                          ? widget.primaryBrown
+                          : Colors.grey.shade600,
+                      size: isTablet ? 24 : 20,
+                    ),
+                    SizedBox(width: isSmallScreen ? 6 : 8),
+                    Expanded(
+                      child: Text(
+                        'Deadline *',
+                        style: TextStyle(
+                          fontSize: isTablet
+                              ? 16
+                              : isSmallScreen
+                                  ? 13
+                                  : 14,
+                          fontWeight: FontWeight.w600,
+                          color: _selectedDeadline != null
+                              ? widget.primaryBrown
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                    if (_selectedDeadline != null)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedDeadline = null;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.clear,
+                            color: Colors.grey.shade600,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: isSmallScreen ? 8 : 12),
+
+                // Date Display
+                if (_selectedDeadline != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
+                    decoration: BoxDecoration(
+                      color: widget.primaryBrown.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: widget.primaryBrown.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              color: widget.primaryBrown,
+                              size: isTablet ? 18 : 14,
+                            ),
+                            SizedBox(width: isSmallScreen ? 6 : 8),
+                            Expanded(
+                              child: Text(
+                                _formatSelectedDate(_selectedDeadline!),
+                                style: TextStyle(
+                                  fontSize: isTablet
+                                      ? 16
+                                      : isSmallScreen
+                                          ? 13
+                                          : 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.primaryBrown,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: isSmallScreen ? 6 : 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: isSmallScreen ? 6 : 8,
+                                vertical: isSmallScreen ? 3 : 4),
+                            decoration: BoxDecoration(
+                              color: widget.primaryBrown,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _getDaysUntilDeadline(_selectedDeadline!),
+                              style: TextStyle(
+                                fontSize: isTablet
+                                    ? 12
+                                    : isSmallScreen
+                                        ? 10
+                                        : 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isSmallScreen ? 8 : 12,
+                        vertical: isSmallScreen ? 8 : 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.touch_app,
+                          color: Colors.grey.shade500,
+                          size: isTablet ? 20 : 16,
+                        ),
+                        SizedBox(width: isSmallScreen ? 6 : 8),
+                        Expanded(
+                          child: Text(
+                            isSmallScreen
+                                ? 'Tap to select'
+                                : 'Tap to select deadline date',
+                            style: TextStyle(
+                              fontSize: isTablet
+                                  ? 15
+                                  : isSmallScreen
+                                      ? 12
+                                      : 14,
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatSelectedDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${date.day} ${months[date.month - 1]}, ${date.year}';
+  }
+
+  String _getDaysUntilDeadline(DateTime deadline) {
+    final now = DateTime.now();
+    final difference = deadline.difference(now).inDays;
+
+    if (difference == 0) {
+      return 'Today';
+    } else if (difference == 1) {
+      return 'Tomorrow';
+    } else {
+      return '$difference days';
+    }
   }
 
   Widget _buildImageUploadSection() {
@@ -694,7 +958,6 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
     _titleController.dispose();
     _descriptionController.dispose();
     _budgetController.dispose();
-    _deadlineController.dispose();
     super.dispose();
   }
 }
@@ -872,20 +1135,20 @@ class RequestCard extends StatelessWidget {
     return true;
   }
 
-bool _canCancelAcceptedQuotation() {
-  final acceptedAt = data['acceptedAt'] as Timestamp?;
-  if (acceptedAt == null) return false;
+  bool _canCancelAcceptedQuotation() {
+    final acceptedAt = data['acceptedAt'] as Timestamp?;
+    if (acceptedAt == null) return false;
 
-  // Don't allow cancellation if request is completed
-  final status = data['status']?.toString().toLowerCase() ?? 'open';
-  if (status == 'completed') return false;
+    // Don't allow cancellation if request is completed
+    final status = data['status']?.toString().toLowerCase() ?? 'open';
+    if (status == 'completed') return false;
 
-  final now = DateTime.now();
-  final acceptedTime = acceptedAt.toDate();
-  final difference = now.difference(acceptedTime);
+    final now = DateTime.now();
+    final acceptedTime = acceptedAt.toDate();
+    final difference = now.difference(acceptedTime);
 
-  return difference.inHours < 24;
-}
+    return difference.inHours < 24;
+  }
 
   String _getTimeRemaining(Timestamp timestamp) {
     final now = DateTime.now();
@@ -1217,6 +1480,10 @@ bool _canCancelAcceptedQuotation() {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
+          const SizedBox(height: 12),
+
+          // Deadline Status
+          _buildDeadlineInfo(),
           const SizedBox(height: 16),
 
           // Show accepted quotation if exists
@@ -1248,8 +1515,8 @@ bool _canCancelAcceptedQuotation() {
                       ),
                       if (canCancelAcceptedQuotation)
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.red.shade100,
                             borderRadius: BorderRadius.circular(4),
@@ -1342,7 +1609,8 @@ bool _canCancelAcceptedQuotation() {
               ),
               if (quotations.isNotEmpty && !isAccepted) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(6),
@@ -1456,8 +1724,8 @@ bool _canCancelAcceptedQuotation() {
                         }
                       },
                       child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1483,8 +1751,8 @@ bool _canCancelAcceptedQuotation() {
                     InkWell(
                       onTap: () => _cancelRequest(context),
                       child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(6),
@@ -1521,7 +1789,8 @@ bool _canCancelAcceptedQuotation() {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: primaryBrown,
                         borderRadius: BorderRadius.circular(6),
@@ -1539,7 +1808,8 @@ bool _canCancelAcceptedQuotation() {
                           const SizedBox(width: 4),
                           Text(
                             quotations.isNotEmpty ? 'View' : 'Details',
-                            style: const TextStyle(fontSize: 11, color: Colors.white),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.white),
                           ),
                         ],
                       ),
@@ -1548,6 +1818,95 @@ bool _canCancelAcceptedQuotation() {
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeadlineInfo() {
+    final deadline = data['deadline'];
+    if (deadline == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Text(
+              'No deadline set',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final deadlineStatus = DeadlineUtils.getDeadlineStatus(deadline);
+    final formattedDeadline = DeadlineUtils.formatDeadlineWithTime(deadline);
+    final isExpired = DeadlineUtils.isDeadlinePassed(deadline);
+
+    Color backgroundColor;
+    Color borderColor;
+    Color textColor;
+    IconData icon;
+
+    switch (deadlineStatus) {
+      case 'expired':
+        backgroundColor = Colors.red.shade50;
+        borderColor = Colors.red.shade300;
+        textColor = Colors.red.shade700;
+        icon = Icons.access_time_filled;
+        break;
+      case 'urgent':
+        backgroundColor = Colors.orange.shade50;
+        borderColor = Colors.orange.shade300;
+        textColor = Colors.orange.shade700;
+        icon = Icons.warning;
+        break;
+      case 'warning':
+        backgroundColor = Colors.yellow.shade50;
+        borderColor = Colors.yellow.shade600;
+        textColor = Colors.yellow.shade800;
+        icon = Icons.schedule;
+        break;
+      default:
+        backgroundColor = Colors.green.shade50;
+        borderColor = Colors.green.shade300;
+        textColor = Colors.green.shade700;
+        icon = Icons.schedule;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              isExpired
+                  ? 'Deadline expired: ${DeadlineUtils.formatDeadline(deadline)}'
+                  : formattedDeadline,
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
