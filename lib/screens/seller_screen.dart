@@ -4,6 +4,8 @@ import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
 import 'package:arti/models/product.dart';
+import 'package:arti/widgets/notification_app_bar_icon.dart';
+import 'package:arti/notifications/models/notification_type.dart';
 import 'package:arti/widgets/review_widgets.dart';
 import 'package:arti/screens/product_reviews_management_screen.dart';
 import 'package:flutter/material.dart';
@@ -115,7 +117,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     try {
       // Convert Map to Product object
       final product = _mapToProduct(productData);
-      
+
       // Navigate to the enhanced product listing page with the product data
       final result = await Navigator.push(
         context,
@@ -123,7 +125,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           builder: (context) => EnhancedProductListingPage(product: product),
         ),
       );
-      
+
       // Refresh the products list if the product was updated
       if (result == true) {
         _showSnackBar('Product updated successfully!');
@@ -220,11 +222,12 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
 
       // Use the enhanced ProductDatabaseService for secure deletion
       final success = await _productService.deleteProduct(productData['id']);
-      
+
       if (success) {
         _showSnackBar('Product "${productData['name']}" deleted successfully!');
       } else {
-        _showSnackBar('Failed to delete product. Please try again.', isError: true);
+        _showSnackBar('Failed to delete product. Please try again.',
+            isError: true);
       }
     } catch (e) {
       _showSnackBar('Error deleting product: $e', isError: true);
@@ -241,33 +244,34 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
       description: data['description'] ?? '',
       category: data['category'] ?? '',
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
-      materials: data['materials'] is List 
+      materials: data['materials'] is List
           ? List<String>.from(data['materials'])
-          : (data['materials'] as String?)?.split(',').map((s) => s.trim()).toList() ?? [],
+          : (data['materials'] as String?)
+                  ?.split(',')
+                  .map((s) => s.trim())
+                  .toList() ??
+              [],
       craftingTime: data['craftingTime'] ?? '',
       dimensions: data['dimensions'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
-      imageUrls: data['imageUrls'] is List 
-          ? List<String>.from(data['imageUrls'])
-          : [],
+      imageUrls:
+          data['imageUrls'] is List ? List<String>.from(data['imageUrls']) : [],
       videoUrl: data['videoUrl'],
-      createdAt: data['createdAt'] is Timestamp 
+      createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: data['updatedAt'] is Timestamp 
+      updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
       stockQuantity: data['stockQuantity'] ?? 0,
-      tags: data['tags'] is List 
-          ? List<String>.from(data['tags'])
-          : [],
+      tags: data['tags'] is List ? List<String>.from(data['tags']) : [],
       careInstructions: data['careInstructions'],
-      aiAnalysis: data['aiAnalysis'] is Map 
+      aiAnalysis: data['aiAnalysis'] is Map
           ? Map<String, dynamic>.from(data['aiAnalysis'])
           : null,
       audioStoryUrl: data['audioStoryUrl'],
       audioStoryTranscription: data['audioStoryTranscription'],
-      audioStoryTranslations: data['audioStoryTranslations'] is Map 
+      audioStoryTranslations: data['audioStoryTranslations'] is Map
           ? Map<String, String>.from(data['audioStoryTranslations'])
           : null,
     );
@@ -610,7 +614,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const StoreAudioManagementPage(),
+                          builder: (context) =>
+                              const StoreAudioManagementPage(),
                         ),
                       );
                     },
@@ -619,7 +624,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2C1810),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -631,7 +637,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const EnhancedProductListingPage(),
+                          builder: (context) =>
+                              const EnhancedProductListingPage(),
                         ),
                       );
                     },
@@ -640,8 +647,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -662,8 +669,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8B4513),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -684,8 +691,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -767,7 +774,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   Widget _buildProductCard(Map<String, dynamic> product) {
     final bool isLowStock = (product['stockQuantity'] ?? 0) < 5;
     final bool isOutOfStock = (product['stockQuantity'] ?? 0) == 0;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -775,10 +782,10 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isOutOfStock 
-              ? Colors.red.shade200 
-              : isLowStock 
-                  ? Colors.orange.shade200 
+          color: isOutOfStock
+              ? Colors.red.shade200
+              : isLowStock
+                  ? Colors.orange.shade200
                   : Colors.grey.shade200,
           width: isOutOfStock || isLowStock ? 1.5 : 1,
         ),
@@ -807,13 +814,15 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: product['imageUrls'] != null && product['imageUrls'].isNotEmpty
+                      child: product['imageUrls'] != null &&
+                              product['imageUrls'].isNotEmpty
                           ? Image.network(
                               product['imageUrls'][0],
                               fit: BoxFit.cover,
                               width: 60,
                               height: 60,
-                              errorBuilder: (context, error, stackTrace) => Icon(
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
                                 Icons.image,
                                 color: Colors.grey[400],
                               ),
@@ -863,7 +872,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         // Status badge
                         if (isOutOfStock)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.red.shade100,
                               borderRadius: BorderRadius.circular(4),
@@ -880,7 +890,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                           )
                         else if (isLowStock)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade100,
                               borderRadius: BorderRadius.circular(4),
@@ -921,13 +932,13 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                           'Stock: ${product['stockQuantity'] ?? 0}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isOutOfStock 
-                                ? Colors.red.shade600 
-                                : isLowStock 
-                                    ? Colors.orange.shade600 
+                            color: isOutOfStock
+                                ? Colors.red.shade600
+                                : isLowStock
+                                    ? Colors.orange.shade600
                                     : Colors.grey[600],
-                            fontWeight: isOutOfStock || isLowStock 
-                                ? FontWeight.w600 
+                            fontWeight: isOutOfStock || isLowStock
+                                ? FontWeight.w600
                                 : FontWeight.normal,
                           ),
                         ),
@@ -1034,7 +1045,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     label: const Text('Edit'),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF2C1810),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(60, 28),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
@@ -1049,7 +1061,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     label: const Text('Delete'),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.red.shade600,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: const Size(60, 28),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
@@ -1103,14 +1116,14 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Revenue Overview Cards with real data
         FutureBuilder<Map<String, double>>(
           future: _getRevenueOverviewData(),
           builder: (context, snapshot) {
             final todayRevenue = snapshot.data?['today'] ?? 475.0;
             final monthRevenue = snapshot.data?['month'] ?? 12450.0;
-            
+
             return Row(
               children: [
                 Expanded(
@@ -1135,7 +1148,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Revenue Chart
         const RevenueAnalyticsChart(),
       ],
@@ -1148,7 +1161,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
       final revenueService = RevenueService();
       final todayRevenue = await revenueService.getTodayRevenue();
       final monthRevenue = await revenueService.getCurrentMonthRevenue();
-      
+
       return {
         'today': todayRevenue,
         'month': monthRevenue,
@@ -1163,7 +1176,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   }
 
   /// Build individual revenue card
-  Widget _buildRevenueCard(String title, String value, IconData icon, Color color) {
+  Widget _buildRevenueCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1221,7 +1235,7 @@ class RevenueAnalyticsChart extends StatefulWidget {
 class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   // State variables for chart data and UI
   List<FlSpot> _chartData = [];
   bool _isLoading = true;
@@ -1261,7 +1275,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
     // Calculate date range for the last 30 days
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-    
+
     // Generate list of dates for the last 30 days
     final dateRange = <String>[];
     for (int i = 0; i < 30; i++) {
@@ -1280,8 +1294,11 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
       final querySnapshot = await _firestore
           .collection('daily_revenue')
           .where('sellerId', isEqualTo: user.uid) // Filter by current seller
-          .where('date', isGreaterThanOrEqualTo: DateFormat('yyyy-MM-dd').format(thirtyDaysAgo))
-          .where('date', isLessThanOrEqualTo: DateFormat('yyyy-MM-dd').format(now))
+          .where('date',
+              isGreaterThanOrEqualTo:
+                  DateFormat('yyyy-MM-dd').format(thirtyDaysAgo))
+          .where('date',
+              isLessThanOrEqualTo: DateFormat('yyyy-MM-dd').format(now))
           .orderBy('date')
           .get();
 
@@ -1302,7 +1319,8 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
         final date = thirtyDaysAgo.add(Duration(days: i));
         final dateStr = DateFormat('yyyy-MM-dd').format(date);
         // Generate sample revenue data
-        revenueData[dateStr] = (i % 7 == 0) ? 0.0 : (100 + (i * 50) + (i % 3) * 200).toDouble();
+        revenueData[dateStr] =
+            (i % 7 == 0) ? 0.0 : (100 + (i * 50) + (i % 3) * 200).toDouble();
       }
     }
 
@@ -1314,16 +1332,16 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
   void _prepareChartData(Map<String, double> revenueData) {
     final spots = <FlSpot>[];
     final dateLabels = <String>[];
-    
+
     // Sort dates and create chart points
     final sortedDates = revenueData.keys.toList()..sort();
-    
+
     for (int i = 0; i < sortedDates.length; i++) {
       final date = sortedDates[i];
       final revenue = revenueData[date] ?? 0.0;
-      
+
       spots.add(FlSpot(i.toDouble(), revenue));
-      
+
       // Format date for display (show only day/month for cleaner labels)
       final dateTime = DateTime.parse(date);
       dateLabels.add(DateFormat('dd/MM').format(dateTime));
@@ -1331,9 +1349,11 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
 
     // Calculate Y-axis range for better chart scaling
     final revenues = revenueData.values.toList();
-    final maxRevenue = revenues.isNotEmpty ? revenues.reduce((a, b) => a > b ? a : b) : 100.0;
-    final minRevenue = revenues.isNotEmpty ? revenues.reduce((a, b) => a < b ? a : b) : 0.0;
-    
+    final maxRevenue =
+        revenues.isNotEmpty ? revenues.reduce((a, b) => a > b ? a : b) : 100.0;
+    final minRevenue =
+        revenues.isNotEmpty ? revenues.reduce((a, b) => a < b ? a : b) : 0.0;
+
     setState(() {
       _chartData = spots;
       _dateLabels = dateLabels;
@@ -1375,7 +1395,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Chart content
           Expanded(
             child: _buildChartContent(),
@@ -1503,13 +1523,13 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             );
           },
         ),
-        
+
         // Chart border
         borderData: FlBorderData(
           show: true,
           border: Border.all(color: Colors.grey[300]!, width: 1),
         ),
-        
+
         // Axis titles
         titlesData: FlTitlesData(
           show: true,
@@ -1526,7 +1546,9 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
               interval: _chartData.length > 10 ? _chartData.length / 5 : 2,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
-                if (index >= 0 && index < _dateLabels.length && index % 5 == 0) {
+                if (index >= 0 &&
+                    index < _dateLabels.length &&
+                    index % 5 == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6.0),
                     child: Text(
@@ -1562,13 +1584,13 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             ),
           ),
         ),
-        
+
         // Chart scaling
         minX: 0,
         maxX: (_chartData.length - 1).toDouble(),
         minY: _minY,
         maxY: _maxY,
-        
+
         // Line data
         lineBarsData: [
           LineChartBarData(
@@ -1579,7 +1601,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             barWidth: 2.5,
             isStrokeCapRound: true,
             preventCurveOverShooting: true,
-            
+
             // Area under the curve (optional gradient fill)
             belowBarData: BarAreaData(
               show: true,
@@ -1592,14 +1614,14 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
                 ],
               ),
             ),
-            
+
             // Data point dots
             dotData: FlDotData(
               show: false, // Hide dots for cleaner look in compact view
             ),
           ),
         ],
-        
+
         // Touch interaction
         lineTouchData: LineTouchData(
           enabled: true,
@@ -1610,8 +1632,9 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
               return touchedBarSpots.map((barSpot) {
                 final index = barSpot.x.toInt();
                 final revenue = barSpot.y;
-                final date = index < _dateLabels.length ? _dateLabels[index] : '';
-                
+                final date =
+                    index < _dateLabels.length ? _dateLabels[index] : '';
+
                 return LineTooltipItem(
                   '$date\n₹${revenue.toStringAsFixed(0)}',
                   GoogleFonts.inter(
@@ -1640,7 +1663,7 @@ class RevenueAnalyticsScreen extends StatelessWidget {
     final revenueService = RevenueService();
     final todayRevenue = await revenueService.getTodayRevenue();
     final monthRevenue = await revenueService.getCurrentMonthRevenue();
-    
+
     return {
       'today': todayRevenue,
       'month': monthRevenue,
@@ -1672,14 +1695,14 @@ class RevenueAnalyticsScreen extends StatelessWidget {
             // Revenue Overview Cards
             _buildRevenueOverview(),
             const SizedBox(height: 20),
-            
+
             // Main Revenue Chart with larger height
             Container(
               height: 350,
               child: const RevenueAnalyticsChart(),
             ),
             const SizedBox(height: 20),
-            
+
             // Additional Analytics
             _buildAdditionalMetrics(),
           ],
@@ -1714,7 +1737,8 @@ class RevenueAnalyticsScreen extends StatelessWidget {
   }
 
   /// Build individual metric card
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1852,19 +1876,19 @@ class RevenueService {
     try {
       final userId = sellerId ?? _auth.currentUser?.uid;
       if (userId == null) return 475.0; // Sample data
-      
+
       final today = DateTime.now();
       final todayString = DateFormat('yyyy-MM-dd').format(today);
-      
+
       final doc = await _firestore
           .collection('daily_revenue')
           .doc('${userId}_$todayString')
           .get();
-      
+
       if (doc.exists) {
         return (doc.data()?['revenue'] as num?)?.toDouble() ?? 0.0;
       }
-      
+
       return 475.0; // Sample data if no real data exists
     } catch (e) {
       print('Error fetching today revenue: $e');
@@ -1877,12 +1901,12 @@ class RevenueService {
     try {
       final userId = sellerId ?? _auth.currentUser?.uid;
       if (userId == null) return 12450.0; // Sample data
-      
+
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
       final startOfMonthString = DateFormat('yyyy-MM-dd').format(startOfMonth);
       final nowString = DateFormat('yyyy-MM-dd').format(now);
-      
+
       final querySnapshot = await _firestore
           .collection('daily_revenue')
           .where('sellerId', isEqualTo: userId)
@@ -1895,8 +1919,10 @@ class RevenueService {
         final revenue = (doc.data()['revenue'] as num?)?.toDouble() ?? 0.0;
         totalRevenue += revenue;
       }
-      
-      return totalRevenue > 0 ? totalRevenue : 12450.0; // Return sample data if no real data
+
+      return totalRevenue > 0
+          ? totalRevenue
+          : 12450.0; // Return sample data if no real data
     } catch (e) {
       print('Error fetching current month revenue: $e');
       return 12450.0; // Sample data on error
@@ -1930,7 +1956,7 @@ class _SellerScreenState extends State<SellerScreen> {
             .collection('stores')
             .doc(user.uid)
             .get();
-        
+
         if (mounted) {
           setState(() {
             _storeData = storeDoc.exists ? storeDoc.data() : null;
@@ -2044,13 +2070,20 @@ class _SellerScreenState extends State<SellerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Top bar with logout button
+              // Top bar with notification and logout buttons
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 12.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // Notification icon
+                    const NotificationAppBarIcon(
+                      iconColor: Colors.white,
+                      forceUserRole: UserRole.seller,
+                    ),
+                    const SizedBox(width: 8),
+                    // Logout button
                     IconButton(
                       icon: const Icon(Icons.logout,
                           color: Colors.white, size: 28),
@@ -2106,7 +2139,8 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) =>
+                                        const SellerRequestsScreen(),
                                   ),
                                 );
                               },
@@ -2115,7 +2149,7 @@ class _SellerScreenState extends State<SellerScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Action Buttons Row 3 - Artisan's Legacy
                       Row(
                         children: [
@@ -2149,7 +2183,7 @@ class _SellerScreenState extends State<SellerScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Action Buttons Row 4 - Living Workshop
                       SizedBox(
                         width: double.infinity,
@@ -2161,14 +2195,15 @@ class _SellerScreenState extends State<SellerScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ArtisanMediaUploadScreen(),
+                                builder: (context) =>
+                                    const ArtisanMediaUploadScreen(),
                               ),
                             );
                           },
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Dynamic Store Button (Test Store / Edit Store)
                       SizedBox(
                         width: double.infinity,
@@ -2234,7 +2269,8 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerOrdersPage(),
+                                    builder: (context) =>
+                                        const SellerOrdersPage(),
                                   ),
                                 );
                               },
@@ -2251,7 +2287,8 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) =>
+                                        const SellerRequestsScreen(),
                                   ),
                                 );
                               },
@@ -2306,7 +2343,8 @@ class _SellerScreenState extends State<SellerScreen> {
       if (snapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('You need to create products first before adding Artisan Legacy stories'),
+            content: Text(
+                'You need to create products first before adding Artisan Legacy stories'),
           ),
         );
         return;
@@ -2314,13 +2352,15 @@ class _SellerScreenState extends State<SellerScreen> {
 
       // Show product selection dialog
       final products = snapshot.docs
-          .map((doc) => Product.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+          .map((doc) => Product.fromMap(
+              {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
           .toList();
 
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.auto_stories, color: Color(0xFF8B6914)),
@@ -2342,7 +2382,7 @@ class _SellerScreenState extends State<SellerScreen> {
               itemBuilder: (context, index) {
                 final product = products[index];
                 final hasStory = product.artisanLegacyStory != null;
-                
+
                 return ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -2379,7 +2419,8 @@ class _SellerScreenState extends State<SellerScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => EditArtisanStoryScreen(product: product),
+                        builder: (context) =>
+                            EditArtisanStoryScreen(product: product),
                       ),
                     );
                   },

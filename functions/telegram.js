@@ -14,6 +14,9 @@ const {
 // Import order notifications
 const { onOrderStatusChange } = require('./order_notifications');
 
+// Import deadline management
+const { handleDeadlineManagement, triggerDeadlineCheck } = require('./deadline_management');
+
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -25,8 +28,10 @@ const db = admin.firestore();
 const genAI = new GoogleGenerativeAI('AIzaSyCrj1q0i19ZjrAPV6YLceS-HC3rLCAK4VE');
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-// Export the order status change function
+// Export functions
 exports.onOrderStatusChange = onOrderStatusChange;
+exports.handleDeadlineManagement = handleDeadlineManagement;
+exports.triggerDeadlineCheck = triggerDeadlineCheck;
 
 // Configuration
 const TELEGRAM_BOT_TOKEN = '7598377687:AAHKf6e9I-q_0Lk1CRgHBwhl123b_wPymt8';
