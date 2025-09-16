@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import '../models/review.dart';
 import '../models/product.dart';
+import 'gemini_service.dart';
 
 class ReviewService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Collection references
   CollectionReference get _reviewsRef => _firestore.collection('reviews');
@@ -432,5 +436,401 @@ class ReviewService {
 
     await batch.commit();
     print('Cleaned up ${oldReviewsSnapshot.docs.length} old reviews');
+  }
+
+  // ======================== TRANSLATION METHODS ========================
+
+  /// Translate a review comment to target language
+  Future<String> translateReviewComment(String reviewId, String targetLanguageCode) async {
+    final reviewDoc = await _reviewsRef.doc(reviewId).get();
+    if (!reviewDoc.exists) {
+      throw Exception('Review not found');
+    }
+
+    final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
+    
+    // Check if translation already exists in cache
+    if (review.hasCommentTranslation(targetLanguageCode)) {
+      return review.commentTranslations[targetLanguageCode]!;
+    }
+
+    // Detect source language if not already detected
+    String sourceLanguage = review.detectedLanguage ?? 'auto';
+    if (sourceLanguage == 'auto') {
+      try {
+        final languageResult = await GeminiService.detectLanguage(review.comment);
+        sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
+      } catch (e) {
+        print('Language detection failed: $e');
+        sourceLanguage = 'en'; // Default to English
+      }
+    }
+
+    // Skip translation if already in target language
+    if (sourceLanguage == targetLanguageCode) {
+      return review.comment;
+    }
+
+    // Translate the comment
+    final translationResult = await GeminiService.translateText(
+      review.comment,
+      targetLanguageCode,
+      sourceLanguage: sourceLanguage,
+    );
+    
+    final translatedText = translationResult['translatedText']?.toString() ?? review.comment;
+
+    // Update review with translation and detected language
+    final updatedTranslations = Map<String, String>.from(review.commentTranslations);
+    updatedTranslations[targetLanguageCode] = translatedText;
+
+    await _reviewsRef.doc(reviewId).update({
+      'detectedLanguage': sourceLanguage,
+      'commentTranslations': updatedTranslations,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    return translatedText;
+  }
+
+  /// Translate an artisan response to target language
+  Future<String?> translateArtisanResponse(String reviewId, String targetLanguageCode) async {
+    final reviewDoc = await _reviewsRef.doc(reviewId).get();
+    if (!reviewDoc.exists) {
+      throw Exception('Review not found');
+    }
+
+    final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
+    
+    if (review.artisanResponse == null) {
+      return null;
+    }
+
+    // Check if translation already exists in cache
+    if (review.hasArtisanResponseTranslation(targetLanguageCode)) {
+      return review.artisanResponseTranslations[targetLanguageCode]!;
+    }
+
+    // Detect source language if not already detected
+    String sourceLanguage = review.artisanResponseLanguage ?? 'auto';
+    if (sourceLanguage == 'auto') {
+      try {
+        final languageResult = await GeminiService.detectLanguage(review.artisanResponse!);
+        sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
+      } catch (e) {
+        print('Language detection failed: $e');
+        sourceLanguage = 'en'; // Default to English
+      }
+    }
+
+    // Skip translation if already in target language
+    if (sourceLanguage == targetLanguageCode) {
+      return review.artisanResponse;
+    }
+
+    // Translate the artisan response
+    final translationResult = await GeminiService.translateText(
+      review.artisanResponse!,
+      targetLanguageCode,
+      sourceLanguage: sourceLanguage,
+    );
+    
+    final translatedText = translationResult['translatedText']?.toString() ?? review.artisanResponse!;
+
+    // Update review with translation and detected language
+    final updatedTranslations = Map<String, String>.from(review.artisanResponseTranslations);
+    updatedTranslations[targetLanguageCode] = translatedText;
+
+    await _reviewsRef.doc(reviewId).update({
+      'artisanResponseLanguage': sourceLanguage,
+      'artisanResponseTranslations': updatedTranslations,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    return translatedText;
+  }
+
+  /// Enhanced add review with automatic language detection
+  Future<String> addReviewWithTranslation({
+    required String productId,
+    required String productName,
+    required double rating,
+    required String comment,
+    List<String> images = const [],
+    String? preferredLanguage,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User must be logged in to add a review');
+
+    // Detect comment language
+    String? detectedLanguage;
+    try {
+      final languageResult = await GeminiService.detectLanguage(comment);
+      detectedLanguage = languageResult['detectedLanguage'];
+    } catch (e) {
+      print('Language detection failed: $e');
+    }
+
+    // Check if user has already reviewed this product
+    final existingReview = await _reviewsRef
+        .where('productId', isEqualTo: productId)
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    if (existingReview.docs.isNotEmpty) {
+      throw Exception('You have already reviewed this product. You can edit your existing review.');
+    }
+
+    // Check if user has purchased this product (optional verification)
+    final isVerifiedPurchase = await _hasUserPurchasedProduct(user.uid, productId);
+
+    final reviewId = _reviewsRef.doc().id;
+    final now = DateTime.now();
+
+    // Get user name from auth or Firestore
+    String userName = user.displayName ?? 'Anonymous';
+    String? userProfilePicture = user.photoURL;
+
+    // Try to get more complete user info from customers collection
+    try {
+      final customerDoc = await _firestore.collection('customers').doc(user.uid).get();
+      if (customerDoc.exists) {
+        final customerData = customerDoc.data() as Map<String, dynamic>;
+        userName = customerData['name'] ?? userName;
+        userProfilePicture = customerData['profilePicture'] ?? userProfilePicture;
+      }
+    } catch (e) {
+      print('Could not fetch customer details: $e');
+    }
+
+    final review = Review(
+      id: reviewId,
+      productId: productId,
+      productName: productName,
+      userId: user.uid,
+      userName: userName,
+      userProfilePicture: userProfilePicture,
+      rating: rating,
+      comment: comment,
+      createdAt: now,
+      updatedAt: now,
+      isVerifiedPurchase: isVerifiedPurchase,
+      images: images,
+      detectedLanguage: detectedLanguage,
+      preferredLanguage: preferredLanguage,
+    );
+
+    // Validate review
+    if (!review.isValid) {
+      throw Exception('Review is invalid. Please check rating (1-5) and comment (min 10 characters).');
+    }
+
+    // Add review to Firestore
+    await _reviewsRef.doc(reviewId).set(review.toMap());
+
+    // Update product rating statistics
+    await _updateProductRatingStatistics(productId);
+
+    return reviewId;
+  }
+
+  /// Enhanced addArtisanResponse with automatic language detection
+  Future<void> addArtisanResponseWithTranslation(String reviewId, String response) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User must be logged in to respond');
+
+    final reviewDoc = await _reviewsRef.doc(reviewId).get();
+    if (!reviewDoc.exists) {
+      throw Exception('Review not found');
+    }
+
+    final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
+
+    // Verify that the current user is the artisan who owns the product
+    final productDoc = await _productsRef.doc(review.productId).get();
+    if (!productDoc.exists) {
+      throw Exception('Product not found');
+    }
+
+    final product = Product.fromMap(productDoc.data() as Map<String, dynamic>);
+    if (product.artisanId != user.uid) {
+      throw Exception('Only the product owner can respond to reviews');
+    }
+
+    // Detect response language
+    String? detectedLanguage;
+    try {
+      final languageResult = await GeminiService.detectLanguage(response);
+      detectedLanguage = languageResult['detectedLanguage'];
+    } catch (e) {
+      print('Language detection failed: $e');
+    }
+
+    await _reviewsRef.doc(reviewId).update({
+      'artisanResponse': response,
+      'artisanResponseDate': Timestamp.fromDate(DateTime.now()),
+      'artisanResponseLanguage': detectedLanguage,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Upload voice response file to Firebase Storage
+  Future<String> _uploadVoiceResponse(String reviewId, File voiceFile) async {
+    try {
+      final fileName = 'review_voice_response_${reviewId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final ref = _storage.ref().child('review_voice_responses').child(fileName);
+      
+      final uploadTask = ref.putFile(voiceFile);
+      final snapshot = await uploadTask;
+      
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading voice response: $e');
+      throw Exception('Failed to upload voice response: $e');
+    }
+  }
+
+  /// Add voice response to a review with transcription and translation
+  Future<void> addArtisanVoiceResponse(
+    String reviewId, 
+    File voiceFile, 
+    String? transcription, 
+    Duration duration,
+    String? detectedLanguage,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User must be logged in to respond');
+
+    final reviewDoc = await _reviewsRef.doc(reviewId).get();
+    if (!reviewDoc.exists) {
+      throw Exception('Review not found');
+    }
+
+    final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
+
+    // Verify that the current user is the artisan who owns the product
+    final productDoc = await _productsRef.doc(review.productId).get();
+    if (!productDoc.exists) {
+      throw Exception('Product not found');
+    }
+
+    final product = Product.fromMap(productDoc.data() as Map<String, dynamic>);
+    if (product.artisanId != user.uid) {
+      throw Exception('Only the product owner can respond to reviews');
+    }
+
+    try {
+      // Upload voice file to Firebase Storage
+      final voiceUrl = await _uploadVoiceResponse(reviewId, voiceFile);
+      
+      // Process transcription if not provided
+      String? finalTranscription = transcription;
+      String? finalDetectedLanguage = detectedLanguage;
+      
+      if (finalTranscription == null || finalTranscription.isEmpty) {
+        try {
+          final transcriptionResult = await GeminiService.transcribeAudio(voiceFile);
+          finalTranscription = transcriptionResult['transcription'];
+          finalDetectedLanguage = transcriptionResult['detectedLanguage'];
+        } catch (e) {
+          print('Transcription failed: $e');
+          // Continue without transcription
+        }
+      }
+
+      // Detect language if not provided
+      if (finalDetectedLanguage == null && finalTranscription != null && finalTranscription.isNotEmpty) {
+        try {
+          final languageResult = await GeminiService.detectLanguage(finalTranscription);
+          finalDetectedLanguage = languageResult['detectedLanguage'];
+        } catch (e) {
+          print('Language detection failed: $e');
+        }
+      }
+
+      // Update review with voice response
+      await _reviewsRef.doc(reviewId).update({
+        'artisanVoiceUrl': voiceUrl,
+        'artisanVoiceTranscription': finalTranscription,
+        'artisanVoiceDuration': duration.inMilliseconds,
+        'artisanVoiceTranslations': <String, String>{}, // Empty initially
+        'artisanResponseDate': Timestamp.fromDate(DateTime.now()),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    } catch (e) {
+      throw Exception('Failed to add voice response: $e');
+    }
+  }
+
+  /// Translate voice transcription to target language
+  Future<String> translateVoiceTranscription(String reviewId, String targetLanguageCode) async {
+    final reviewDoc = await _reviewsRef.doc(reviewId).get();
+    if (!reviewDoc.exists) {
+      throw Exception('Review not found');
+    }
+
+    final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
+    
+    if (review.artisanVoiceTranscription == null || review.artisanVoiceTranscription!.isEmpty) {
+      throw Exception('No voice transcription available');
+    }
+
+    // Check if translation already exists
+    if (review.hasVoiceTranscriptionTranslation(targetLanguageCode)) {
+      return review.artisanVoiceTranslations[targetLanguageCode]!;
+    }
+
+    // Detect source language if not already detected
+    String sourceLanguage = 'auto';
+    try {
+      final languageResult = await GeminiService.detectLanguage(review.artisanVoiceTranscription!);
+      sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
+    } catch (e) {
+      print('Language detection failed: $e');
+      sourceLanguage = 'en'; // Default to English
+    }
+
+    // Skip translation if already in target language
+    if (sourceLanguage == targetLanguageCode) {
+      return review.artisanVoiceTranscription!;
+    }
+
+    // Translate the transcription
+    final translationResult = await GeminiService.translateText(
+      review.artisanVoiceTranscription!,
+      targetLanguageCode,
+      sourceLanguage: sourceLanguage,
+    );
+    
+    final translatedText = translationResult['translatedText']?.toString() ?? review.artisanVoiceTranscription!;
+
+    // Update review with translation
+    final updatedTranslations = Map<String, String>.from(review.artisanVoiceTranslations);
+    updatedTranslations[targetLanguageCode] = translatedText;
+
+    await _reviewsRef.doc(reviewId).update({
+      'artisanVoiceTranslations': updatedTranslations,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    return translatedText;
+  }
+
+  /// Get user's preferred language (from user preferences or detected)
+  Future<String> getUserPreferredLanguage() async {
+    final user = _auth.currentUser;
+    if (user == null) return 'en';
+
+    try {
+      final customerDoc = await _firestore.collection('customers').doc(user.uid).get();
+      if (customerDoc.exists) {
+        final customerData = customerDoc.data() as Map<String, dynamic>;
+        return customerData['preferredLanguage'] ?? 'en';
+      }
+    } catch (e) {
+      print('Could not fetch user preferred language: $e');
+    }
+    
+    return 'en'; // Default to English
   }
 }

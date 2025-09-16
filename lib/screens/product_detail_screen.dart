@@ -757,24 +757,78 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             const SizedBox(height: 12),
             
-            Column(
-              children: _reviews
-                  .where((review) => review.id != _userReview?.id)
-                  .take(5) // Show first 5 reviews
-                  .map((review) => ReviewCard(
-                        review: review,
+            // Scrollable Reviews Container
+            Container(
+              height: 400, // Fixed height for scrollable area
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Stack(
+                children: [
+                  ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _reviews.where((review) => review.id != _userReview?.id).length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final otherReviews = _reviews.where((review) => review.id != _userReview?.id).toList();
+                      return ReviewCard(
+                        review: otherReviews[index],
                         enableActions: true,
-                        onReport: () => _reportReview(review),
-                      ))
-                  .toList(),
+                        onReport: () => _reportReview(otherReviews[index]),
+                      );
+                    },
+                  ),
+                  // Scroll indicator at bottom
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 20,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.0),
+                            Colors.white.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 30,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             
-            // Show More Reviews Button
-            if (_reviews.length > 5)
+            const SizedBox(height: 12),
+            
+            // View All Reviews Button
+            if (_reviews.where((r) => r.id != _userReview?.id).length > 3)
               Center(
-                child: TextButton(
+                child: TextButton.icon(
                   onPressed: () => _showAllReviews(product),
-                  child: Text(
+                  icon: Icon(
+                    Icons.visibility,
+                    size: 16,
+                    color: accentGold,
+                  ),
+                  label: Text(
                     'View all ${_reviews.length} reviews',
                     style: GoogleFonts.inter(
                       color: accentGold,

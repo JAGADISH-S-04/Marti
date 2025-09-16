@@ -19,7 +19,6 @@ import 'add_product_screen.dart';
 import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
-import 'store_audio_management_page.dart';
 import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';
@@ -587,7 +586,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
               ],
             ),
           ),
-
+        
           const SizedBox(height: 20),
 
           // Revenue Analytics Section
@@ -614,31 +613,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const StoreAudioManagementPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.record_voice_over, size: 18),
-                    label: const Text('Audio Story'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C1810),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const EnhancedProductListingPage(),
+                          builder: (context) => const EnhancedProductListingPage(),
                         ),
                       );
                     },
@@ -944,53 +919,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Action buttons row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // Quick Stats
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Rating and Reviews Row
-                    if (product['rating'] != null && (product['rating'] as double) > 0) ...[
-                      Row(
-                        children: [
-                          StarRating(
-                            rating: (product['rating'] as double? ?? 0.0),
-                            size: 14,
-                            showText: false,
-                            activeColor: const Color(0xFFD4AF37),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${(product['rating'] as double? ?? 0.0).toStringAsFixed(1)}',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${product['reviewCount'] ?? 0})',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    // Views and Likes Row
+                    const SizedBox(height: 6),
+                    // Views and Likes Row (moved under price)
                     Row(
                       children: [
                         Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
@@ -1006,7 +936,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          '${product['likes'] ?? 0}',
+                          '${product['likes'] ?? 0} likes',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[600],
@@ -1017,55 +947,101 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   ],
                 ),
               ),
-              // Action buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // View Reviews button (only show if there are reviews)
-                  if (product['reviewCount'] != null && (product['reviewCount'] as int) > 0) ...[
-                    TextButton.icon(
-                      onPressed: () => _viewProductReviews(product),
-                      icon: const Icon(Icons.rate_review, size: 16),
-                      label: Text('Reviews (${product['reviewCount']})'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFD4AF37),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: const Size(60, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Rating and action buttons section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Rating Row (if rating exists)
+              if (product['rating'] != null && (product['rating'] as double) > 0) ...[
+                Row(
+                  children: [
+                    StarRating(
+                      rating: (product['rating'] as double? ?? 0.0),
+                      size: 14,
+                      showText: false,
+                      activeColor: const Color(0xFFD4AF37),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${(product['rating'] as double? ?? 0.0).toStringAsFixed(1)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
                       ),
                     ),
                     const SizedBox(width: 4),
+                    Text(
+                      '(${product['reviewCount'] ?? 0} reviews)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
                   ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              // Action buttons row with proper spacing
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  // View Reviews button (only show if there are reviews)
+                  if (product['reviewCount'] != null && (product['reviewCount'] as int) > 0)
+                    SizedBox(
+                      height: 32,
+                      child: TextButton.icon(
+                        onPressed: () => _viewProductReviews(product),
+                        icon: const Icon(Icons.rate_review, size: 14),
+                        label: Text(
+                          'Reviews (${product['reviewCount']})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFD4AF37),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Edit button
-                  TextButton.icon(
-                    onPressed: () => _editProduct(product),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Edit'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2C1810),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      minimumSize: const Size(60, 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                  SizedBox(
+                    height: 32,
+                    child: TextButton.icon(
+                      onPressed: () => _editProduct(product),
+                      icon: const Icon(Icons.edit, size: 14),
+                      label: const Text('Edit', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C1810),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(color: const Color(0xFF2C1810).withOpacity(0.3)),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
                   // Delete button
-                  TextButton.icon(
-                    onPressed: () => _deleteProduct(product),
-                    icon: const Icon(Icons.delete, size: 16),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade600,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      minimumSize: const Size(60, 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                  SizedBox(
+                    height: 32,
+                    child: TextButton.icon(
+                      onPressed: () => _deleteProduct(product),
+                      icon: const Icon(Icons.delete, size: 14),
+                      label: const Text('Delete', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(color: Colors.red.shade600.withOpacity(0.3)),
+                        ),
                       ),
                     ),
                   ),
@@ -2097,9 +2073,10 @@ class _SellerScreenState extends State<SellerScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       const SizedBox(height: 20),
                       Text(
                         'Quick Actions',
@@ -2298,6 +2275,7 @@ class _SellerScreenState extends State<SellerScreen> {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
             ],
