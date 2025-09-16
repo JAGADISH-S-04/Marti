@@ -1,55 +1,351 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and write their own user document
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
     
-    // Products can be read by anyone, written by authenticated users
+    // ============ CORE PRODUCT MANAGEMENT ============
+    // Products - Enhanced rules for seller edit/delete functionality
     match /products/{productId} {
+      // Anyone can read products (for browsing/shopping)
       allow read: if true;
-      allow write: if request.auth != null 
-        && (resource == null || resource.data.artisanId == request.auth.uid);
+      
+      // Only authenticated artisans can create products with their own artisanId
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.artisanId &&
+                   validateProductData(request.resource.data);
+      
+      // Allow product owner updates OR likes/views updates by any authenticated user
+      allow update: if request.auth != null && (
+                   // Product owner can update everything
+                   (request.auth.uid == resource.data.artisanId &&
+                    validateProductUpdate(request.resource.data, resource.data)) ||
+                   // Any authenticated user can update likes and views
+                   validateLikesViewsUpdate(request.resource.data, resource.data)
+                   );
+      
+      // Only the product owner (artisan) can delete their products
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.artisanId;
     }
     
-    // User's products subcollection - only the user can access
-    match /users/{userId}/products/{productId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Analytics - read by anyone, write by authenticated users
-    match /analytics/{docId} {
+    // ============ USER PROFILE MANAGEMENT ============
+    // Sellers/Artisans - Enhanced profile management with dual account support
+    match /sellers/{sellerId} {
+      // Anyone can read seller profiles (for discovery)
       allow read: if true;
-      allow write: if request.auth != null;
+      
+      // Allow creation/update if:
+      // 1. Regular account: sellerId matches authenticated UID
+      // 2. Dual account: sellerId starts with authenticated UID followed by '_retailer'
+      allow create, update: if request.auth != null && 
+                           (request.auth.uid == sellerId ||
+                            sellerId == request.auth.uid + '_retailer');
+      
+      // Allow deletion with same logic as create/update
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == sellerId ||
+                    sellerId == request.auth.uid + '_retailer');
     }
     
-    // Categories - read by anyone, write by authenticated users
-    match /categories/{categoryId} {
+    // Stores - Enhanced store management for sellers with dual account support
+    match /stores/{storeId} {
+      // Anyone can read store information
       allow read: if true;
-      allow write: if request.auth != null;
+      
+      // Allow management if:
+      // 1. Regular account: storeId matches authenticated UID
+      // 2. Dual account: storeId starts with authenticated UID
+      allow create, update, delete: if request.auth != null && 
+                                   (request.auth.uid == storeId ||
+                                    storeId == request.auth.uid + '_retailer');
     }
     
-    // Orders - users can only access their own orders
+    // Customers - Customer profile management with dual account support
+    match /customers/{customerId} {
+      // Customers can read any customer profile (for social features)
+      allow read: if request.auth != null;
+      
+      // Allow management if:
+      // 1. Regular account: customerId matches authenticated UID
+      // 2. Dual account: customerId starts with authenticated UID followed by '_customer'
+      allow create, update, delete: if request.auth != null && 
+                                   (request.auth.uid == customerId ||
+                                    customerId == request.auth.uid + '_customer');
+      
+      // Customer subcollections (cart, favorites, etc.)
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && 
+                          (request.auth.uid == customerId ||
+                           customerId == request.auth.uid + '_customer');
+      }
+    }
+    
+    // Users - General user profiles and authentication data with dual account support
+    match /users/{userId} {
+      // Users can read any user profile (for social features)
+      allow read: if request.auth != null;
+      
+      // Allow management if:
+      // 1. Regular account: userId matches authenticated UID
+      // 2. Dual account: userId starts with authenticated UID
+      allow create, update, delete: if request.auth != null && 
+                                   (request.auth.uid == userId ||
+                                    userId.matches(request.auth.uid + '_.*'));
+      
+      // User subcollections with dual account support
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && 
+                          (request.auth.uid == userId ||
+                           userId.matches(request.auth.uid + '_.*'));
+      }
+    }
+
+    // ============ RETAILERS COLLECTION ============
+    // Add specific collection for retailers with dual account support
+    match /retailers/{retailerId} {
+      // Anyone can read retailer profiles (for discovery)
+      allow read: if true;
+      
+      // Allow creation/update if:
+      // 1. Regular account: retailerId matches authenticated UID
+      // 2. Dual account: retailerId starts with authenticated UID followed by '_retailer'
+      allow create, update: if request.auth != null && 
+                           (request.auth.uid == retailerId ||
+                            retailerId == request.auth.uid + '_retailer');
+      
+      // Allow deletion with same logic as create/update
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == retailerId ||
+                    retailerId == request.auth.uid + '_retailer');
+    }
+    
+    // ============ ORDER AND TRANSACTION MANAGEMENT ============
+    // ...existing code...
     match /orders/{orderId} {
-      allow read, write: if request.auth != null 
-        && (resource.data.buyerId == request.auth.uid 
-            || resource.data.artisanId == request.auth.uid);
+      // Only order participants can read/write orders
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.buyerId || 
+         request.auth.uid == resource.data.sellerId ||
+         request.auth.uid == resource.data.artisanId);
+      
+      // Allow creation if user is the buyer
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.buyerId;
     }
     
-    // Allow authenticated users to read/write all other collections for development
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Daily Revenue - For seller analytics
+    match /daily_revenue/{revenueId} {
+      // Only the seller can read their own revenue data
+      allow read, write: if request.auth != null && 
+                        request.auth.uid == resource.data.sellerId;
+      
+      // Allow creation of revenue records
+      allow create: if request.auth != null;
     }
-    // Chat rooms and messages rules
+    
+    // ============ REVIEWS AND RATINGS ============
+    // ...existing code...
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Only buyers can create reviews for their orders
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.buyerId;
+      
+      // Buyers can update their own reviews, sellers can respond
+      allow update: if request.auth != null && 
+                   (request.auth.uid == resource.data.buyerId ||
+                    request.auth.uid == resource.data.sellerId);
+      
+      // Only review author can delete
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.buyerId;
+    }
+    
+    // ============ FAVORITES AND SOCIAL FEATURES ============
+    // ...existing code...
+    match /favorites/{favoriteId} {
+      // Users can only manage their own favorites
+      allow read, write: if request.auth != null && 
+                        request.auth.uid == resource.data.userId;
+    }
+    
+    // User activity and engagement
+    match /user_activity/{activityId} {
+      allow read, write: if request.auth != null && 
+                        request.auth.uid == resource.data.userId;
+    }
+    
+    // ============ COMMUNICATION ============
+    // ...existing code...
     match /chat_rooms/{chatRoomId} {
+      // Only chat participants can access
       allow read, write: if request.auth != null && 
         (request.auth.uid == resource.data.customerId || 
-        request.auth.uid == resource.data.artisanId);
+         request.auth.uid == resource.data.artisanId ||
+         request.auth.uid == resource.data.sellerId);
+      
+      // Messages within chat rooms
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && 
+          (request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(chatRoomId)).data.customerId ||
+           request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(chatRoomId)).data.artisanId ||
+           request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(chatRoomId)).data.sellerId);
+      }
+    }
+    
+    // Conversations - Enhanced messaging
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null && 
+                        request.auth.uid in resource.data.participants;
       
       match /messages/{messageId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if request.auth != null && 
+                          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
       }
+    }
+    
+    // Notifications
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if request.auth != null && 
+                 request.auth.uid == resource.data.userId;
+      
+      // Allow creating and updating notifications for the target user
+      allow create, update: if request.auth != null && 
+                           request.auth.uid == request.resource.data.userId;
+      
+      // Allow system or other users to create notifications for a user
+      allow create: if request.auth != null;
+      
+      // Users can update/delete their own notifications
+      allow update, delete: if request.auth != null && 
+                           request.auth.uid == resource.data.userId;
+    }
+    
+    // ============ CRAFT REQUESTS ============
+    // ...existing code...
+    match /craft_requests/{requestId} {
+      // Anyone can read requests (for discovery/browsing)
+      allow read: if true;
+      
+      // Only authenticated users can create requests
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.buyerId &&
+                   validateCraftRequestData(request.resource.data);
+      
+      // Buyers can update their own requests
+      // Any authenticated user can update to add quotations (app logic handles validation)
+      allow update: if request.auth != null;
+      
+      // Buyers can delete their own requests
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.buyerId;
+    }
+
+    // ============ ADMINISTRATIVE AND SYSTEM ============
+    // ...existing code...
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false; // Admin/system only
+    }
+    
+    // Analytics - System-level analytics
+    match /analytics/{analyticsId} {
+      allow read: if request.auth != null;
+      allow write: if false; // System only
+    }
+    
+    // Promotions and marketing
+    match /promotions/{promotionId} {
+      allow read: if true;
+      allow write: if false; // Admin only
+    }
+    
+    // System configuration
+    match /system_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Admin only
+    }
+    
+    // ============ VALIDATION FUNCTIONS ============
+    // Helper functions for data validation
+    function validateProductData(data) {
+      return data.keys().hasAll(['name', 'description', 'price', 'artisanId', 'category']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.price is number && data.price > 0 &&
+             data.artisanId is string && data.artisanId.size() > 0 &&
+             data.category is string && data.category.size() > 0;
+    }
+    
+    function validateProductUpdate(newData, existingData) {
+      // Ensure critical fields aren't changed maliciously
+      return newData.artisanId == existingData.artisanId &&
+             // Allow normal field updates including Artisan's Legacy fields
+             (newData.diff(existingData).affectedKeys().hasOnly(['name', 'description', 'price', 'stockQuantity', 'materials', 'tags', 'category', 'dimensions', 'craftingTime', 'careInstructions', 'isActive', 'updatedAt', 'imageUrl', 'imageUrls', 'videoUrl', 'audioStoryUrl', 'audioStoryTranscription', 'audioStoryTranslations', 'aiAnalysis', 'searchTerms', 'priceRange', 'views', 'likes', 'likedBy', 'artisanLegacyStory', 'storyIngredients', 'provenanceMapData']));
+    }
+    
+    function validateLikesViewsUpdate(newData, existingData) {
+      // Only allow updates to likes, likedBy, and views fields
+      return newData.diff(existingData).affectedKeys().hasOnly(['likes', 'likedBy', 'views']) &&
+             // Ensure artisanId and other critical fields remain unchanged
+             newData.artisanId == existingData.artisanId &&
+             newData.name == existingData.name &&
+             newData.price == existingData.price;
+    }
+    
+    function validateCraftRequestData(data) {
+      return data.keys().hasAll(['buyerId', 'title', 'description', 'budget']) &&
+             data.buyerId is string && data.buyerId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.budget is number && data.budget > 0;
+    }
+    
+    // ============ CHAT SYSTEM ============
+    // ...existing code...
+    match /chat_rooms/{chatRoomId} {
+      allow read, write: if request.auth != null;
+      allow create: if request.auth != null;
+        
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+        allow create: if request.auth != null;
+      }
+    }
+    
+    // ============ LIVING WORKSHOPS ============
+    // ...existing code...
+    match /living_workshops/{workshopId} {
+      // Anyone can read workshops for public viewing experiences
+      allow read: if true;
+      
+      // Only authenticated users can create workshops with their own userId
+      allow create: if request.auth != null && 
+                   (request.auth.uid == workshopId || 
+                    request.auth.uid == request.resource.data.userId ||
+                    request.auth.uid == request.resource.data.artisanId);
+      
+      // Only the workshop owner can update their workshop
+      allow update: if request.auth != null && 
+                   (request.auth.uid == workshopId ||
+                    request.auth.uid == resource.data.userId ||
+                    request.auth.uid == resource.data.artisanId);
+      
+      // Only the workshop owner can delete their workshop
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == workshopId ||
+                    request.auth.uid == resource.data.userId ||
+                    request.auth.uid == resource.data.artisanId);
+    }
+    
+    // ============ FALLBACK RULES ============
+    // General authenticated access for other collections
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Explicit permissions required
     }
   }
 }

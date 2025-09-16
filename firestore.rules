@@ -3,75 +3,44 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ============ CORE PRODUCT MANAGEMENT ============
-    // Products - Enhanced rules for seller edit/delete functionality
     match /products/{productId} {
-      // Anyone can read products (for browsing/shopping)
       allow read: if true;
-      
-      // Only authenticated artisans can create products with their own artisanId
       allow create: if request.auth != null && 
                    request.auth.uid == request.resource.data.artisanId &&
                    validateProductData(request.resource.data);
-      
-      // Allow product owner updates OR likes/views updates by any authenticated user
       allow update: if request.auth != null && (
-                   // Product owner can update everything
                    (request.auth.uid == resource.data.artisanId &&
                     validateProductUpdate(request.resource.data, resource.data)) ||
-                   // Any authenticated user can update likes and views
-                   validateLikesViewsUpdate(request.resource.data, resource.data)
+                   validateLikesViewsUpdate(request.resource.data, resource.data) ||
+                   onlyUpdatingRatingFields(request.resource.data, resource.data)
                    );
-      
-      // Only the product owner (artisan) can delete their products
       allow delete: if request.auth != null && 
                    request.auth.uid == resource.data.artisanId;
     }
     
     // ============ USER PROFILE MANAGEMENT ============
-    // Sellers/Artisans - Enhanced profile management with dual account support
     match /sellers/{sellerId} {
-      // Anyone can read seller profiles (for discovery)
       allow read: if true;
-      
-      // Allow creation/update if:
-      // 1. Regular account: sellerId matches authenticated UID
-      // 2. Dual account: sellerId starts with authenticated UID followed by '_retailer'
       allow create, update: if request.auth != null && 
                            (request.auth.uid == sellerId ||
                             sellerId == request.auth.uid + '_retailer');
-      
-      // Allow deletion with same logic as create/update
       allow delete: if request.auth != null && 
                    (request.auth.uid == sellerId ||
                     sellerId == request.auth.uid + '_retailer');
     }
     
-    // Stores - Enhanced store management for sellers with dual account support
     match /stores/{storeId} {
-      // Anyone can read store information
       allow read: if true;
-      
-      // Allow management if:
-      // 1. Regular account: storeId matches authenticated UID
-      // 2. Dual account: storeId starts with authenticated UID
       allow create, update, delete: if request.auth != null && 
                                    (request.auth.uid == storeId ||
                                     storeId == request.auth.uid + '_retailer');
     }
     
-    // Customers - Customer profile management with dual account support
     match /customers/{customerId} {
-      // Customers can read any customer profile (for social features)
       allow read: if request.auth != null;
-      
-      // Allow management if:
-      // 1. Regular account: customerId matches authenticated UID
-      // 2. Dual account: customerId starts with authenticated UID followed by '_customer'
       allow create, update, delete: if request.auth != null && 
                                    (request.auth.uid == customerId ||
                                     customerId == request.auth.uid + '_customer');
-      
-      // Customer subcollections (cart, favorites, etc.)
       match /{subcollection=**} {
         allow read, write: if request.auth != null && 
                           (request.auth.uid == customerId ||
@@ -79,19 +48,11 @@ service cloud.firestore {
       }
     }
     
-    // Users - General user profiles and authentication data with dual account support
     match /users/{userId} {
-      // Users can read any user profile (for social features)
       allow read: if request.auth != null;
-      
-      // Allow management if:
-      // 1. Regular account: userId matches authenticated UID
-      // 2. Dual account: userId starts with authenticated UID
       allow create, update, delete: if request.auth != null && 
                                    (request.auth.uid == userId ||
                                     userId.matches(request.auth.uid + '_.*'));
-      
-      // User subcollections with dual account support
       match /{subcollection=**} {
         allow read, write: if request.auth != null && 
                           (request.auth.uid == userId ||
@@ -99,93 +60,50 @@ service cloud.firestore {
       }
     }
 
-    // ============ RETAILERS COLLECTION ============
-    // Add specific collection for retailers with dual account support
     match /retailers/{retailerId} {
-      // Anyone can read retailer profiles (for discovery)
       allow read: if true;
-      
-      // Allow creation/update if:
-      // 1. Regular account: retailerId matches authenticated UID
-      // 2. Dual account: retailerId starts with authenticated UID followed by '_retailer'
       allow create, update: if request.auth != null && 
                            (request.auth.uid == retailerId ||
                             retailerId == request.auth.uid + '_retailer');
-      
-      // Allow deletion with same logic as create/update
       allow delete: if request.auth != null && 
                    (request.auth.uid == retailerId ||
                     retailerId == request.auth.uid + '_retailer');
     }
     
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
-    // ...existing code...
     match /orders/{orderId} {
-      // Only order participants can read/write orders
       allow read, write: if request.auth != null && 
         (request.auth.uid == resource.data.buyerId || 
          request.auth.uid == resource.data.sellerId ||
          request.auth.uid == resource.data.artisanId);
-      
-      // Allow creation if user is the buyer
       allow create: if request.auth != null && 
                    request.auth.uid == request.resource.data.buyerId;
     }
     
-    // Daily Revenue - For seller analytics
     match /daily_revenue/{revenueId} {
-      // Only the seller can read their own revenue data
       allow read, write: if request.auth != null && 
                         request.auth.uid == resource.data.sellerId;
-      
-      // Allow creation of revenue records
       allow create: if request.auth != null;
     }
     
-    // ============ REVIEWS AND RATINGS ============
-    // ...existing code...
-    match /reviews/{reviewId} {
-      // Anyone can read reviews
-      allow read: if true;
-      
-      // Only buyers can create reviews for their orders
-      allow create: if request.auth != null && 
-                   request.auth.uid == request.resource.data.buyerId;
-      
-      // Buyers can update their own reviews, sellers can respond
-      allow update: if request.auth != null && 
-                   (request.auth.uid == resource.data.buyerId ||
-                    request.auth.uid == resource.data.sellerId);
-      
-      // Only review author can delete
-      allow delete: if request.auth != null && 
-                   request.auth.uid == resource.data.buyerId;
-    }
-    
     // ============ FAVORITES AND SOCIAL FEATURES ============
-    // ...existing code...
     match /favorites/{favoriteId} {
-      // Users can only manage their own favorites
       allow read, write: if request.auth != null && 
                         request.auth.uid == resource.data.userId;
     }
     
-    // User activity and engagement
     match /user_activity/{activityId} {
       allow read, write: if request.auth != null && 
                         request.auth.uid == resource.data.userId;
     }
     
     // ============ COMMUNICATION ============
-    // ...existing code...
     match /chat_rooms/{chatRoomId} {
-      // Only chat participants can access
       allow read, write: if request.auth != null && 
         (request.auth.uid == resource.data.customerId || 
          request.auth.uid == resource.data.artisanId ||
          request.auth.uid == resource.data.sellerId);
       
-      // Messages within chat rooms
       match /messages/{messageId} {
         allow read, write: if request.auth != null && 
           (request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(chatRoomId)).data.customerId ||
@@ -194,7 +112,6 @@ service cloud.firestore {
       }
     }
     
-    // Conversations - Enhanced messaging
     match /conversations/{conversationId} {
       allow read, write: if request.auth != null && 
                         request.auth.uid in resource.data.participants;
@@ -205,71 +122,187 @@ service cloud.firestore {
       }
     }
     
-    // Notifications
+    // ============ NOTIFICATIONS ============
     match /notifications/{notificationId} {
-      // Users can only read their own notifications
       allow read: if request.auth != null && 
                  request.auth.uid == resource.data.userId;
-      
-      // Allow creating and updating notifications for the target user
-      allow create, update: if request.auth != null && 
-                           request.auth.uid == request.resource.data.userId;
-      
-      // Allow system or other users to create notifications for a user
       allow create: if request.auth != null;
-      
-      // Users can update/delete their own notifications
       allow update, delete: if request.auth != null && 
                            request.auth.uid == resource.data.userId;
     }
     
     // ============ CRAFT REQUESTS ============
-    // ...existing code...
     match /craft_requests/{requestId} {
-      // Anyone can read requests (for discovery/browsing)
       allow read: if true;
-      
-      // Only authenticated users can create requests
       allow create: if request.auth != null && 
                    request.auth.uid == request.resource.data.buyerId &&
                    validateCraftRequestData(request.resource.data);
-      
-      // Buyers can update their own requests
-      // Any authenticated user can update to add quotations (app logic handles validation)
-      allow update: if request.auth != null;
-      
-      // Buyers can delete their own requests
+      allow update: if request.auth != null && (
+                   request.auth.uid == resource.data.buyerId ||
+                   validateQuotationUpdate(request.resource.data, resource.data) ||
+                   validateCollaborationUpdate(request.resource.data, resource.data)
+                   );
       allow delete: if request.auth != null && 
                    request.auth.uid == resource.data.buyerId;
     }
 
+    // ============ COLLABORATION SYSTEM ============
+    match /collaboration_projects/{projectId} {
+      allow read: if resource.data.status == 'open' || 
+                 (request.auth != null && 
+                  (request.auth.uid == resource.data.buyerId ||
+                   request.auth.uid == resource.data.leadArtisanId ||
+                   request.auth.uid in resource.data.get('collaboratorIds', [])));
+      
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.leadArtisanId &&
+                   validateCollaborationProjectData(request.resource.data);
+      
+      allow update: if request.auth != null && 
+                   (request.auth.uid == resource.data.buyerId ||
+                    request.auth.uid == resource.data.leadArtisanId ||
+                    request.auth.uid in resource.data.get('collaboratorIds', [])) &&
+                   validateCollaborationProjectUpdate(request.resource.data, resource.data);
+      
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == resource.data.buyerId ||
+                    request.auth.uid == resource.data.leadArtisanId);
+      
+      // Project Applications subcollection
+      match /applications/{applicationId} {
+        allow read: if (get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.status == 'open') ||
+                   (request.auth != null && 
+                    (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                     request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                     request.auth.uid == resource.data.artisanId));
+        
+        allow create: if request.auth != null && 
+                     request.auth.uid == request.resource.data.artisanId &&
+                     get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.status == 'open' &&
+                     validateApplicationData(request.resource.data);
+        
+        allow update: if request.auth != null && 
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                      (request.auth.uid == resource.data.artisanId && resource.data.status == 'pending'));
+        
+        allow delete: if request.auth != null && 
+                     request.auth.uid == resource.data.artisanId &&
+                     resource.data.status == 'pending';
+      }
+      
+      // Project Tasks subcollection
+      match /tasks/{taskId} {
+        allow read: if request.auth != null && 
+                   (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                    request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                    request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        allow create, update: if request.auth != null && 
+                             (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                              request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+        
+        allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.get('assignedTo', '') &&
+                     validateTaskStatusUpdate(request.resource.data, resource.data);
+        
+        allow delete: if request.auth != null && 
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+      }
+      
+      // Project Messages subcollection
+      match /messages/{messageId} {
+        allow read: if request.auth != null && 
+                   (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                    request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                    request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        allow create: if request.auth != null && 
+                     request.auth.uid == request.resource.data.senderId &&
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                      request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.senderId;
+        
+        allow delete: if request.auth != null && 
+                     (request.auth.uid == resource.data.senderId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+      }
+    }
+    
     // ============ ADMINISTRATIVE AND SYSTEM ============
-    // ...existing code...
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if false; // Admin/system only
     }
     
-    // Analytics - System-level analytics
     match /analytics/{analyticsId} {
       allow read: if request.auth != null;
       allow write: if false; // System only
     }
     
-    // Promotions and marketing
     match /promotions/{promotionId} {
       allow read: if true;
       allow write: if false; // Admin only
     }
     
-    // System configuration
     match /system_config/{configId} {
       allow read: if request.auth != null;
       allow write: if false; // Admin only
     }
     
+    // ============ CHAT SYSTEM ============
+    match /chat_rooms/{chatRoomId} {
+      allow read, write: if request.auth != null;
+      allow create: if request.auth != null;
+        
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+        allow create: if request.auth != null;
+      }
+    }
+    
+    // ============ LIVING WORKSHOPS ============
+    match /living_workshops/{workshopId} {
+      allow read: if true;
+      allow create: if request.auth != null && 
+                   (request.auth.uid == workshopId || 
+                    request.auth.uid == request.resource.data.userId ||
+                    request.auth.uid == request.resource.data.artisanId);
+      allow update: if request.auth != null && 
+                   (request.auth.uid == workshopId ||
+                    request.auth.uid == resource.data.userId ||
+                    request.auth.uid == resource.data.artisanId);
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == workshopId ||
+                    request.auth.uid == resource.data.userId ||
+                    request.auth.uid == resource.data.artisanId);
+    }
+    
+    // ============ REVIEWS AND RATINGS SYSTEM ============
+    match /reviews/{reviewId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId
+        && isValidReview(request.resource.data);
+      allow update: if (
+        (
+          request.auth != null && (
+            request.auth.uid == resource.data.userId ||
+            isProductOwner(request.auth.uid, resource.data.productId)
+          )
+        ) ||
+        isTranslationUpdate(request.resource.data, resource.data)
+      );
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+    
     // ============ VALIDATION FUNCTIONS ============
-    // Helper functions for data validation
     function validateProductData(data) {
       return data.keys().hasAll(['name', 'description', 'price', 'artisanId', 'category']) &&
              data.name is string && data.name.size() > 0 &&
@@ -280,16 +313,12 @@ service cloud.firestore {
     }
     
     function validateProductUpdate(newData, existingData) {
-      // Ensure critical fields aren't changed maliciously
       return newData.artisanId == existingData.artisanId &&
-             // Allow normal field updates including Artisan's Legacy fields
              (newData.diff(existingData).affectedKeys().hasOnly(['name', 'description', 'price', 'stockQuantity', 'materials', 'tags', 'category', 'dimensions', 'craftingTime', 'careInstructions', 'isActive', 'updatedAt', 'imageUrl', 'imageUrls', 'videoUrl', 'audioStoryUrl', 'audioStoryTranscription', 'audioStoryTranslations', 'aiAnalysis', 'searchTerms', 'priceRange', 'views', 'likes', 'likedBy', 'artisanLegacyStory', 'storyIngredients', 'provenanceMapData']));
     }
     
     function validateLikesViewsUpdate(newData, existingData) {
-      // Only allow updates to likes, likedBy, and views fields
       return newData.diff(existingData).affectedKeys().hasOnly(['likes', 'likedBy', 'views']) &&
-             // Ensure artisanId and other critical fields remain unchanged
              newData.artisanId == existingData.artisanId &&
              newData.name == existingData.name &&
              newData.price == existingData.price;
@@ -303,46 +332,97 @@ service cloud.firestore {
              data.budget is number && data.budget > 0;
     }
     
-    // ============ CHAT SYSTEM ============
-    // ...existing code...
-    match /chat_rooms/{chatRoomId} {
-      allow read, write: if request.auth != null;
-      allow create: if request.auth != null;
-        
-      // Messages subcollection
-      match /messages/{messageId} {
-        allow read, write: if request.auth != null;
-        allow create: if request.auth != null;
-      }
+    function validateQuotationUpdate(newData, existingData) {
+      return newData.diff(existingData).affectedKeys().hasOnly([
+        'quotations', 
+        'updatedAt', 
+        'acceptedQuotation', 
+        'status',
+        'isOpenForCollaboration',
+        'collaborationProjectId',
+        'leadArtisanId',
+        'collaborationStatus'
+      ]) &&
+      newData.buyerId == existingData.buyerId &&
+      newData.title == existingData.title &&
+      newData.budget == existingData.budget;
+    }
+
+    function validateCollaborationUpdate(newData, existingData) {
+      return newData.diff(existingData).affectedKeys().hasOnly([
+        'isOpenForCollaboration',
+        'collaborationProjectId', 
+        'leadArtisanId',
+        'collaborationStatus',
+        'updatedAt'
+      ]) &&
+      newData.buyerId == existingData.buyerId &&
+      newData.title == existingData.title &&
+      newData.budget == existingData.budget;
     }
     
-    // ============ LIVING WORKSHOPS ============
-    // ...existing code...
-    match /living_workshops/{workshopId} {
-      // Anyone can read workshops for public viewing experiences
-      allow read: if true;
-      
-      // Only authenticated users can create workshops with their own userId
-      allow create: if request.auth != null && 
-                   (request.auth.uid == workshopId || 
-                    request.auth.uid == request.resource.data.userId ||
-                    request.auth.uid == request.resource.data.artisanId);
-      
-      // Only the workshop owner can update their workshop
-      allow update: if request.auth != null && 
-                   (request.auth.uid == workshopId ||
-                    request.auth.uid == resource.data.userId ||
-                    request.auth.uid == resource.data.artisanId);
-      
-      // Only the workshop owner can delete their workshop
-      allow delete: if request.auth != null && 
-                   (request.auth.uid == workshopId ||
-                    request.auth.uid == resource.data.userId ||
-                    request.auth.uid == resource.data.artisanId);
+    function validateCollaborationProjectData(data) {
+      return data.keys().hasAll(['leadArtisanId', 'title', 'description', 'totalBudget', 'deadline', 'category', 'requiredRoles']) &&
+             data.leadArtisanId is string && data.leadArtisanId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.totalBudget is number && data.totalBudget > 0 &&
+             data.deadline is timestamp &&
+             data.category is string && data.category.size() > 0 &&
+             data.requiredRoles is list && data.requiredRoles.size() > 0 &&
+             data.status in ['open', 'in_progress', 'completed', 'cancelled'];
+    }
+
+    function validateCollaborationProjectUpdate(newData, existingData) {
+      return newData.leadArtisanId == existingData.leadArtisanId &&
+             newData.diff(existingData).affectedKeys().hasOnly(['title', 'description', 'totalBudget', 'deadline', 'status', 'collaboratorIds', 'progressPercentage', 'budgetAllocation', 'updatedAt', 'additionalNotes', 'requirements', 'tags', 'complexity', 'urgency', 'isUrgent', 'allowPartialDelivery', 'requireQualitySamples', 'attachments', 'requiredRoles']);
+    }
+
+    function validateApplicationData(data) {
+      return data.keys().hasAll(['artisanId', 'proposal', 'proposedRate', 'estimatedDays']) &&
+             data.artisanId is string && data.artisanId.size() > 0 &&
+             data.proposal is string && data.proposal.size() > 0 &&
+             data.proposedRate is number && data.proposedRate > 0 &&
+             data.estimatedDays is number && data.estimatedDays > 0 &&
+             data.status in ['pending', 'accepted', 'rejected'];
+    }
+
+    function validateTaskStatusUpdate(newData, existingData) {
+      return newData.diff(existingData).affectedKeys().hasOnly(['status', 'completedAt', 'notes', 'progress', 'updatedAt']) &&
+             newData.id == existingData.id &&
+             newData.assignedTo == existingData.assignedTo;
+    }
+    
+    function isValidReview(reviewData) {
+      return reviewData.rating >= 1 
+        && reviewData.rating <= 5
+        && reviewData.comment.size() >= 10
+        && reviewData.comment.size() <= 500
+        && reviewData.userId == request.auth.uid;
+    }
+    
+    function isProductOwner(userId, productId) {
+      return exists(/databases/$(database)/documents/products/$(productId)) &&
+        get(/databases/$(database)/documents/products/$(productId)).data.artisanId == userId;
+    }
+    
+    function isTranslationUpdate(newData, oldData) {
+      let changedKeys = newData.diff(oldData).affectedKeys();
+      return changedKeys.hasOnly([
+        'commentTranslations',
+        'translations',
+        'detectedLanguage',
+        'artisanResponseTranslations',
+        'artisanVoiceTranslations',
+        'updatedAt'
+      ]);
+    }
+    
+    function onlyUpdatingRatingFields(newData, oldData) {
+      return newData.diff(oldData).affectedKeys().hasOnly(['rating', 'reviewCount', 'updatedAt']);
     }
     
     // ============ FALLBACK RULES ============
-    // General authenticated access for other collections
     match /{document=**} {
       allow read: if request.auth != null;
       allow write: if false; // Explicit permissions required
