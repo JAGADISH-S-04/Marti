@@ -181,12 +181,16 @@ class _AddEditReviewDialogState extends State<AddEditReviewDialog> with TickerPr
                       activeColor: accentGold,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      _getRatingText(_rating),
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: _getRatingColor(_rating),
+                    Expanded(
+                      child: Text(
+                        _getRatingText(_rating),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _getRatingColor(_rating),
+                        ),
                       ),
                     ),
                   ],
@@ -242,7 +246,10 @@ class _AddEditReviewDialogState extends State<AddEditReviewDialog> with TickerPr
                 
                 // Photo Section
                 if (!isEditing) ...[
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 8,
                     children: [
                       Text(
                         'Add Photos (Optional)',
@@ -252,21 +259,26 @@ class _AddEditReviewDialogState extends State<AddEditReviewDialog> with TickerPr
                           color: primaryBrown,
                         ),
                       ),
-                      const Spacer(),
                       TextButton.icon(
                         onPressed: _pickImages,
                         icon: Icon(
                           Icons.add_photo_alternate,
-                          size: 20,
+                          size: 18,
                           color: accentGold,
                         ),
                         label: Text(
                           'Add Photos',
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             color: accentGold,
                             fontWeight: FontWeight.w500,
                           ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
                     ],
@@ -499,10 +511,10 @@ class _AddEditReviewDialogState extends State<AddEditReviewDialog> with TickerPr
           // In a full implementation, you'd want to handle image uploads
         );
       } else {
-        // Add new review
+        // Add new review with translation support
         // Note: For simplicity, we don't handle image uploads here
         // In a full implementation, you'd want to upload images to Firebase Storage
-        await _reviewService.addReview(
+        await _reviewService.addReviewWithTranslation(
           productId: widget.productId,
           productName: widget.productName,
           rating: _rating,

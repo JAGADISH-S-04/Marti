@@ -17,7 +17,22 @@ class Review {
   final List<String> images; // Optional review images
   final String? artisanResponse; // Optional response from the artisan/seller
   final DateTime? artisanResponseDate;
+  
+  // Voice response fields
+  final String? artisanVoiceUrl; // URL to the voice response audio file
+  final String? artisanVoiceTranscription; // Transcription of the voice response
+  final Duration? artisanVoiceDuration; // Duration of the voice response
+  final Map<String, String> artisanVoiceTranslations; // Translations of voice transcription
+  
   final bool isReported; // Flag for inappropriate content
+  
+  // Translation fields
+  final String? detectedLanguage; // Auto-detected language of comment
+  final Map<String, String> commentTranslations; // {language_code: translated_text}
+  final String? artisanResponseLanguage; // Auto-detected language of artisan response
+  final Map<String, String> artisanResponseTranslations; // {language_code: translated_text}
+  final String? preferredLanguage; // User's preferred language for viewing
+  
   final Map<String, dynamic>? metadata; // For future extensions
 
   Review({
@@ -37,7 +52,16 @@ class Review {
     this.images = const [],
     this.artisanResponse,
     this.artisanResponseDate,
+    this.artisanVoiceUrl,
+    this.artisanVoiceTranscription,
+    this.artisanVoiceDuration,
+    this.artisanVoiceTranslations = const {},
     this.isReported = false,
+    this.detectedLanguage,
+    this.commentTranslations = const {},
+    this.artisanResponseLanguage,
+    this.artisanResponseTranslations = const {},
+    this.preferredLanguage,
     this.metadata,
   });
 
@@ -62,7 +86,16 @@ class Review {
       'artisanResponseDate': artisanResponseDate != null 
           ? Timestamp.fromDate(artisanResponseDate!) 
           : null,
+      'artisanVoiceUrl': artisanVoiceUrl,
+      'artisanVoiceTranscription': artisanVoiceTranscription,
+      'artisanVoiceDuration': artisanVoiceDuration?.inMilliseconds,
+      'artisanVoiceTranslations': artisanVoiceTranslations,
       'isReported': isReported,
+      'detectedLanguage': detectedLanguage,
+      'commentTranslations': commentTranslations,
+      'artisanResponseLanguage': artisanResponseLanguage,
+      'artisanResponseTranslations': artisanResponseTranslations,
+      'preferredLanguage': preferredLanguage,
       'metadata': metadata,
     };
   }
@@ -86,7 +119,24 @@ class Review {
       images: List<String>.from(map['images'] ?? []),
       artisanResponse: map['artisanResponse'],
       artisanResponseDate: (map['artisanResponseDate'] as Timestamp?)?.toDate(),
+      artisanVoiceUrl: map['artisanVoiceUrl'],
+      artisanVoiceTranscription: map['artisanVoiceTranscription'],
+      artisanVoiceDuration: map['artisanVoiceDuration'] != null 
+          ? Duration(milliseconds: map['artisanVoiceDuration'] as int)
+          : null,
+      artisanVoiceTranslations: map['artisanVoiceTranslations'] != null
+          ? Map<String, String>.from(map['artisanVoiceTranslations'])
+          : {},
       isReported: map['isReported'] ?? false,
+      detectedLanguage: map['detectedLanguage'],
+      commentTranslations: map['commentTranslations'] != null 
+          ? Map<String, String>.from(map['commentTranslations'])
+          : {},
+      artisanResponseLanguage: map['artisanResponseLanguage'],
+      artisanResponseTranslations: map['artisanResponseTranslations'] != null
+          ? Map<String, String>.from(map['artisanResponseTranslations'])
+          : {},
+      preferredLanguage: map['preferredLanguage'],
       metadata: map['metadata'] != null 
           ? Map<String, dynamic>.from(map['metadata']) 
           : null,
@@ -111,7 +161,16 @@ class Review {
     List<String>? images,
     String? artisanResponse,
     DateTime? artisanResponseDate,
+    String? artisanVoiceUrl,
+    String? artisanVoiceTranscription,
+    Duration? artisanVoiceDuration,
+    Map<String, String>? artisanVoiceTranslations,
     bool? isReported,
+    String? detectedLanguage,
+    Map<String, String>? commentTranslations,
+    String? artisanResponseLanguage,
+    Map<String, String>? artisanResponseTranslations,
+    String? preferredLanguage,
     Map<String, dynamic>? metadata,
   }) {
     return Review(
@@ -131,7 +190,16 @@ class Review {
       images: images ?? this.images,
       artisanResponse: artisanResponse ?? this.artisanResponse,
       artisanResponseDate: artisanResponseDate ?? this.artisanResponseDate,
+      artisanVoiceUrl: artisanVoiceUrl ?? this.artisanVoiceUrl,
+      artisanVoiceTranscription: artisanVoiceTranscription ?? this.artisanVoiceTranscription,
+      artisanVoiceDuration: artisanVoiceDuration ?? this.artisanVoiceDuration,
+      artisanVoiceTranslations: artisanVoiceTranslations ?? this.artisanVoiceTranslations,
       isReported: isReported ?? this.isReported,
+      detectedLanguage: detectedLanguage ?? this.detectedLanguage,
+      commentTranslations: commentTranslations ?? this.commentTranslations,
+      artisanResponseLanguage: artisanResponseLanguage ?? this.artisanResponseLanguage,
+      artisanResponseTranslations: artisanResponseTranslations ?? this.artisanResponseTranslations,
+      preferredLanguage: preferredLanguage ?? this.preferredLanguage,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -169,6 +237,77 @@ class Review {
   // Check if review is recent (within 7 days)
   bool get isRecent {
     return DateTime.now().difference(createdAt).inDays <= 7;
+  }
+
+  // Translation helper methods
+  
+  /// Get comment in specified language (returns translation if available, otherwise original)
+  String getComment([String? languageCode]) {
+    if (languageCode == null || languageCode == detectedLanguage) {
+      return comment;
+    }
+    return commentTranslations[languageCode] ?? comment;
+  }
+
+  /// Get artisan response in specified language (returns translation if available, otherwise original)
+  String? getArtisanResponse([String? languageCode]) {
+    if (artisanResponse == null) return null;
+    if (languageCode == null || languageCode == artisanResponseLanguage) {
+      return artisanResponse;
+    }
+    return artisanResponseTranslations[languageCode] ?? artisanResponse;
+  }
+
+  /// Check if comment has translation for specified language
+  bool hasCommentTranslation(String languageCode) {
+    return commentTranslations.containsKey(languageCode);
+  }
+
+  /// Check if artisan response has translation for specified language
+  bool hasArtisanResponseTranslation(String languageCode) {
+    return artisanResponseTranslations.containsKey(languageCode);
+  }
+
+  /// Get available translation languages for comment
+  List<String> get availableCommentLanguages {
+    return commentTranslations.keys.toList();
+  }
+
+  /// Get available translation languages for artisan response
+  List<String> get availableArtisanResponseLanguages {
+    return artisanResponseTranslations.keys.toList();
+  }
+
+  // Voice response helper methods
+  
+  /// Check if artisan has provided a voice response
+  bool get hasVoiceResponse {
+    return artisanVoiceUrl != null && artisanVoiceUrl!.isNotEmpty;
+  }
+
+  /// Get voice transcription in specified language (returns translation if available, otherwise original)
+  String? getVoiceTranscription([String? languageCode]) {
+    if (artisanVoiceTranscription == null) return null;
+    if (languageCode == null) return artisanVoiceTranscription;
+    return artisanVoiceTranslations[languageCode] ?? artisanVoiceTranscription;
+  }
+
+  /// Check if voice transcription has translation for specified language
+  bool hasVoiceTranscriptionTranslation(String languageCode) {
+    return artisanVoiceTranslations.containsKey(languageCode);
+  }
+
+  /// Get available translation languages for voice transcription
+  List<String> get availableVoiceTranscriptionLanguages {
+    return artisanVoiceTranslations.keys.toList();
+  }
+
+  /// Format voice duration for display
+  String get formattedVoiceDuration {
+    if (artisanVoiceDuration == null) return '';
+    final minutes = artisanVoiceDuration!.inMinutes;
+    final seconds = artisanVoiceDuration!.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   // Validate review content

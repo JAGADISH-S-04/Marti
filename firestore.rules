@@ -145,24 +145,7 @@ service cloud.firestore {
     }
     
     // ============ REVIEWS AND RATINGS ============
-    // ...existing code...
-    match /reviews/{reviewId} {
-      // Anyone can read reviews
-      allow read: if true;
-      
-      // Only buyers can create reviews for their orders
-      allow create: if request.auth != null && 
-                   request.auth.uid == request.resource.data.buyerId;
-      
-      // Buyers can update their own reviews, sellers can respond
-      allow update: if request.auth != null && 
-                   (request.auth.uid == resource.data.buyerId ||
-                    request.auth.uid == resource.data.sellerId);
-      
-      // Only review author can delete
-      allow delete: if request.auth != null && 
-                   request.auth.uid == resource.data.buyerId;
-    }
+    // Reviews are handled by the comprehensive rules below in line 346+
     
     // ============ FAVORITES AND SOCIAL FEATURES ============
     // ...existing code...
@@ -355,9 +338,15 @@ service cloud.firestore {
         && isValidReview(request.resource.data);
       
       // Allow update if user owns the review OR is the product owner (for artisan responses)
-      allow update: if request.auth != null && (
-        request.auth.uid == resource.data.userId ||
-        isProductOwner(request.auth.uid, resource.data.productId)
+      // Additionally, allow anyone (even unauthenticated) to perform translation-only updates to enable public translations
+      allow update: if (
+        (
+          request.auth != null && (
+            request.auth.uid == resource.data.userId ||
+            isProductOwner(request.auth.uid, resource.data.productId)
+          )
+        ) ||
+        isTranslationUpdate(request.resource.data, resource.data)
       );
       
       // Allow delete only by review owner
@@ -379,6 +368,25 @@ service cloud.firestore {
     function isProductOwner(userId, productId) {
       return exists(/databases/$(database)/documents/products/$(productId)) &&
         get(/databases/$(database)/documents/products/$(productId)).data.artisanId == userId;
+    }
+    
+    // Check if this is only a translation update (adding translation fields)
+    function isTranslationOnlyUpdate(newData, oldData) {
+      let changedKeys = newData.diff(oldData).affectedKeys();
+      // Allow updates restricted to translation-related fields (public per update rule)
+      return changedKeys.hasOnly([
+        'commentTranslations',
+        'translations',
+        'detectedLanguage',
+        'artisanResponseTranslations',
+        'artisanVoiceTranslations',
+        'updatedAt'
+      ]);
+    }
+    
+    // Legacy function for backward compatibility
+    function isTranslationUpdate(newData, oldData) {
+      return isTranslationOnlyUpdate(newData, oldData);
     }
     
     // Check if only rating fields are being updated on products
