@@ -6,6 +6,8 @@ import 'package:arti/services/product_database_service.dart';
 import 'package:arti/models/product.dart';
 import 'package:arti/widgets/notification_app_bar_icon.dart';
 import 'package:arti/notifications/models/notification_type.dart';
+import 'package:arti/widgets/review_widgets.dart';
+import 'package:arti/screens/product_reviews_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -285,6 +287,26 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  // View product reviews
+  Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
+    try {
+      // Convert Map to Product object
+      final product = _mapToProduct(productData);
+      
+      // Navigate to the Product Reviews Management screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductReviewsManagementScreen(
+            product: product,
+          ),
+        ),
+      );
+    } catch (e) {
+      _showSnackBar('Error viewing reviews: $e', isError: true);
     }
   }
 
@@ -934,26 +956,63 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
             children: [
               // Quick Stats
               Expanded(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${product['views'] ?? 0} views',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
+                    // Rating and Reviews Row
+                    if (product['rating'] != null && (product['rating'] as double) > 0) ...[
+                      Row(
+                        children: [
+                          StarRating(
+                            rating: (product['rating'] as double? ?? 0.0),
+                            size: 14,
+                            showText: false,
+                            activeColor: const Color(0xFFD4AF37),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${(product['rating'] as double? ?? 0.0).toStringAsFixed(1)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${product['reviewCount'] ?? 0})',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${product['likes'] ?? 0}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    // Views and Likes Row
+                    Row(
+                      children: [
+                        Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${product['views'] ?? 0} views',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${product['likes'] ?? 0}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -962,6 +1021,23 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // View Reviews button (only show if there are reviews)
+                  if (product['reviewCount'] != null && (product['reviewCount'] as int) > 0) ...[
+                    TextButton.icon(
+                      onPressed: () => _viewProductReviews(product),
+                      icon: const Icon(Icons.rate_review, size: 16),
+                      label: Text('Reviews (${product['reviewCount']})'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFD4AF37),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: const Size(60, 28),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   // Edit button
                   TextButton.icon(
                     onPressed: () => _editProduct(product),
