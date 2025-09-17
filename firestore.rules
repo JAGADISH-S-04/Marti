@@ -13,7 +13,8 @@ service cloud.firestore {
                    request.auth.uid == request.resource.data.artisanId &&
                    validateProductData(request.resource.data);
       
-      // Allow product owner updates OR likes/views updates by any authenticated user OR rating updates by system
+      // Allow product owner updates OR likes/views updates by any authenticated user OR rating updates by system OR stock updates during order
+
       allow update: if request.auth != null && (
                    // Product owner can update everything
                    (request.auth.uid == resource.data.artisanId &&
@@ -121,17 +122,20 @@ service cloud.firestore {
     }
     
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
-    // ...existing code...
     match /orders/{orderId} {
+      // Allow creation if user is the buyer
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.buyerId;
+      
       // Only order participants can read/write orders
-      allow read, write: if request.auth != null && 
+      allow read, update: if request.auth != null && 
         (request.auth.uid == resource.data.buyerId || 
          request.auth.uid == resource.data.sellerId ||
          request.auth.uid == resource.data.artisanId);
       
-      // Allow creation if user is the buyer
-      allow create: if request.auth != null && 
-                   request.auth.uid == request.resource.data.buyerId;
+      // Allow deletion only by the buyer
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.buyerId;
     }
     
     // Daily Revenue - For seller analytics
@@ -148,7 +152,6 @@ service cloud.firestore {
     // Reviews are handled by the comprehensive rules below in line 346+
     
     // ============ FAVORITES AND SOCIAL FEATURES ============
-    // ...existing code...
     match /favorites/{favoriteId} {
       // Users can only manage their own favorites
       allow read, write: if request.auth != null && 
@@ -162,7 +165,6 @@ service cloud.firestore {
     }
     
     // ============ COMMUNICATION ============
-    // ...existing code...
     match /chat_rooms/{chatRoomId} {
       // Only chat participants can access
       allow read, write: if request.auth != null && 
@@ -209,7 +211,6 @@ service cloud.firestore {
     }
     
     // ============ CRAFT REQUESTS ============
-    // ...existing code...
     match /craft_requests/{requestId} {
       // Anyone can read requests (for discovery/browsing)
       allow read: if true;
@@ -229,7 +230,6 @@ service cloud.firestore {
     }
 
     // ============ ADMINISTRATIVE AND SYSTEM ============
-    // ...existing code...
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if false; // Admin/system only
@@ -280,6 +280,16 @@ service cloud.firestore {
              newData.price == existingData.price;
     }
     
+    function validateStockUpdate(newData, existingData) {
+      // Only allow updates to stockQuantity and updatedAt fields during order placement
+      return newData.diff(existingData).affectedKeys().hasOnly(['stockQuantity', 'updatedAt']) &&
+             // Ensure all other critical fields remain unchanged
+             newData.artisanId == existingData.artisanId &&
+             newData.name == existingData.name &&
+             newData.price == existingData.price &&
+             newData.id == existingData.id;
+    }
+    
     function validateCraftRequestData(data) {
       return data.keys().hasAll(['buyerId', 'title', 'description', 'budget']) &&
              data.buyerId is string && data.buyerId.size() > 0 &&
@@ -289,7 +299,6 @@ service cloud.firestore {
     }
     
     // ============ CHAT SYSTEM ============
-    // ...existing code...
     match /chat_rooms/{chatRoomId} {
       allow read, write: if request.auth != null;
       allow create: if request.auth != null;
@@ -301,29 +310,301 @@ service cloud.firestore {
       }
     }
     
-    // ============ LIVING WORKSHOPS ============
-    // ...existing code...
+    // ============ LIVING WORKSHOPS - AI POWERED ============
+    // Enhanced rules for AI-generated workshop content
     match /living_workshops/{workshopId} {
       // Anyone can read workshops for public viewing experiences
       allow read: if true;
       
-      // Only authenticated users can create workshops with their own userId
+      // Only authenticated users can create workshops with their own userId/artisanId
+      // Allow flexible ID patterns for workshop storage
       allow create: if request.auth != null && 
                    (request.auth.uid == workshopId || 
                     request.auth.uid == request.resource.data.userId ||
-                    request.auth.uid == request.resource.data.artisanId);
+                    request.auth.uid == request.resource.data.artisanId ||
+                    workshopId.matches(request.auth.uid + '_.*') ||
+                    validateWorkshopData(request.resource.data));
       
       // Only the workshop owner can update their workshop
       allow update: if request.auth != null && 
                    (request.auth.uid == workshopId ||
                     request.auth.uid == resource.data.userId ||
-                    request.auth.uid == resource.data.artisanId);
+                    request.auth.uid == resource.data.artisanId ||
+                    workshopId.matches(request.auth.uid + '_.*') ||
+                    // Allow view count updates and AI content updates
+                    validateWorkshopUpdate(request.resource.data, resource.data));
       
       // Only the workshop owner can delete their workshop
       allow delete: if request.auth != null && 
                    (request.auth.uid == workshopId ||
                     request.auth.uid == resource.data.userId ||
-                    request.auth.uid == resource.data.artisanId);
+                    request.auth.uid == resource.data.artisanId ||
+                    workshopId.matches(request.auth.uid + '_.*'));
+    }
+    
+    // Workshop analytics and AI generation logs
+    match /workshop_analytics/{analyticsId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && 
+                           (request.auth.uid == request.resource.data.userId ||
+                            request.auth.uid == request.resource.data.artisanId);
+    }
+    
+    // AI generation queue for workshop processing
+    match /ai_generation_queue/{taskId} {
+      allow read, write: if request.auth != null && 
+                        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // ============ REVIEWS AND RATINGS SYSTEM ============
+    // Reviews collection rules
+    match /reviews/{reviewId} {
+      // Allow read access to all authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow create if user is authenticated and is the review author
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId
+        && isValidReview(request.resource.data);
+      
+      // Allow update if user owns the review OR is the product owner (for artisan responses)
+      // Additionally, allow anyone (even unauthenticated) to perform translation-only updates to enable public translations
+      allow update: if (
+        (
+          request.auth != null && (
+            request.auth.uid == resource.data.userId ||
+            isProductOwner(request.auth.uid, resource.data.productId)
+          )
+        ) ||
+        isTranslationUpdate(request.resource.data, resource.data)
+      );
+      
+      // Allow delete only by review owner
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+    
+    // ============ COLLABORATION SYSTEM ============
+    match /collaboration_projects/{projectId} {
+      // Allow read if project is open OR user is involved
+      allow read: if resource.data.status == 'open' || 
+                 (request.auth != null && 
+                  (request.auth.uid == resource.data.buyerId ||
+                   request.auth.uid == resource.data.leadArtisanId ||
+                   request.auth.uid in resource.data.get('collaboratorIds', [])));
+      
+      // Allow creation by lead artisan
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.leadArtisanId &&
+                   validateCollaborationProjectData(request.resource.data);
+      
+      // Allow updates by project participants
+      allow update: if request.auth != null && 
+                   (request.auth.uid == resource.data.buyerId ||
+                    request.auth.uid == resource.data.leadArtisanId ||
+                    request.auth.uid in resource.data.get('collaboratorIds', [])) &&
+                   validateCollaborationProjectUpdate(request.resource.data, resource.data);
+      
+      // Allow deletion by buyer or lead artisan
+      allow delete: if request.auth != null && 
+                   (request.auth.uid == resource.data.buyerId ||
+                    request.auth.uid == resource.data.leadArtisanId);
+      
+      // Project Applications subcollection
+      match /applications/{applicationId} {
+        // Allow read if project is open OR user is involved
+        allow read: if (get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.status == 'open') ||
+                   (request.auth != null && 
+                    (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                     request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                     request.auth.uid == resource.data.artisanId));
+        
+        // Allow creation by authenticated users for open projects
+        allow create: if request.auth != null && 
+                     request.auth.uid == request.resource.data.artisanId &&
+                     get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.status == 'open' &&
+                     validateApplicationData(request.resource.data);
+        
+        // Allow updates by project lead or applicant
+        allow update: if request.auth != null && 
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                      (request.auth.uid == resource.data.artisanId && resource.data.status == 'pending'));
+        
+        // Allow deletion by applicant if pending
+        allow delete: if request.auth != null && 
+                     request.auth.uid == resource.data.artisanId &&
+                     resource.data.status == 'pending';
+      }
+      
+      // Project Tasks subcollection
+      match /tasks/{taskId} {
+        // Allow read by project participants
+        allow read: if request.auth != null && 
+                   (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                    request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                    request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        // Allow creation/update by lead artisan or buyer
+        allow create, update: if request.auth != null && 
+                             (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                              request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+        
+        // Allow updates by assigned collaborator for status changes
+        allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.get('assignedTo', '') &&
+                     validateTaskStatusUpdate(request.resource.data, resource.data);
+        
+        // Allow deletion by lead artisan or buyer
+        allow delete: if request.auth != null && 
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+      }
+      
+      // Project Messages subcollection
+      match /messages/{messageId} {
+        // Allow read by project participants
+        allow read: if request.auth != null && 
+                   (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                    request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                    request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        // Allow creation by project participants
+        allow create: if request.auth != null && 
+                     request.auth.uid == request.resource.data.senderId &&
+                     (request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId ||
+                      request.auth.uid in get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.get('collaboratorIds', []));
+        
+        // Allow updates by message sender
+        allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.senderId;
+        
+        // Allow deletion by sender, buyer, or lead artisan
+        allow delete: if request.auth != null && 
+                     (request.auth.uid == resource.data.senderId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.buyerId ||
+                      request.auth.uid == get(/databases/$(database)/documents/collaboration_projects/$(projectId)).data.leadArtisanId);
+      }
+    }
+    
+    function validateCollaborationProjectData(data) {
+      return data.keys().hasAll(['leadArtisanId', 'title', 'description', 'totalBudget', 'deadline', 'category', 'requiredRoles']) &&
+             data.leadArtisanId is string && data.leadArtisanId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.description is string && data.description.size() > 0 &&
+             data.totalBudget is number && data.totalBudget > 0 &&
+             data.deadline is timestamp &&
+             data.category is string && data.category.size() > 0 &&
+             data.requiredRoles is list && data.requiredRoles.size() > 0 &&
+             data.status in ['open', 'in_progress', 'completed', 'cancelled'];
+    }
+
+    function validateCollaborationProjectUpdate(newData, existingData) {
+      return newData.leadArtisanId == existingData.leadArtisanId &&
+             newData.diff(existingData).affectedKeys().hasOnly([
+               'title', 'description', 'totalBudget', 'deadline', 'status', 
+               'collaboratorIds', 'progressPercentage', 'budgetAllocation', 
+               'updatedAt', 'additionalNotes', 'requirements', 'tags', 
+               'complexity', 'urgency', 'isUrgent', 'allowPartialDelivery', 
+               'requireQualitySamples', 'attachments', 'requiredRoles'
+             ]);
+    }
+
+    function validateApplicationData(data) {
+      return data.keys().hasAll(['artisanId', 'proposal', 'proposedRate', 'estimatedDays']) &&
+             data.artisanId is string && data.artisanId.size() > 0 &&
+             data.proposal is string && data.proposal.size() > 0 &&
+             data.proposedRate is number && data.proposedRate > 0 &&
+             data.estimatedDays is number && data.estimatedDays > 0 &&
+             data.status in ['pending', 'accepted', 'rejected'];
+    }
+
+    function validateTaskStatusUpdate(newData, existingData) {
+      return newData.diff(existingData).affectedKeys().hasOnly(['status', 'completedAt', 'notes', 'progress', 'updatedAt']) &&
+             newData.id == existingData.id &&
+             newData.assignedTo == existingData.assignedTo;
+    }
+    
+    // ============ HELPER FUNCTIONS ============
+    // Review validation function
+    function isValidReview(reviewData) {
+      return reviewData.rating >= 1 
+        && reviewData.rating <= 5
+        && reviewData.comment.size() >= 10
+        && reviewData.comment.size() <= 500
+        && reviewData.userId == request.auth.uid;
+    }
+    
+    // Check if user is the product owner
+    function isProductOwner(userId, productId) {
+      return exists(/databases/$(database)/documents/products/$(productId)) &&
+        get(/databases/$(database)/documents/products/$(productId)).data.artisanId == userId;
+    }
+    
+    // Check if this is only a translation update (adding translation fields)
+    function isTranslationOnlyUpdate(newData, oldData) {
+      let changedKeys = newData.diff(oldData).affectedKeys();
+      // Allow updates restricted to translation-related fields (public per update rule)
+      return changedKeys.hasOnly([
+        'commentTranslations',
+        'translations',
+        'detectedLanguage',
+        'artisanResponseTranslations',
+        'artisanVoiceTranslations',
+        'updatedAt'
+      ]);
+    }
+    
+    // ============ LIVING WORKSHOP VALIDATION FUNCTIONS ============
+    // Validate workshop data structure for AI-generated content
+    function validateWorkshopData(workshopData) {
+      return workshopData.keys().hasAll(['workshopTitle', 'emotionalTheme', 'status']) &&
+             workshopData.status in ['active', 'draft', 'archived'] &&
+             workshopData.aiProvider is string &&
+             workshopData.version is string;
+    }
+    
+    // Validate workshop updates (allow AI content and view stats updates)
+    function validateWorkshopUpdate(newData, oldData) {
+      let changedKeys = newData.diff(oldData).affectedKeys();
+      // Allow updates to AI-generated content, view stats, and metadata
+      return changedKeys.hasOnly([
+        'chapter_stories',
+        'chapter_images', 
+        'hotspots',
+        'ui_descriptions',
+        'generatedContent',
+        'viewCount',
+        'lastViewedAt',
+        'updatedAt',
+        'interactiveStory',
+        'aiGeneratedContent',
+        'backgroundImageUrl',
+        'artisanStoryTranscription',
+        'ambianceDescription',
+        'emotionalThemes',
+        'interactiveElements',
+        'learningJourney',
+        'connectionPoints'
+      ]);
+    }
+    
+    // Validate AI generation task data
+    function validateAITaskData(taskData) {
+      return taskData.keys().hasAll(['userId', 'artisanId', 'status', 'taskType']) &&
+             taskData.status in ['pending', 'processing', 'completed', 'failed'] &&
+             taskData.taskType in ['workshop_generation', 'image_generation', 'content_enhancement'];
+    }
+    
+    // Legacy function for backward compatibility
+    function isTranslationUpdate(newData, oldData) {
+      return isTranslationOnlyUpdate(newData, oldData);
+    }
+    
+    // Check if only rating fields are being updated on products
+    function onlyUpdatingRatingFields(newData, oldData) {
+      return newData.diff(oldData).affectedKeys().hasOnly(['rating', 'reviewCount', 'updatedAt']);
     }
     
     // ============ REVIEWS AND RATINGS SYSTEM ============

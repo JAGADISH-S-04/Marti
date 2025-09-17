@@ -25,6 +25,7 @@ import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
 import 'artisan_media_upload_screen.dart';
 import '../services/order_service.dart';
+import 'collaboration/seller_collaboration_screen.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -613,7 +614,31 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const EnhancedProductListingPage(),
+                          builder: (context) =>
+                              const StoreAudioManagementPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.record_voice_over, size: 18),
+                    label: const Text('Audio Story'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C1810),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const EnhancedProductListingPage(),
                         ),
                       );
                     },
@@ -1906,6 +1931,8 @@ class RevenueService {
   }
 }
 
+// Replace the existing SellerScreen class with this enhanced version
+
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
 
@@ -2028,6 +2055,11 @@ class _SellerScreenState extends State<SellerScreen> {
   }
 
   @override
+  // Replace the build method in _SellerScreenState class
+
+  // Replace the entire build method content with this simplified version:
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
@@ -2051,7 +2083,6 @@ class _SellerScreenState extends State<SellerScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 12.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     // Notification icon
                     const NotificationAppBarIcon(
@@ -2069,9 +2100,10 @@ class _SellerScreenState extends State<SellerScreen> {
                   ],
                 ),
               ),
-              // Content Area
+
+              // Scrollable Content Area
               Expanded(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20.0),
                   child: SingleChildScrollView(
                     child: Column(
@@ -2088,7 +2120,7 @@ class _SellerScreenState extends State<SellerScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Action Buttons Row 1
+                      // Action Buttons Row 1 - My Store and Collaboration
                       Row(
                         children: [
                           Expanded(
@@ -2106,7 +2138,30 @@ class _SellerScreenState extends State<SellerScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildActionButton(
+                              context,
+                              'Collaboration', // Regular styling like other buttons
+                              Icons.group_work,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SellerCollaborationScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Action Buttons Row 2
+                      Row(
+                        children: [
                           Expanded(
                             child: _buildActionButton(
                               context,
@@ -2123,24 +2178,24 @@ class _SellerScreenState extends State<SellerScreen> {
                               },
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Action Buttons Row 3 - Artisan's Legacy
-                      Row(
-                        children: [
+                          const SizedBox(width: 8),
                           Expanded(
                             child: _buildActionButton(
                               context,
-                              'Artisan\'s Legacy',
+                              'Artisan Legacy',
                               Icons.auto_stories,
                               () {
                                 _showArtisanLegacyDialog(context);
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Action Buttons Row 3
+                      Row(
+                        children: [
                           Expanded(
                             child: _buildActionButton(
                               context,
@@ -2191,20 +2246,28 @@ class _SellerScreenState extends State<SellerScreen> {
                           () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const TestStoreCreationScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                              _storeData == null
+                                  ? 'Test Store Creation'
+                                  : 'Edit Store Settings',
+                              _storeData == null ? Icons.science : Icons.edit,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TestStoreCreationScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
 
-                      const SizedBox(height: 30),
-
-                      // Stats Cards
+                      // Stats Cards Section
                       Text(
-                        'Overview',
+                        'Overview & Analytics',
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -2212,6 +2275,8 @@ class _SellerScreenState extends State<SellerScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Stats Row 1
                       Row(
                         children: [
                           Expanded(
@@ -2234,6 +2299,8 @@ class _SellerScreenState extends State<SellerScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
+
+                      // Stats Row 2
                       Row(
                         children: [
                           Expanded(
@@ -2257,15 +2324,15 @@ class _SellerScreenState extends State<SellerScreen> {
                           Expanded(
                             child: _buildStatsCard(
                               context,
-                              'Requests',
+                              'Collaborations', // Regular stats card
                               '0',
-                              Icons.assignment,
+                              Icons.group_work,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const SellerRequestsScreen(),
+                                        const SellerCollaborationScreen(),
                                   ),
                                 );
                               },
@@ -2273,6 +2340,220 @@ class _SellerScreenState extends State<SellerScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Stats Row 3 - Additional metrics
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatsCard(
+                              context,
+                              'Store Views',
+                              '0',
+                              Icons.visibility,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatsCard(
+                              context,
+                              'Audio Stories',
+                              '0',
+                              Icons.headphones,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const StoreAudioManagementPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Recent Activity Section
+                      Text(
+                        'Recent Activity',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Activity placeholder
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondary
+                                .withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.timeline,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No Recent Activity',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your recent orders, collaborations, and updates will appear here',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Help & Support Section
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.1),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.help_outline,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Need Help?',
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Get support for your store, products, collaborations, and more.',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Help Center coming soon!'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.support_agent,
+                                        size: 18),
+                                    label: const Text('Support'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Tutorials coming soon!'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.school, size: 18),
+                                    label: const Text('Tutorials'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Bottom padding to ensure FAB doesn't overlap content
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),
@@ -2282,24 +2563,26 @@ class _SellerScreenState extends State<SellerScreen> {
           ),
         ),
       ),
-      // Floating Action Button for quick access to requests
+      // Simplified Floating Action Button
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "main_action",
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const SellerRequestsScreen(),
+              builder: (context) => const AddProductScreen(),
             ),
           );
         },
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.assignment),
-        label: const Text('View Requests'),
-        tooltip: 'View Craft Requests',
+        icon: const Icon(Icons.add),
+        label: const Text('Add Product'),
       ),
     );
   }
+
+  // Replace the incomplete _showArtisanLegacyDialog method with this complete version:
 
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -2421,6 +2704,8 @@ class _SellerScreenState extends State<SellerScreen> {
     }
   }
 
+  // Replace the _buildActionButton method to remove highlighting logic:
+
   Widget _buildActionButton(
     BuildContext context,
     String title,
@@ -2428,45 +2713,52 @@ class _SellerScreenState extends State<SellerScreen> {
     VoidCallback onPressed,
   ) {
     return SizedBox(
-      height: 100,
+      height: 85,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor:
+              Colors.white, // Consistent background for all buttons
           foregroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 8,
+          elevation: 8, // Consistent elevation
           shadowColor: Colors.black.withOpacity(0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
               color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+              width: 1, // Consistent border width
             ),
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                size: 24,
+                size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: 4),
+            Flexible(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600, // Consistent font weight
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

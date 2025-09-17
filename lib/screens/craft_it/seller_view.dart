@@ -8,6 +8,12 @@ import 'notification_service.dart';
 import 'notification_screen.dart';
 import 'chat_screen.dart';
 import '../../services/CI_retailer_analytics_service.dart';
+import '../../services/collab_service.dart';
+import '../collaboration/create_collaboration_screen.dart';
+import '../collaboration/collaboration_details_screen.dart';
+import '../../models/collab_model.dart';
+import '../collaboration/collaboration_management_screen.dart';
+import '../collaboration/project_management.dart';
 import '../../utils/deadline_utils.dart';
 
 class SellerRequestsScreen extends StatefulWidget {
@@ -22,6 +28,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);
   final Color lightBrown = const Color.fromARGB(255, 139, 98, 87);
   final Color backgroundBrown = const Color.fromARGB(255, 245, 240, 235);
+  final CollaborationService _collaborationService = CollaborationService();
 
   String selectedFilter = 'all';
 
@@ -1556,11 +1563,11 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
               // Action buttons based on status and quotation state
               if (isMyQuotationAccepted) ...[
-                // For accepted quotations - show chat and status
+                // For accepted quotations - show chat, collaboration, and status buttons
                 Row(
                   children: [
                     Expanded(
-                      flex: 3,
+                      flex: 2,
                       child: ElevatedButton.icon(
                         onPressed: () => _openChat(context, requestId, data),
                         icon: const Icon(Icons.chat, size: 16),
@@ -1568,6 +1575,138 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             const Text('Chat', style: TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 3,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          // Check if collaboration already exists
+                          final isOpenForCollaboration =
+                              data['isOpenForCollaboration'] ?? false;
+                          final collaborationProjectId =
+                              data['collaborationProjectId'];
+
+                          if (isOpenForCollaboration &&
+                              collaborationProjectId != null) {
+                            // Navigate to project management screen
+                            try {
+                              final collaborationDoc = await FirebaseFirestore
+                                  .instance
+                                  .collection('collaboration_projects')
+                                  .doc(collaborationProjectId)
+                                  .get();
+
+                              if (collaborationDoc.exists) {
+                                final collaboration =
+                                    CollaborationRequest.fromMap({
+                                  ...collaborationDoc.data()!,
+                                  'id': collaborationDoc.id,
+                                });
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ProjectManagementScreen(
+                                      collaboration: collaboration,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                // Collaboration project doesn't exist, reset the flag
+                                await FirebaseFirestore.instance
+                                    .collection('craft_requests')
+                                    .doc(requestId)
+                                    .update({
+                                  'isOpenForCollaboration': false,
+                                  'collaborationProjectId': FieldValue.delete(),
+                                  'collaborationStatus': FieldValue.delete(),
+                                });
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Collaboration project not found. Status reset.'),
+                                    backgroundColor: Colors.orange,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('Error accessing collaboration: $e'),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } else {
+                            // Check if user can create collaboration from this request
+                            final canCreate = await _collaborationService
+                                .canCreateCollaboration(requestId);
+
+                            if (canCreate) {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      CreateCollaborationScreen(
+                                    craftRequest: {
+                                      'id': requestId,
+                                      ...data,
+                                    },
+                                  ),
+                                ),
+                              );
+
+                              if (result == true) {
+                                // Collaboration was created successfully
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Collaboration project created successfully!'),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Cannot create collaboration for this request'),
+                                  backgroundColor: Colors.orange,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: Icon(
+                            data['isOpenForCollaboration'] == true
+                                ? Icons.manage_accounts
+                                : Icons.group_add,
+                            size: 16),
+                        label: Text(
+                            data['isOpenForCollaboration'] == true
+                                ? 'Manage Collaboration'
+                                : 'Open for Collaboration',
+                            style: const TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              data['isOpenForCollaboration'] == true
+                                  ? Colors.purple
+                                  : const Color(0xFFD4AF37),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(
@@ -1652,6 +1791,53 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     ],
                   ],
                 ),
+                const SizedBox(height: 8),
+                // Second row for the completed button
+                if (status != 'completed') ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('craft_requests')
+                              .doc(requestId)
+                              .update({
+                            'status': 'completed',
+                            'completedAt': Timestamp.now(),
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Request marked as completed!'),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Error marking completed: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.done_all, size: 16),
+                      label: const Text('Mark as Completed',
+                          style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ] else if (hasQuoted) ...[
                 // For submitted but not accepted quotations - show edit button
                 Container(
@@ -1680,16 +1866,35 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _showEditQuotationDialog(context, requestId, data),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Edit Quotation'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryBrown,
+                          side: BorderSide(color: primaryBrown),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ] else if (status == 'open') ...[
+                // For open requests where user hasn't quoted - show submit quotation button
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showEditQuotationDialog(
-                        context, requestId, data, userId),
-                    icon: Icon(Icons.edit, size: 16, color: primaryBrown),
-                    label: Text('Edit Quotation',
-                        style: TextStyle(color: primaryBrown)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: primaryBrown),
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        _showQuotationDialog(context, requestId, data),
+                    icon: const Icon(Icons.add_business, size: 16),
+                    label: const Text('Submit Quotation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryBrown,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -1762,28 +1967,36 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   }
 
   void _showEditQuotationDialog(BuildContext context, String requestId,
-      Map<String, dynamic> requestData, String? userId) {
-    if (userId == null) return;
+      Map<String, dynamic> requestData) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
     final quotations = requestData['quotations'] as List? ?? [];
     final existingQuotation = quotations.firstWhere(
-      (q) => q['artisanId'] == userId,
+      (q) => q['artisanId'] == currentUser.uid,
       orElse: () => null,
     );
 
     if (existingQuotation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No existing quotation found to edit.')),
+        const SnackBar(
+          content: Text('No existing quotation found to edit.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    final priceController =
-        TextEditingController(text: existingQuotation['price']?.toString());
-    final deliveryController =
-        TextEditingController(text: existingQuotation['deliveryTime']);
-    final messageController =
-        TextEditingController(text: existingQuotation['message']);
+    final priceController = TextEditingController(
+        text: existingQuotation['quotationAmount']?.toString() ??
+            existingQuotation['price']?.toString() ??
+            '');
+    final deliveryController = TextEditingController(
+        text: existingQuotation['deliveryTime']?.toString() ?? '');
+    final notesController = TextEditingController(
+        text: existingQuotation['notes']?.toString() ??
+            existingQuotation['message']?.toString() ??
+            '');
     bool isSubmitting = false;
 
     showDialog(
@@ -1801,10 +2014,11 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Show request details
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: backgroundBrown,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -1821,6 +2035,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Price field
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
@@ -1833,27 +2049,31 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Delivery time field
                 TextField(
                   controller: deliveryController,
+                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Delivery Time *',
-                    hintText: 'e.g., 2 weeks, 10 days',
+                    labelText: 'Delivery Time (Days) *',
+                    hintText: 'Number of days to complete',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8)),
                     prefixIcon: Icon(Icons.schedule, color: primaryBrown),
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Notes field
                 TextField(
-                  controller: messageController,
+                  controller: notesController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: 'Message (Optional)',
-                    hintText:
-                        'Tell the customer about your approach, experience, etc.',
+                    labelText: 'Notes (Optional)',
+                    hintText: 'Additional details about your quotation',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: Icon(Icons.message, color: primaryBrown),
+                    prefixIcon: Icon(Icons.note, color: primaryBrown),
                   ),
                 ),
               ],
@@ -1873,27 +2093,48 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               onPressed: isSubmitting
                   ? null
                   : () async {
-                      // Validate input
+                      // Validate inputs
                       if (priceController.text.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Please enter your price')),
+                            content: Text('Please enter a price'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
+
                       if (deliveryController.text.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Please enter delivery time')),
+                            content: Text('Please enter delivery time'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
+
                       final price =
                           double.tryParse(priceController.text.trim());
+                      final deliveryDays =
+                          int.tryParse(deliveryController.text.trim());
+
                       if (price == null || price <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Please enter a valid price')),
+                            content: Text('Please enter a valid price'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (deliveryDays == null || deliveryDays <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter valid delivery time'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                         return;
                       }
@@ -1901,38 +2142,13 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       setState(() => isSubmitting = true);
 
                       try {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) throw Exception('Not authenticated');
-
-                        final updatedQuotation = {
-                          'artisanId': userId,
-                          'artisanName': existingQuotation['artisanName'] ??
-                              'Anonymous Artisan',
-                          'artisanEmail': user.email ?? '',
-                          'price': price,
-                          'deliveryTime': deliveryController.text.trim(),
-                          'message': messageController.text.trim(),
-                          'submittedAt': Timestamp.now(),
-                        };
-
-                        await FirebaseFirestore.instance
-                            .runTransaction((transaction) async {
-                          DocumentReference docRef = FirebaseFirestore.instance
-                              .collection('craft_requests')
-                              .doc(requestId);
-                          final freshSnap = await transaction.get(docRef);
-                          if (!freshSnap.exists) {
-                            throw Exception('Request no longer exists');
-                          }
-
-                          List quotations = freshSnap.get('quotations') ?? [];
-                          quotations
-                              .removeWhere((q) => q['artisanId'] == userId);
-                          quotations.add(updatedQuotation);
-
-                          transaction
-                              .update(docRef, {'quotations': quotations});
-                        });
+                        await _updateQuotation(
+                          requestId,
+                          requestData,
+                          price,
+                          deliveryDays,
+                          notesController.text.trim(),
+                        );
 
                         Navigator.of(dialogContext).pop();
 
@@ -1940,17 +2156,13 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           const SnackBar(
                             content: Text('Quotation updated successfully!'),
                             backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                       } catch (e) {
-                        print('Error updating quotation: $e');
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                                'Error updating quotation: ${e.toString()}'),
+                            content: Text('Error updating quotation: $e'),
                             backgroundColor: Colors.red,
-                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                       } finally {
@@ -1962,8 +2174,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
                         strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : const Text('Update Quotation'),
@@ -1972,6 +2184,97 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         ),
       ),
     );
+  }
+
+  // Add this method to handle the quotation update:
+  Future<void> _updateQuotation(
+    String requestId,
+    Map<String, dynamic> requestData,
+    double newPrice,
+    int newDeliveryDays,
+    String newNotes,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    try {
+      // Get current quotations
+      final quotations = List<Map<String, dynamic>>.from(
+          requestData['quotations'] as List? ?? []);
+
+      // Find and update the user's quotation
+      final quotationIndex =
+          quotations.indexWhere((q) => q['artisanId'] == user.uid);
+
+      if (quotationIndex == -1) {
+        throw Exception('Your quotation not found');
+      }
+
+      // Get artisan details for the updated quotation
+      String artisanName = 'Artisan';
+      String artisanEmail = user.email ?? '';
+
+      try {
+        final artisanDoc = await FirebaseFirestore.instance
+            .collection('retailers')
+            .doc(user.uid)
+            .get();
+        if (artisanDoc.exists && artisanDoc.data() != null) {
+          artisanName = artisanDoc.data()!['fullName'] ??
+              artisanDoc.data()!['name'] ??
+              user.displayName ??
+              'Artisan';
+        }
+      } catch (e) {
+        print('Error fetching artisan details: $e');
+      }
+
+      // Update the quotation with new values
+      quotations[quotationIndex] = {
+        ...quotations[quotationIndex],
+        'quotationAmount': newPrice,
+        'price': newPrice, // Keep both field names for compatibility
+        'deliveryTime': newDeliveryDays,
+        'notes': newNotes,
+        'message': newNotes, // Keep both field names for compatibility
+        'artisanName': artisanName,
+        'artisanEmail': artisanEmail,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+        'status': 'pending', // Reset status to pending after edit
+      };
+
+      // Update the document
+      await FirebaseFirestore.instance
+          .collection('craft_requests')
+          .doc(requestId)
+          .update({
+        'quotations': quotations,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification for the buyer about the updated quotation
+      final buyerId = requestData['userId'] ?? requestData['buyerId'];
+      if (buyerId != null && buyerId != user.uid) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': buyerId,
+          'title': 'Quotation Updated',
+          'message':
+              '$artisanName updated their quotation for "${requestData['title']}"',
+          'type': 'quotation_updated',
+          'data': {
+            'requestId': requestId,
+            'artisanId': user.uid,
+            'artisanName': artisanName,
+            'newQuotationAmount': newPrice,
+          },
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print('Error updating quotation: $e');
+      throw e;
+    }
   }
 
   Widget _buildStatusChip(String status) {
