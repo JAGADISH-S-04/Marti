@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "407125431738-88081h960pagjl5as8vbsbfq40mdo47o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.local.artsisans",
+            "certificate_hash": "ccd33614d779b296fcde59cc65abe917500cfd2b"
+          }
+        },
+        {
           "client_id": "407125431738-iu46oqm7499muq3k92qieu0hlqokpg6e.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -35,6 +43,14 @@
           "android_info": {
             "package_name": "com.local.artsisans",
             "certificate_hash": "3ff2f4cab97572ed82b204d5ddfe212eaad3bf0d"
+          }
+        },
+        {
+          "client_id": "407125431738-puo79o5apkk98h48iql9lfk7o32uc7b7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.local.artsisans",
+            "certificate_hash": "8e64ebeeaa9ba730d777cb006fb47f3015edab01"
           }
         },
         {

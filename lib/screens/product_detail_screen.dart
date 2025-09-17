@@ -1,8 +1,13 @@
 import 'package:arti/models/product.dart';
+import 'package:arti/models/review.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/product_service.dart';
+import 'package:arti/services/review_service.dart';
 import 'package:arti/widgets/enhanced_audio_story_section.dart';
 import 'package:arti/widgets/artisan_legacy_story_widget.dart';
+import 'package:arti/widgets/review_widgets.dart';
+import 'package:arti/widgets/add_edit_review_dialog.dart';
+import 'package:arti/screens/all_reviews_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,13 +24,22 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final ProductService _productService = ProductService();
+  final ReviewService _reviewService = ReviewService();
   bool _isLiked = false;
   bool _isLoading = false;
+  
+  // Reviews state
+  List<Review> _reviews = [];
+  ReviewStatistics? _reviewStatistics;
+  bool _isLoadingReviews = false;
+  Review? _userReview;
+  bool _canUserReview = false;
 
   @override
   void initState() {
     super.initState();
     _initializeProductData();
+    _loadReviews();
   }
 
   Future<void> _initializeProductData() async {
@@ -42,6 +56,58 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (mounted) {
         setState(() {
           _isLiked = isLiked;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadReviews() async {
+    final Product p = widget.product ?? 
+        ModalRoute.of(context)!.settings.arguments as Product;
+    
+    print('DEBUG: Loading reviews for product: ${p.id} - ${p.name}');
+    
+    setState(() {
+      _isLoadingReviews = true;
+    });
+
+    try {
+      final reviews = await _reviewService.getProductReviews(p.id, limit: 50);
+      final statistics = await _reviewService.getProductReviewStatistics(p.id);
+      
+      print('DEBUG: Found ${reviews.length} reviews');
+      print('DEBUG: Statistics: ${statistics.toString()}');
+      
+      // Check if current user can review this product
+      bool canReview = false;
+      Review? userReview;
+      
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        print('DEBUG: User is logged in: ${user.uid}');
+        canReview = await _reviewService.canUserReviewProduct(p.id);
+        userReview = await _reviewService.getUserReviewForProduct(p.id);
+        print('DEBUG: Can user review: $canReview');
+        print('DEBUG: User existing review: ${userReview?.id ?? 'none'}');
+      } else {
+        print('DEBUG: No user logged in');
+      }
+
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _reviewStatistics = statistics;
+          _canUserReview = canReview;
+          _userReview = userReview;
+          _isLoadingReviews = false;
+        });
+        print('DEBUG: State updated - can review: $_canUserReview, reviews count: ${_reviews.length}');
+      }
+    } catch (e) {
+      print('Error loading reviews: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingReviews = false;
         });
       }
     }
@@ -224,6 +290,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            // Rating display
+                            if (_reviewStatistics != null && _reviewStatistics!.totalReviews > 0)
+                              StarRating(
+                                rating: _reviewStatistics!.averageRating,
+                                size: 18,
+                                reviewCount: _reviewStatistics!.totalReviews,
+                                activeColor: accentGold,
+                              ),
                           ],
                         ),
                       ),
@@ -367,6 +442,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Artisan's Legacy Story (if available)
                   ArtisanLegacyStoryWidget(product: p),
                   
+                  const SizedBox(height: 24),
+                  
+                  // Reviews Section
+                  _buildReviewsSection(p),
+                  
+                  const SizedBox(height: 24),
+                  
                   // Product Details
                   Container(
                     width: double.infinity,
@@ -470,6 +552,484 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReviewsSection(Product product) {
+    // Color scheme matching the app theme
+    const Color primaryBrown = Color(0xFF2C1810);
+    const Color accentGold = Color(0xFFD4AF37);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Reviews Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.rate_review,
+                  color: accentGold,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reviews & Ratings',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: primaryBrown,
+                      ),
+                    ),
+                    if (_reviewStatistics != null && _reviewStatistics!.totalReviews > 0)
+                      Text(
+                        '${_reviewStatistics!.totalReviews} customer reviews',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_canUserReview || _userReview != null)
+                ElevatedButton.icon(
+                  onPressed: () => _showAddEditReviewDialog(product),
+                  icon: Icon(
+                    _userReview != null ? Icons.edit : Icons.add,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _userReview != null ? 'Edit Review' : 'Write Review',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentGold,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          if (_isLoadingReviews)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_reviewStatistics != null && _reviewStatistics!.totalReviews > 0) ...[
+            // Review Statistics Summary
+            ReviewStatisticsSummary(
+              statistics: _reviewStatistics!,
+              primaryColor: primaryBrown,
+              accentColor: accentGold,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // User's Review (if exists)
+            if (_userReview != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      accentGold.withOpacity(0.1),
+                      accentGold.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: accentGold.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentGold,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Your Review',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => _showAddEditReviewDialog(product),
+                          icon: Icon(
+                            Icons.edit,
+                            color: accentGold,
+                            size: 18,
+                          ),
+                          tooltip: 'Edit your review',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ReviewCard(
+                      review: _userReview!,
+                      enableActions: true,
+                      onEdit: () => _showAddEditReviewDialog(product),
+                      onDelete: () => _deleteUserReview(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Other Reviews
+          if (_reviews.where((r) => r.id != _userReview?.id).isNotEmpty) ...[
+            Text(
+              'Customer Reviews',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: primaryBrown,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Scrollable Reviews Container
+            Container(
+              height: 400, // Fixed height for scrollable area
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Stack(
+                children: [
+                  ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _reviews.where((review) => review.id != _userReview?.id).length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final otherReviews = _reviews.where((review) => review.id != _userReview?.id).toList();
+                      return ReviewCard(
+                        review: otherReviews[index],
+                        enableActions: true,
+                        onReport: () => _reportReview(otherReviews[index]),
+                      );
+                    },
+                  ),
+                  // Scroll indicator at bottom
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 20,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.0),
+                            Colors.white.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 30,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // View All Reviews Button
+            if (_reviews.where((r) => r.id != _userReview?.id).length > 3)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _showAllReviews(product),
+                  icon: Icon(
+                    Icons.visibility,
+                    size: 16,
+                    color: accentGold,
+                  ),
+                  label: Text(
+                    'View all ${_reviews.length} reviews',
+                    style: GoogleFonts.inter(
+                      color: accentGold,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ] else
+          // No Reviews State
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 48,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No reviews yet',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Be the first to review this beautiful handcrafted product!',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (_canUserReview) ...[
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddEditReviewDialog(product),
+                    icon: const Icon(Icons.rate_review, size: 18),
+                    label: Text(
+                      'Write First Review',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentGold,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddEditReviewDialog(Product product) {
+    showAddEditReviewDialog(
+      context: context,
+      productId: product.id,
+      productName: product.name,
+      existingReview: _userReview,
+      onReviewSubmitted: () {
+        _loadReviews(); // Refresh reviews after submission
+      },
+    );
+  }
+
+  Future<void> _deleteUserReview() async {
+    if (_userReview == null) return;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Review',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Are you sure you want to delete your review? This action cannot be undone.',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Delete', style: GoogleFonts.inter(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      try {
+        await _reviewService.deleteReview(_userReview!.id);
+        _loadReviews(); // Refresh reviews
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Review deleted successfully',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error deleting review: ${e.toString()}',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _reportReview(Review review) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Report Review',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Why are you reporting this review?',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _reviewService.reportReview(review.id, 'Inappropriate content');
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Review reported successfully',
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Error reporting review: ${e.toString()}',
+                      style: GoogleFonts.inter(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Report', style: GoogleFonts.inter(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllReviews(Product product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AllReviewsScreen(
+          product: product,
+          reviews: _reviews,
+          statistics: _reviewStatistics!,
         ),
       ),
     );

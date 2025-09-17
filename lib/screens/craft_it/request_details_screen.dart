@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notification_service.dart';
+import '../../utils/deadline_utils.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -21,7 +22,8 @@ class RequestDetailScreen extends StatefulWidget {
   State<RequestDetailScreen> createState() => _RequestDetailScreenState();
 }
 
-class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerProviderStateMixin {
+class _RequestDetailScreenState extends State<RequestDetailScreen>
+    with TickerProviderStateMixin {
   bool _isAccepting = false;
   bool _isCancelling = false;
   bool _showAllQuotations = false;
@@ -45,11 +47,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
   bool _canCancelAcceptedQuotation(Map<String, dynamic> data) {
     final acceptedAt = data['acceptedAt'] as Timestamp?;
     if (acceptedAt == null) return false;
-    
+
     final now = DateTime.now();
     final acceptedTime = acceptedAt.toDate();
     final difference = now.difference(acceptedTime);
-    
+
     return difference.inHours < 24;
   }
 
@@ -58,7 +60,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     final targetTime = timestamp.toDate();
     final difference = now.difference(targetTime);
     final hoursLeft = 24 - difference.inHours;
-    
+
     if (hoursLeft <= 0) return '';
     if (hoursLeft < 1) {
       final minutesLeft = 60 - difference.inMinutes % 60;
@@ -68,162 +70,169 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
   }
 
   Future<void> _acceptQuotation(Map<String, dynamic> quotation) async {
-  final bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Accept Quotation',
-        style: TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Are you sure you want to accept this quotation?'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Accept Quotation',
+          style: TextStyle(
+              color: widget.primaryBrown, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to accept this quotation?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Artisan: ${quotation['artisanName']}'),
+                  Text('Price: ₹${quotation['price']}'),
+                  Text('Delivery: ${quotation['deliveryTime']}'),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Artisan: ${quotation['artisanName']}'),
-                Text('Price: ₹${quotation['price']}'),
-                Text('Delivery: ${quotation['deliveryTime']}'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.shade300),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Other artisans will be notified that their quotation was not selected.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Other artisans will be notified that their quotation was not selected.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.primaryBrown,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Accept Quotation'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: widget.primaryBrown,
-            foregroundColor: Colors.white,
+    );
+
+    if (confirmed == true) {
+      setState(() => _isAccepting = true);
+
+      try {
+        // First, get the current request data to access all quotations
+        final requestDoc = await FirebaseFirestore.instance
+            .collection('craft_requests')
+            .doc(widget.requestId)
+            .get();
+
+        if (!requestDoc.exists) {
+          throw Exception('Request not found');
+        }
+
+        final requestData = requestDoc.data() as Map<String, dynamic>;
+        final allQuotations = requestData['quotations'] as List? ?? [];
+        final requestTitle = requestData['title'] ?? 'Untitled Request';
+
+        // Update the request with accepted quotation
+        await FirebaseFirestore.instance
+            .collection('craft_requests')
+            .doc(widget.requestId)
+            .update({
+          'status': 'in_progress',
+          'acceptedQuotation': quotation,
+          'acceptedAt': Timestamp.now(),
+        });
+
+        // Send notifications to all artisans
+        await Future.wait([
+          // Send acceptance notification to the selected artisan
+          NotificationService.sendQuotationAcceptedNotification(
+            acceptedArtisanId: quotation['artisanId'],
+            requestTitle: requestTitle,
+            requestId: widget.requestId,
+            acceptedPrice: quotation['price'].toDouble(),
           ),
-          child: const Text('Accept Quotation'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed == true) {
-    setState(() => _isAccepting = true);
-
-    try {
-      // First, get the current request data to access all quotations
-      final requestDoc = await FirebaseFirestore.instance
-          .collection('craft_requests')
-          .doc(widget.requestId)
-          .get();
-
-      if (!requestDoc.exists) {
-        throw Exception('Request not found');
-      }
-
-      final requestData = requestDoc.data() as Map<String, dynamic>;
-      final allQuotations = requestData['quotations'] as List? ?? [];
-      final requestTitle = requestData['title'] ?? 'Untitled Request';
-
-      // Update the request with accepted quotation
-      await FirebaseFirestore.instance
-          .collection('craft_requests')
-          .doc(widget.requestId)
-          .update({
-        'status': 'in_progress',
-        'acceptedQuotation': quotation,
-        'acceptedAt': Timestamp.now(),
-      });
-
-      // Send notifications to all artisans
-      await Future.wait([
-        // Send acceptance notification to the selected artisan
-        NotificationService.sendQuotationAcceptedNotification(
-          acceptedArtisanId: quotation['artisanId'],
-          requestTitle: requestTitle,
-          requestId: widget.requestId,
-          acceptedPrice: quotation['price'].toDouble(),
-        ),
-        // Send rejection notifications to other artisans
-        NotificationService.sendQuotationRejectedNotifications(
-          requestId: widget.requestId,
-          requestTitle: requestTitle,
-          acceptedArtisanId: quotation['artisanId'],
-          allQuotations: allQuotations,
-        ),
-      ]);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Quotation accepted successfully! All artisans have been notified.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          // Send rejection notifications to other artisans
+          NotificationService.sendQuotationRejectedNotifications(
+            requestId: widget.requestId,
+            requestTitle: requestTitle,
+            acceptedArtisanId: quotation['artisanId'],
+            allQuotations: allQuotations,
           ),
-        );
-      }
-    } catch (e) {
-      print('Error accepting quotation: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error accepting quotation: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isAccepting = false);
+        ]);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                  'Quotation accepted successfully! All artisans have been notified.'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error accepting quotation: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error accepting quotation: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isAccepting = false);
+        }
       }
     }
   }
-}
 
   Future<void> _cancelAcceptedQuotation(Map<String, dynamic> data) async {
     if (!_canCancelAcceptedQuotation(data)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Accepted quotation can only be cancelled within 24 hours'),
+          content: const Text(
+              'Accepted quotation can only be cancelled within 24 hours'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -273,7 +282,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Yes, Cancel'),
@@ -299,10 +309,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Accepted quotation cancelled. Request is now open for new quotations.'),
+              content: const Text(
+                  'Accepted quotation cancelled. Request is now open for new quotations.'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
@@ -313,7 +325,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               content: Text('Error cancelling quotation: ${e.toString()}'),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
@@ -371,7 +384,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      _buildMainCard(data, images, acceptedQuotation, quotations, status),
+                      _buildMainCard(
+                          data, images, acceptedQuotation, quotations, status),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -442,10 +456,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     );
   }
 
-  Widget _buildMainCard(Map<String, dynamic> data, List images, Map<String, dynamic>? acceptedQuotation, List quotations, String status) {
-    final otherQuotations = quotations.where((q) => 
-        acceptedQuotation == null || 
-        q['artisanId'] != acceptedQuotation['artisanId']).toList();
+  Widget _buildMainCard(Map<String, dynamic> data, List images,
+      Map<String, dynamic>? acceptedQuotation, List quotations, String status) {
+    final otherQuotations = quotations
+        .where((q) =>
+            acceptedQuotation == null ||
+            q['artisanId'] != acceptedQuotation['artisanId'])
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -464,22 +481,23 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
         children: [
           // Header Section
           _buildHeaderSection(data),
-          
+
           Divider(height: 1, color: Colors.grey.shade200),
-          
+
           // Details Section
           _buildDetailsSection(data, images),
-          
+
           // Accepted Quotation Section
           if (acceptedQuotation != null) ...[
             Divider(height: 1, color: Colors.grey.shade200),
             _buildAcceptedQuotationSection(acceptedQuotation, data),
           ],
-          
+
           // Other Quotations Section
           if (otherQuotations.isNotEmpty) ...[
             Divider(height: 1, color: Colors.grey.shade200),
-            _buildQuotationsToggleSection(otherQuotations, status, acceptedQuotation != null),
+            _buildQuotationsToggleSection(
+                otherQuotations, status, acceptedQuotation != null),
           ],
         ],
       ),
@@ -505,9 +523,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(data['status'] ?? 'open').withOpacity(0.1),
+                  color: _getStatusColor(data['status'] ?? 'open')
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: _getStatusColor(data['status'] ?? 'open'),
@@ -526,13 +546,21 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
             ],
           ),
           const SizedBox(height: 16),
+
+          // Deadline Banner
+          _buildDeadlineBanner(data['deadline']),
+          const SizedBox(height: 16),
+
           Row(
             children: [
-              _buildQuickInfo(Icons.category_outlined, data['category'] ?? 'Unknown'),
+              _buildQuickInfo(
+                  Icons.category_outlined, data['category'] ?? 'Unknown'),
               const SizedBox(width: 20),
-              _buildQuickInfo(Icons.currency_rupee, '₹${data['budget']?.toString() ?? '0'}'),
+              _buildQuickInfo(Icons.currency_rupee,
+                  '₹${data['budget']?.toString() ?? '0'}'),
               const SizedBox(width: 20),
-              _buildQuickInfo(Icons.schedule_outlined, data['deadline'] ?? 'Not set'),
+              _buildQuickInfo(Icons.schedule_outlined,
+                  DeadlineUtils.formatDeadlineWithTime(data['deadline'])),
             ],
           ),
         ],
@@ -585,7 +613,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               height: 1.5,
             ),
           ),
-          
           if (images.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text(
@@ -657,7 +684,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     );
   }
 
-  Widget _buildAcceptedQuotationSection(Map<String, dynamic> acceptedQuotation, Map<String, dynamic> data) {
+  Widget _buildAcceptedQuotationSection(
+      Map<String, dynamic> acceptedQuotation, Map<String, dynamic> data) {
     final canCancel = _canCancelAcceptedQuotation(data);
 
     return Container(
@@ -696,7 +724,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
               ),
               if (canCancel)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.red.shade100,
                     borderRadius: BorderRadius.circular(12),
@@ -713,9 +742,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
             ],
           ),
           const SizedBox(height: 16),
-          
           _buildQuotationContent(acceptedQuotation, isAccepted: true),
-          
           if (canCancel) ...[
             const SizedBox(height: 16),
             SizedBox(
@@ -729,7 +756,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: _isCancelling ? null : () => _cancelAcceptedQuotation(data),
+                onPressed:
+                    _isCancelling ? null : () => _cancelAcceptedQuotation(data),
                 icon: _isCancelling
                     ? const SizedBox(
                         height: 16,
@@ -752,146 +780,153 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> with TickerPr
     );
   }
 
-Widget _buildQuotationsToggleSection(List quotations, String status, bool hasAcceptedQuotation) {
-  return Theme(
-    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-    child: ExpansionTile(
-      backgroundColor: Colors.transparent,
-      collapsedBackgroundColor: Colors.transparent,
-      initiallyExpanded: false,
-      tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      childrenPadding: EdgeInsets.zero,
-      shape: const Border(),
-      collapsedShape: const Border(),
-      leading: Icon(
-        Icons.format_quote, 
-        color: widget.primaryBrown,
-        size: 20,
-      ),
-      title: Text(
-        'Other Quotations (${quotations.length})',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
+  Widget _buildQuotationsToggleSection(
+      List quotations, String status, bool hasAcceptedQuotation) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        backgroundColor: Colors.transparent,
+        collapsedBackgroundColor: Colors.transparent,
+        initiallyExpanded: false,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        childrenPadding: EdgeInsets.zero,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: Icon(
+          Icons.format_quote,
           color: widget.primaryBrown,
+          size: 20,
         ),
-      ),
-      trailing: Icon(
-        Icons.keyboard_arrow_down,
-        color: widget.primaryBrown,
-        size: 20,
-      ),
-      children: [
-        _buildQuotationsList(quotations, status, hasAcceptedQuotation),
-      ],
-    ),
-  );
-}
-
-Widget _buildQuotationsList(List quotations, String status, bool hasAcceptedQuotation) {
-  if (quotations.isEmpty) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
+        title: Text(
+          'Other Quotations (${quotations.length})',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: widget.primaryBrown,
+          ),
         ),
-        child: Column(
-          children: [
-            Icon(Icons.hourglass_empty, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              'No other quotations received',
-              style: TextStyle(
-                fontSize: 16, 
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        trailing: Icon(
+          Icons.keyboard_arrow_down,
+          color: widget.primaryBrown,
+          size: 20,
         ),
+        children: [
+          _buildQuotationsList(quotations, status, hasAcceptedQuotation),
+        ],
       ),
     );
   }
 
-  return Container(
-    padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-    child: Column(
-      children: [
-        for (int index = 0; index < quotations.length; index++) ...[
-          if (index > 0) const SizedBox(height: 12),
-          _buildQuotationCard(quotations[index], status, hasAcceptedQuotation),
-        ],
-      ],
-    ),
-  );
-}
-Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool hasAcceptedQuotation) {
-  final canAccept = status.toLowerCase() == 'open' && !hasAcceptedQuotation;
-
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200, width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.03),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildQuotationContent(quotation),
-        
-        if (canAccept) ...[
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.primaryBrown,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+  Widget _buildQuotationsList(
+      List quotations, String status, bool hasAcceptedQuotation) {
+    if (quotations.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.hourglass_empty,
+                  size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 12),
+              Text(
+                'No other quotations received',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
                 ),
-                elevation: 2,
               ),
-              onPressed: _isAccepting ? null : () => _acceptQuotation(quotation),
-              child: _isAccepting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      'Accept Quotation',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-            ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+      child: Column(
+        children: [
+          for (int index = 0; index < quotations.length; index++) ...[
+            if (index > 0) const SizedBox(height: 12),
+            _buildQuotationCard(
+                quotations[index], status, hasAcceptedQuotation),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuotationCard(Map<String, dynamic> quotation, String status,
+      bool hasAcceptedQuotation) {
+    final canAccept = status.toLowerCase() == 'open' && !hasAcceptedQuotation;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
-      ],
-    ),
-  );
-}
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildQuotationContent(quotation),
+          if (canAccept) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.primaryBrown,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                onPressed:
+                    _isAccepting ? null : () => _acceptQuotation(quotation),
+                child: _isAccepting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Accept Quotation',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
-  Widget _buildQuotationContent(Map<String, dynamic> quotation, {bool isAccepted = false}) {
+  Widget _buildQuotationContent(Map<String, dynamic> quotation,
+      {bool isAccepted = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -925,7 +960,9 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isAccepted ? Colors.green.shade800 : widget.primaryBrown,
+                      color: isAccepted
+                          ? Colors.green.shade800
+                          : widget.primaryBrown,
                     ),
                   ),
                   if (quotation['artisanEmail']?.toString().isNotEmpty == true)
@@ -942,8 +979,8 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: isAccepted 
-                    ? Colors.green.shade100 
+                color: isAccepted
+                    ? Colors.green.shade100
                     : widget.primaryBrown.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -952,16 +989,14 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isAccepted 
-                      ? Colors.green.shade800 
-                      : widget.primaryBrown,
+                  color:
+                      isAccepted ? Colors.green.shade800 : widget.primaryBrown,
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        
         Row(
           children: [
             Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
@@ -975,7 +1010,6 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
             ),
           ],
         ),
-        
         if (quotation['message']?.toString().isNotEmpty == true) ...[
           const SizedBox(height: 12),
           Container(
@@ -996,6 +1030,125 @@ Widget _buildQuotationCard(Map<String, dynamic> quotation, String status, bool h
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildDeadlineBanner(dynamic deadline) {
+    if (deadline == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, color: Colors.grey.shade600, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'No deadline set for this request',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final deadlineStatus = DeadlineUtils.getDeadlineStatus(deadline);
+    final formattedDeadline = DeadlineUtils.formatDeadline(deadline);
+    final timeRemaining = DeadlineUtils.getTimeRemaining(deadline);
+    final isExpired = DeadlineUtils.isDeadlinePassed(deadline);
+
+    Color backgroundColor;
+    Color borderColor;
+    Color textColor;
+    IconData icon;
+    String title;
+
+    switch (deadlineStatus) {
+      case 'expired':
+        backgroundColor = Colors.red.shade50;
+        borderColor = Colors.red.shade300;
+        textColor = Colors.red.shade700;
+        icon = Icons.access_time_filled;
+        title = 'Deadline Expired';
+        break;
+      case 'urgent':
+        backgroundColor = Colors.orange.shade50;
+        borderColor = Colors.orange.shade300;
+        textColor = Colors.orange.shade700;
+        icon = Icons.warning;
+        title = 'Deadline Urgent';
+        break;
+      case 'warning':
+        backgroundColor = Colors.yellow.shade50;
+        borderColor = Colors.yellow.shade600;
+        textColor = Colors.yellow.shade800;
+        icon = Icons.schedule;
+        title = 'Deadline Approaching';
+        break;
+      default:
+        backgroundColor = Colors.green.shade50;
+        borderColor = Colors.green.shade300;
+        textColor = Colors.green.shade700;
+        icon = Icons.schedule;
+        title = 'Deadline Set';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: textColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isExpired
+                ? 'Expired on $formattedDeadline'
+                : 'Deadline: $formattedDeadline ($timeRemaining)',
+            style: TextStyle(
+              fontSize: 13,
+              color: textColor,
+            ),
+          ),
+          if (isExpired && deadlineStatus == 'expired') ...[
+            const SizedBox(height: 4),
+            Text(
+              'No new quotations can be submitted',
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

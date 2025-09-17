@@ -14,6 +14,7 @@ service cloud.firestore {
                    validateProductData(request.resource.data);
       
       // Allow product owner updates OR likes/views updates by any authenticated user OR rating updates by system OR stock updates during order
+
       allow update: if request.auth != null && (
                    // Product owner can update everything
                    (request.auth.uid == resource.data.artisanId &&
@@ -21,9 +22,7 @@ service cloud.firestore {
                    // Any authenticated user can update likes and views
                    validateLikesViewsUpdate(request.resource.data, resource.data) ||
                    // System can update rating statistics
-                   onlyUpdatingRatingFields(request.resource.data, resource.data) ||
-                   // Allow stock quantity updates during order placement
-                   validateStockUpdate(request.resource.data, resource.data)
+                   onlyUpdatingRatingFields(request.resource.data, resource.data)
                    );
       
       // Only the product owner (artisan) can delete their products
@@ -596,6 +595,74 @@ service cloud.firestore {
       return taskData.keys().hasAll(['userId', 'artisanId', 'status', 'taskType']) &&
              taskData.status in ['pending', 'processing', 'completed', 'failed'] &&
              taskData.taskType in ['workshop_generation', 'image_generation', 'content_enhancement'];
+    }
+    
+    // Legacy function for backward compatibility
+    function isTranslationUpdate(newData, oldData) {
+      return isTranslationOnlyUpdate(newData, oldData);
+    }
+    
+    // Check if only rating fields are being updated on products
+    function onlyUpdatingRatingFields(newData, oldData) {
+      return newData.diff(oldData).affectedKeys().hasOnly(['rating', 'reviewCount', 'updatedAt']);
+    }
+    
+    // ============ REVIEWS AND RATINGS SYSTEM ============
+    // Reviews collection rules
+    match /reviews/{reviewId} {
+      // Allow read access to all authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow create if user is authenticated and is the review author
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId
+        && isValidReview(request.resource.data);
+      
+      // Allow update if user owns the review OR is the product owner (for artisan responses)
+      // Additionally, allow anyone (even unauthenticated) to perform translation-only updates to enable public translations
+      allow update: if (
+        (
+          request.auth != null && (
+            request.auth.uid == resource.data.userId ||
+            isProductOwner(request.auth.uid, resource.data.productId)
+          )
+        ) ||
+        isTranslationUpdate(request.resource.data, resource.data)
+      );
+      
+      // Allow delete only by review owner
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+    
+    // ============ HELPER FUNCTIONS ============
+    // Review validation function
+    function isValidReview(reviewData) {
+      return reviewData.rating >= 1 
+        && reviewData.rating <= 5
+        && reviewData.comment.size() >= 10
+        && reviewData.comment.size() <= 500
+        && reviewData.userId == request.auth.uid;
+    }
+    
+    // Check if user is the product owner
+    function isProductOwner(userId, productId) {
+      return exists(/databases/$(database)/documents/products/$(productId)) &&
+        get(/databases/$(database)/documents/products/$(productId)).data.artisanId == userId;
+    }
+    
+    // Check if this is only a translation update (adding translation fields)
+    function isTranslationOnlyUpdate(newData, oldData) {
+      let changedKeys = newData.diff(oldData).affectedKeys();
+      // Allow updates restricted to translation-related fields (public per update rule)
+      return changedKeys.hasOnly([
+        'commentTranslations',
+        'translations',
+        'detectedLanguage',
+        'artisanResponseTranslations',
+        'artisanVoiceTranslations',
+        'updatedAt'
+      ]);
     }
     
     // Legacy function for backward compatibility

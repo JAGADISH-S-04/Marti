@@ -14,6 +14,7 @@ import '../collaboration/collaboration_details_screen.dart';
 import '../../models/collab_model.dart';
 import '../collaboration/collaboration_management_screen.dart';
 import '../collaboration/project_management.dart';
+import '../../utils/deadline_utils.dart';
 
 class SellerRequestsScreen extends StatefulWidget {
   const SellerRequestsScreen({super.key});
@@ -1742,6 +1743,52 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         ),
                       ),
                     ),
+                    if (status != 'completed') ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('craft_requests')
+                                  .doc(requestId)
+                                  .update({
+                                'status': 'completed',
+                                'completedAt': Timestamp.now(),
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Request marked as completed!'),
+                                  backgroundColor: Colors.green,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Error marking completed: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.done_all, size: 16),
+                          label: const Text('Completed',
+                              style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1854,6 +1901,62 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       ),
                     ),
                   ),
+                ),
+              ] else if (status == 'open') ...[
+                // For open requests where user hasn't quoted - show submit quotation button
+                // Check if deadline has passed
+                Builder(
+                  builder: (context) {
+                    final deadlinePassed =
+                        DeadlineUtils.isDeadlinePassed(data['deadline']);
+
+                    if (deadlinePassed) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.access_time,
+                                color: Colors.red.shade600, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Deadline passed - Cannot submit quotation',
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () =>
+                            _showQuotationDialog(context, requestId, data),
+                        icon: const Icon(Icons.add_business, size: 16),
+                        label: const Text('Submit Quotation'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBrown,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ],
@@ -2322,11 +2425,12 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       ),
                       const SizedBox(height: 16),
 
-                      if (data['deadline']?.toString().isNotEmpty == true) ...[
+                      if (data['deadline'] != null) ...[
                         _buildDetailItem(
                           Icons.schedule,
                           'Deadline',
-                          data['deadline'],
+                          DeadlineUtils.formatDeadlineWithTime(
+                              data['deadline']),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -2667,6 +2771,24 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       setState(() => isSubmitting = true);
 
                       try {
+                        // Check if deadline has passed
+                        final deadline = requestData['deadline'];
+                        if (DeadlineUtils.isDeadlinePassed(deadline)) {
+                          setState(() => isSubmitting = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                  'Cannot submit quotation: Deadline has passed'),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                          Navigator.of(dialogContext).pop();
+                          return;
+                        }
+
                         final user = FirebaseAuth.instance.currentUser;
                         if (user == null) {
                           throw Exception('Not authenticated');

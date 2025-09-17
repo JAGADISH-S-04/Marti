@@ -4,6 +4,10 @@ import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
 import 'package:arti/models/product.dart';
+import 'package:arti/widgets/notification_app_bar_icon.dart';
+import 'package:arti/notifications/models/notification_type.dart';
+import 'package:arti/widgets/review_widgets.dart';
+import 'package:arti/screens/product_reviews_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,7 +19,6 @@ import 'add_product_screen.dart';
 import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
-import 'store_audio_management_page.dart';
 import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';
@@ -284,6 +287,26 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  // View product reviews
+  Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
+    try {
+      // Convert Map to Product object
+      final product = _mapToProduct(productData);
+      
+      // Navigate to the Product Reviews Management screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductReviewsManagementScreen(
+            product: product,
+          ),
+        ),
+      );
+    } catch (e) {
+      _showSnackBar('Error viewing reviews: $e', isError: true);
     }
   }
 
@@ -564,7 +587,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
               ],
             ),
           ),
-
+        
           const SizedBox(height: 20),
 
           // Revenue Analytics Section
@@ -921,34 +944,63 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    // Views and Likes Row (moved under price)
+                    Row(
+                      children: [
+                        Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${product['views'] ?? 0} views',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${product['likes'] ?? 0} likes',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Action buttons row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          // Rating and action buttons section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Quick Stats
-              Expanded(
-                child: Row(
+              // Rating Row (if rating exists)
+              if (product['rating'] != null && (product['rating'] as double) > 0) ...[
+                Row(
                   children: [
-                    Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
+                    StarRating(
+                      rating: (product['rating'] as double? ?? 0.0),
+                      size: 14,
+                      showText: false,
+                      activeColor: const Color(0xFFD4AF37),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      '${product['views'] ?? 0} views',
-                      style: TextStyle(
+                      '${(product['rating'] as double? ?? 0.0).toStringAsFixed(1)}',
+                      style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      '${product['likes'] ?? 0}',
+                      '(${product['reviewCount'] ?? 0} reviews)',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[600],
@@ -956,39 +1008,65 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     ),
                   ],
                 ),
-              ),
-              // Action buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 8),
+              ],
+              // Action buttons row with proper spacing
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
+                  // View Reviews button (only show if there are reviews)
+                  if (product['reviewCount'] != null && (product['reviewCount'] as int) > 0)
+                    SizedBox(
+                      height: 32,
+                      child: TextButton.icon(
+                        onPressed: () => _viewProductReviews(product),
+                        icon: const Icon(Icons.rate_review, size: 14),
+                        label: Text(
+                          'Reviews (${product['reviewCount']})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFD4AF37),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Edit button
-                  TextButton.icon(
-                    onPressed: () => _editProduct(product),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Edit'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2C1810),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      minimumSize: const Size(60, 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                  SizedBox(
+                    height: 32,
+                    child: TextButton.icon(
+                      onPressed: () => _editProduct(product),
+                      icon: const Icon(Icons.edit, size: 14),
+                      label: const Text('Edit', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C1810),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(color: const Color(0xFF2C1810).withOpacity(0.3)),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
                   // Delete button
-                  TextButton.icon(
-                    onPressed: () => _deleteProduct(product),
-                    icon: const Icon(Icons.delete, size: 16),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade600,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      minimumSize: const Size(60, 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                  SizedBox(
+                    height: 32,
+                    child: TextButton.icon(
+                      onPressed: () => _deleteProduct(product),
+                      icon: const Icon(Icons.delete, size: 14),
+                      label: const Text('Delete', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(color: Colors.red.shade600.withOpacity(0.3)),
+                        ),
                       ),
                     ),
                   ),
@@ -2000,22 +2078,18 @@ class _SellerScreenState extends State<SellerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Simple top bar without collaboration highlighting
-              Container(
+              // Top bar with notification and logout buttons
+              Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 12.0),
                 child: Row(
                   children: [
-                    // Regular menu or back button
-                    IconButton(
-                      onPressed: () {
-                        // Add drawer or navigation logic
-                      },
-                      icon:
-                          const Icon(Icons.menu, color: Colors.white, size: 24),
-                      tooltip: 'Menu',
+                    // Notification icon
+                    const NotificationAppBarIcon(
+                      iconColor: Colors.white,
+                      forceUserRole: UserRole.seller,
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     // Logout button
                     IconButton(
                       icon: const Icon(Icons.logout,
@@ -2031,29 +2105,11 @@ class _SellerScreenState extends State<SellerScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Simple welcome section
-                      Text(
-                        'Welcome to Your Dashboard',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Manage your store and collaborate with other artisans',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
-
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                      const SizedBox(height: 20),
                       Text(
                         'Quick Actions',
                         style: GoogleFonts.playfairDisplay(
@@ -2156,32 +2212,39 @@ class _SellerScreenState extends State<SellerScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'Workshop',
-                              Icons.vrpano,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const ArtisanMediaUploadScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
-                      // Action Buttons Row 5
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
+                      // Action Buttons Row 4 - Living Workshop
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          'Living Workshop',
+                          Icons.vrpano,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ArtisanMediaUploadScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Dynamic Store Button (Test Store / Edit Store)
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          _storeData == null ? 'Test Store' : 'Edit Store',
+                          _storeData == null ? Icons.science : Icons.edit,
+                          () {
+                            Navigator.push(
                               context,
                               _storeData == null
                                   ? 'Test Store Creation'
@@ -2494,6 +2557,7 @@ class _SellerScreenState extends State<SellerScreen> {
                     ],
                   ),
                 ),
+                ),
               ),
             ],
           ),
@@ -2578,9 +2642,7 @@ class _SellerScreenState extends State<SellerScreen> {
               itemCount: products.length,
               itemBuilder: (context, index) {
                 final product = products[index];
-                // Use audioStoryUrl as legacy story indicator instead of artisanLegacyStory
-                final hasStory = product.audioStoryUrl != null &&
-                    product.audioStoryUrl!.isNotEmpty;
+                final hasStory = product.artisanLegacyStory != null;
 
                 return ListTile(
                   leading: ClipRRect(
@@ -2771,10 +2833,5 @@ class _SellerScreenState extends State<SellerScreen> {
     }
 
     return cardContent;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

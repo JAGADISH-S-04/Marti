@@ -14,7 +14,12 @@ import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/gemini_service.dart';
 import 'package:arti/services/CI_retailer_analytics_service.dart';
 import 'package:arti/screens/craft_it/seller_view.dart';
+import 'package:arti/notifications/services/push_notification_service.dart';
+import 'package:arti/notifications/providers/notification_provider.dart';
+import 'package:arti/notifications/screens/notification_screen.dart';
+import 'package:arti/notifications/utils/notification_navigation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -24,15 +29,23 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
+  // Initialize background message handler for FCM
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   // Initialize Gemini Service
   GeminiService.initialize();
   // Initialize Retailer Analytics Service for AI recommendations
   RetailerAnalyticsService.initialize();
-  
+  // Initialize Push Notification Service
+  await PushNotificationService.initialize();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => CartService(), // Provide CartService globally
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartService()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -44,6 +57,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationNavigation.navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Arti',
 
@@ -158,6 +172,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const BottomAppNavigator(),
         // Add the enhanced seller view route
         '/enhanced-seller': (context) => const SellerRequestsScreen(),
+        // Add notification routes
+        '/notifications': (context) => const NotificationScreen(),
       },
     );
   }
