@@ -8,36 +8,37 @@ class CollaborationService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Create collaboration request from craft request
-  Future<String> createCollaborationRequest(CollaborationRequest request) async {
-  try {
-    // Convert the request to a map but handle timestamps properly
-    final requestMap = request.toMap();
-    
-    // Create the collaboration project
-    final docRef = await _firestore
-        .collection('collaboration_projects')
-        .add(requestMap);
+  Future<String> createCollaborationRequest(
+      CollaborationRequest request) async {
+    try {
+      // Convert the request to a map but handle timestamps properly
+      final requestMap = request.toMap();
 
-    // Update the original craft request to mark it as opened for collaboration
-    await _firestore
-        .collection('craft_requests')
-        .doc(request.originalRequestId)
-        .update({
-      'isOpenForCollaboration': true,
-      'collaborationProjectId': docRef.id,
-      'leadArtisanId': request.leadArtisanId,
-      'collaborationStatus': 'open',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      // Create the collaboration project
+      final docRef =
+          await _firestore.collection('collaboration_projects').add(requestMap);
 
-    // Create a notification for potential collaborators (optional)
-    await _createCollaborationAnnouncementNotification(request, docRef.id);
+      // Update the original craft request to mark it as opened for collaboration
+      await _firestore
+          .collection('craft_requests')
+          .doc(request.originalRequestId)
+          .update({
+        'isOpenForCollaboration': true,
+        'collaborationProjectId': docRef.id,
+        'leadArtisanId': request.leadArtisanId,
+        'collaborationStatus': 'open',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    return docRef.id;
-  } catch (e) {
-    throw Exception('Failed to create collaboration request: $e');
+      // Create a notification for potential collaborators (optional)
+      await _createCollaborationAnnouncementNotification(request, docRef.id);
+
+      return docRef.id;
+    } catch (e) {
+      print('Error creating collaboration: $e');
+      throw Exception('Failed to create collaboration request: $e');
+    }
   }
-}
 
   // Get open collaboration requests for browsing
   Stream<List<CollaborationRequest>> getOpenCollaborationRequests() {
@@ -96,36 +97,36 @@ class CollaborationService {
 
   // Apply for a collaboration role
   Future<void> applyForRole(CollaborationApplication application) async {
-  try {
-    // Check if user already applied for this role
-    final existingApplications = await _firestore
-        .collection('collaboration_projects')
-        .doc(application.collaborationRequestId)
-        .collection('applications')
-        .where('artisanId', isEqualTo: application.artisanId)
-        .where('roleId', isEqualTo: application.roleId)
-        .get();
+    try {
+      // Check if user already applied for this role
+      final existingApplications = await _firestore
+          .collection('collaboration_projects')
+          .doc(application.collaborationRequestId)
+          .collection('applications')
+          .where('artisanId', isEqualTo: application.artisanId)
+          .where('roleId', isEqualTo: application.roleId)
+          .get();
 
-    if (existingApplications.docs.isNotEmpty) {
-      throw Exception('You have already applied for this role');
+      if (existingApplications.docs.isNotEmpty) {
+        throw Exception('You have already applied for this role');
+      }
+
+      // Convert application to map
+      final applicationMap = application.toMap();
+
+      // Add the application
+      await _firestore
+          .collection('collaboration_projects')
+          .doc(application.collaborationRequestId)
+          .collection('applications')
+          .add(applicationMap);
+
+      // Create notification for lead artisan
+      await _createApplicationNotification(application);
+    } catch (e) {
+      throw Exception('Failed to apply for role: $e');
     }
-
-    // Convert application to map
-    final applicationMap = application.toMap();
-
-    // Add the application
-    await _firestore
-        .collection('collaboration_projects')
-        .doc(application.collaborationRequestId)
-        .collection('applications')
-        .add(applicationMap);
-
-    // Create notification for lead artisan
-    await _createApplicationNotification(application);
-  } catch (e) {
-    throw Exception('Failed to apply for role: $e');
   }
-}
 
   // Get applications for a collaboration project
   Stream<List<CollaborationApplication>> getCollaborationApplications(

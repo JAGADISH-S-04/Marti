@@ -1274,6 +1274,16 @@ class _CreateCollaborationScreenState extends State<CreateCollaborationScreen>
     }
   }
 
+  Map<String, double> _calculateBudgetAllocation() {
+    Map<String, double> allocation = {};
+
+    for (final role in _roles) {
+      allocation[role.title] = role.allocatedBudget;
+    }
+
+    return allocation;
+  }
+
   Future<void> _createCollaboration() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -1319,6 +1329,8 @@ class _CreateCollaborationScreenState extends State<CreateCollaborationScreen>
         allowPartialDelivery: _allowPartialDelivery,
         requireQualitySamples: _requireQualitySamples,
         additionalNotes: _additionalNotesController.text.trim(),
+        budgetAllocation: _calculateBudgetAllocation(),
+        complexity: 'Standard',
       );
 
       final collaborationId = await _collaborationService

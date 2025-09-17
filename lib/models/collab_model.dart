@@ -21,6 +21,8 @@ class CollaborationRequest {
   final bool allowPartialDelivery;
   final bool requireQualitySamples;
   final String additionalNotes;
+  final Map<String, double>? budgetAllocation; // Add this field
+  final String? complexity; // Add this field too
 
   CollaborationRequest({
     required this.id,
@@ -43,6 +45,8 @@ class CollaborationRequest {
     this.allowPartialDelivery = false,
     this.requireQualitySamples = false,
     this.additionalNotes = '',
+    this.budgetAllocation, // Add this
+    this.complexity, // Add this
   });
 
   factory CollaborationRequest.fromMap(Map<String, dynamic> map) {
@@ -76,6 +80,14 @@ class CollaborationRequest {
       allowPartialDelivery: map['allowPartialDelivery'] ?? false,
       requireQualitySamples: map['requireQualitySamples'] ?? false,
       additionalNotes: map['additionalNotes'] ?? '',
+      budgetAllocation: map['budgetAllocation'] != null
+          ? Map<String, double>.from(
+              map['budgetAllocation'].map(
+                (key, value) => MapEntry(key, (value as num).toDouble()),
+              ),
+            )
+          : null,
+      complexity: map['complexity'],
     );
   }
 
@@ -101,6 +113,8 @@ class CollaborationRequest {
       'allowPartialDelivery': allowPartialDelivery,
       'requireQualitySamples': requireQualitySamples,
       'additionalNotes': additionalNotes,
+      'budgetAllocation': budgetAllocation,
+      'complexity': complexity,
     };
   }
 }
