@@ -23,7 +23,7 @@ import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
-import 'artisan_media_upload_screen.dart';
+import 'workshop_dashboard_screen.dart';
 import '../services/order_service.dart';
 import 'collaboration/seller_collaboration_screen.dart';
 import 'store_audio_management_page.dart';
@@ -2225,11 +2225,14 @@ class _SellerScreenState extends State<SellerScreen> {
                           'Living Workshop',
                           Icons.vrpano,
                           () {
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const ArtisanMediaUploadScreen(),
+                                builder: (context) => WorkshopDashboardScreen(
+                                  artisanId: uid,
+                                ),
                               ),
                             );
                           },

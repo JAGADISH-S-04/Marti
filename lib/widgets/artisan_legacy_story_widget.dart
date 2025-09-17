@@ -338,8 +338,11 @@ class ArtisanLegacyStoryWidget extends StatelessWidget {
         ),
       );
 
-      final workshopService = LivingWorkshopService();
-      final workshopData = await workshopService.getLivingWorkshop(product.artisanId);
+  final workshopService = LivingWorkshopService();
+  // Prefer the content-aware loader to handle both main and fallback docs
+  Map<String, dynamic>? workshopData = await workshopService.loadWorkshopContent(product.artisanId);
+  // Backward compatibility: if not found, try legacy getLivingWorkshop
+  workshopData ??= await workshopService.getLivingWorkshop(product.artisanId);
       
       Navigator.pop(context); // Close loading indicator
 
@@ -348,7 +351,7 @@ class ArtisanLegacyStoryWidget extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => LivingWorkshopScreen(
-              workshopData: workshopData,
+              workshopData: workshopData ?? const {},
               artisanId: product.artisanId,
             ),
           ),
