@@ -26,6 +26,7 @@ import 'product_migration_page.dart';
 import 'artisan_media_upload_screen.dart';
 import '../services/order_service.dart';
 import 'collaboration/seller_collaboration_screen.dart';
+import 'store_audio_management_page.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -2246,24 +2247,16 @@ class _SellerScreenState extends State<SellerScreen> {
                           () {
                             Navigator.push(
                               context,
-                              _storeData == null
-                                  ? 'Test Store Creation'
-                                  : 'Edit Store Settings',
-                              _storeData == null ? Icons.science : Icons.edit,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const TestStoreCreationScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const TestStoreCreationScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 8),
+ 
+                      const SizedBox(height: 30),
 
                       // Stats Cards Section
                       Text(
