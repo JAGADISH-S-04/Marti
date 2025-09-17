@@ -4,6 +4,8 @@ import 'package:arti/models/order.dart';
 import 'package:arti/models/cart_item.dart';
 import 'package:arti/services/firestore_service.dart';
 import 'package:arti/services/user_profile_service.dart';
+import 'package:arti/notifications/services/notification_service.dart';
+import 'package:arti/notifications/models/notification_type.dart';
 
 class OrderService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,7 +17,8 @@ class OrderService {
 
   // Collection references
   CollectionReference get _ordersCollection => _firestore.collection('orders');
-  CollectionReference get _notificationsCollection => _firestore.collection('notifications');
+  CollectionReference get _notificationsCollection =>
+      _firestore.collection('notifications');
 
   // Create a new order from cart items
   Future<Order> createOrder({
@@ -31,23 +34,29 @@ class OrderService {
     try {
       // Get user data
       final userData = await _firestoreService.checkUserExists(user.uid);
-      final buyerName = userData?['fullName'] ?? userData?['username'] ?? user.displayName ?? 'Unknown Buyer';
+      final buyerName = userData?['fullName'] ??
+          userData?['username'] ??
+          user.displayName ??
+          'Unknown Buyer';
       final buyerEmail = user.email ?? '';
 
       // Convert cart items to order items
-      final orderItems = cartItems.map((cartItem) => OrderItem(
-        productId: cartItem.product.id,
-        productName: cartItem.product.name,
-        productImageUrl: cartItem.product.imageUrl,
-        artisanId: cartItem.product.artisanId,
-        artisanName: cartItem.product.artisanName,
-        price: cartItem.product.price,
-        quantity: cartItem.quantity,
-        subtotal: cartItem.product.price * cartItem.quantity,
-      )).toList();
+      final orderItems = cartItems
+          .map((cartItem) => OrderItem(
+                productId: cartItem.product.id,
+                productName: cartItem.product.name,
+                productImageUrl: cartItem.product.imageUrl,
+                artisanId: cartItem.product.artisanId,
+                artisanName: cartItem.product.artisanName,
+                price: cartItem.product.price,
+                quantity: cartItem.quantity,
+                subtotal: cartItem.product.price * cartItem.quantity,
+              ))
+          .toList();
 
       // Calculate totals
-      final totalAmount = orderItems.fold(0.0, (sum, item) => sum + item.subtotal);
+      final totalAmount =
+          orderItems.fold(0.0, (sum, item) => sum + item.subtotal);
       final deliveryCharges = _calculateDeliveryCharges(totalAmount);
       final platformFee = _calculatePlatformFee(totalAmount);
       final finalAmount = totalAmount + deliveryCharges + platformFee;
@@ -55,7 +64,7 @@ class OrderService {
       // Create order
       final orderId = _ordersCollection.doc().id;
       final now = DateTime.now();
-      
+
       final order = Order(
         id: orderId,
         buyerId: user.uid,
@@ -72,7 +81,8 @@ class OrderService {
         createdAt: now,
         updatedAt: now,
         notes: notes,
-        estimatedDeliveryDate: now.add(const Duration(days: 7)), // Default 7 days
+        estimatedDeliveryDate:
+            now.add(const Duration(days: 7)), // Default 7 days
         statusHistory: {
           'pending': now.toIso8601String(),
         },
@@ -88,7 +98,9 @@ class OrderService {
       await _updateProductStock(orderItems);
 
       // Update user analytics
-      final categories = orderItems.map((item) => 'General').toList(); // You can enhance this with actual categories
+      final categories = orderItems
+          .map((item) => 'General')
+          .toList(); // You can enhance this with actual categories
       await UserProfileService.updateOrderAnalytics(
         orderAmount: finalAmount,
         categories: categories,
@@ -104,7 +116,6 @@ class OrderService {
 
       print('✅ Order created successfully: $orderId');
       return order;
-
     } catch (e) {
       print('❌ Error creating order: $e');
       throw Exception('Failed to create order: $e');
@@ -122,15 +133,16 @@ class OrderService {
 
       print('✅ Fetching orders for user: ${user.uid}');
       print('✅ User email: ${user.email}');
-      
+
       return _ordersCollection
           .where('buyerId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
-            try {
-              print('📦 Received ${snapshot.docs.length} order documents');
-              final orders = snapshot.docs.map((doc) {
+        try {
+          print('📦 Received ${snapshot.docs.length} order documents');
+          final orders = snapshot.docs
+              .map((doc) {
                 try {
                   print('📄 Processing document: ${doc.id}');
                   final order = Order.fromDocument(doc);
@@ -141,24 +153,26 @@ class OrderService {
                   print('📋 Document data: ${doc.data()}');
                   return null;
                 }
-              }).where((order) => order != null).cast<Order>().toList();
-              
-              print('✅ Successfully parsed ${orders.length} orders');
-              return orders;
-            } catch (e) {
-              print('❌ Error processing orders snapshot: $e');
-              return <Order>[];
-            }
-          })
-          .handleError((error) {
-            print('🔥 Stream error in getBuyerOrders: $error');
-            if (error.toString().contains('permission-denied')) {
-              print('🚫 Firestore permission denied - check security rules');
-            } else if (error.toString().contains('network')) {
-              print('🌐 Network error - check internet connection');
-            }
-            return <Order>[];
-          });
+              })
+              .where((order) => order != null)
+              .cast<Order>()
+              .toList();
+
+          print('✅ Successfully parsed ${orders.length} orders');
+          return orders;
+        } catch (e) {
+          print('❌ Error processing orders snapshot: $e');
+          return <Order>[];
+        }
+      }).handleError((error) {
+        print('🔥 Stream error in getBuyerOrders: $error');
+        if (error.toString().contains('permission-denied')) {
+          print('🚫 Firestore permission denied - check security rules');
+        } else if (error.toString().contains('network')) {
+          print('🌐 Network error - check internet connection');
+        }
+        return <Order>[];
+      });
     } catch (e) {
       print('💥 Critical error in getBuyerOrders: $e');
       return Stream.value([]);
@@ -176,7 +190,8 @@ class OrderService {
 
       // Try to read from Firestore
       final testQuery = await _ordersCollection.limit(1).get();
-      print('✅ Firebase connection successful, found ${testQuery.docs.length} documents');
+      print(
+          '✅ Firebase connection successful, found ${testQuery.docs.length} documents');
       return true;
     } catch (e) {
       print('❌ Firebase connection failed: $e');
@@ -255,37 +270,41 @@ class OrderService {
       }
 
       print('✅ Fetching seller orders for user: ${user.uid}');
-      
+
       return _ordersCollection
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
-            try {
-              final orders = snapshot.docs.map((doc) {
+        try {
+          final orders = snapshot.docs
+              .map((doc) {
                 try {
                   return Order.fromDocument(doc);
                 } catch (e) {
                   print('❌ Error parsing order document ${doc.id}: $e');
                   return null;
                 }
-              }).where((order) => order != null).cast<Order>().toList();
-              
-              // Filter orders that contain items from current seller
-              final sellerOrders = orders.where((order) =>
-                  order.items.any((item) => item.artisanId == user.uid)
-              ).toList();
-              
-              print('✅ Found ${sellerOrders.length} orders for seller');
-              return sellerOrders;
-            } catch (e) {
-              print('❌ Error processing seller orders: $e');
-              return <Order>[];
-            }
-          })
-          .handleError((error) {
-            print('🔥 Stream error in getSellerOrders: $error');
-            return <Order>[];
-          });
+              })
+              .where((order) => order != null)
+              .cast<Order>()
+              .toList();
+
+          // Filter orders that contain items from current seller
+          final sellerOrders = orders
+              .where((order) =>
+                  order.items.any((item) => item.artisanId == user.uid))
+              .toList();
+
+          print('✅ Found ${sellerOrders.length} orders for seller');
+          return sellerOrders;
+        } catch (e) {
+          print('❌ Error processing seller orders: $e');
+          return <Order>[];
+        }
+      }).handleError((error) {
+        print('🔥 Stream error in getSellerOrders: $error');
+        return <Order>[];
+      });
     } catch (e) {
       print('💥 Critical error in getSellerOrders: $e');
       return Stream.value([]);
@@ -325,8 +344,10 @@ class OrderService {
       }
 
       final now = DateTime.now();
-      final updatedStatusHistory = Map<String, String>.from(order.statusHistory ?? {});
-      updatedStatusHistory[newStatus.toString().split('.').last] = now.toIso8601String();
+      final updatedStatusHistory =
+          Map<String, String>.from(order.statusHistory ?? {});
+      updatedStatusHistory[newStatus.toString().split('.').last] =
+          now.toIso8601String();
 
       final updateData = {
         'status': newStatus.toString().split('.').last,
@@ -344,7 +365,6 @@ class OrderService {
       await _createOrderStatusNotification(order, newStatus);
 
       print('✅ Order status updated: $orderId -> $newStatus');
-
     } catch (e) {
       print('❌ Error updating order status: $e');
       throw Exception('Failed to update order status: $e');
@@ -358,7 +378,7 @@ class OrderService {
 
     try {
       final ordersSnapshot = await _ordersCollection.get();
-      
+
       final sellerOrders = ordersSnapshot.docs
           .map((doc) {
             try {
@@ -368,34 +388,46 @@ class OrderService {
               return null;
             }
           })
-          .where((order) => order != null && 
-                 order!.items.any((item) => item.artisanId == user.uid))
+          .where((order) =>
+              order != null &&
+              order!.items.any((item) => item.artisanId == user.uid))
           .cast<Order>()
           .toList();
 
       final totalOrders = sellerOrders.length;
-      final newOrders = sellerOrders.where((o) => 
-          o.status == OrderStatus.pending || o.status == OrderStatus.confirmed).length;
-      final processing = sellerOrders.where((o) => 
-          o.status == OrderStatus.processing || o.status == OrderStatus.shipped).length;
-      final delivered = sellerOrders.where((o) => o.status == OrderStatus.delivered).length;
-      
+      final newOrders = sellerOrders
+          .where((o) =>
+              o.status == OrderStatus.pending ||
+              o.status == OrderStatus.confirmed)
+          .length;
+      final processing = sellerOrders
+          .where((o) =>
+              o.status == OrderStatus.processing ||
+              o.status == OrderStatus.shipped)
+          .length;
+      final delivered =
+          sellerOrders.where((o) => o.status == OrderStatus.delivered).length;
+
       final totalRevenue = sellerOrders
           .where((order) => order.status == OrderStatus.delivered)
           .fold(0.0, (sum, order) {
-            final sellerItems = order.items.where((item) => item.artisanId == user.uid);
-            return sum + sellerItems.fold(0.0, (itemSum, item) => itemSum + item.subtotal);
-          });
+        final sellerItems =
+            order.items.where((item) => item.artisanId == user.uid);
+        return sum +
+            sellerItems.fold(0.0, (itemSum, item) => itemSum + item.subtotal);
+      });
 
       // Calculate processing time average
       final completedOrders = sellerOrders
-          .where((o) => o.status == OrderStatus.delivered && o.actualDeliveryDate != null)
+          .where((o) =>
+              o.status == OrderStatus.delivered && o.actualDeliveryDate != null)
           .toList();
-      
+
       double avgProcessingTime = 2.0; // Default
       if (completedOrders.isNotEmpty) {
         final totalDays = completedOrders.fold(0.0, (sum, order) {
-          final processingDays = order.actualDeliveryDate!.difference(order.createdAt).inDays;
+          final processingDays =
+              order.actualDeliveryDate!.difference(order.createdAt).inDays;
           return sum + processingDays;
         });
         avgProcessingTime = totalDays / completedOrders.length;
@@ -409,10 +441,10 @@ class OrderService {
         'totalRevenue': totalRevenue,
         'avgProcessingTime': avgProcessingTime.round(),
         'avgRating': 4.5, // Placeholder for ratings
-        'completionRate': totalOrders > 0 ? (delivered / totalOrders * 100).round() : 0,
+        'completionRate':
+            totalOrders > 0 ? (delivered / totalOrders * 100).round() : 0,
         'returnRate': 2, // Placeholder for return rate
       };
-
     } catch (e) {
       print('❌ Error getting seller statistics: $e');
       return {};
@@ -423,7 +455,7 @@ class OrderService {
   Future<void> cancelOrder(String orderId, String reason) async {
     try {
       print('🚫 Cancelling order: $orderId');
-      
+
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('User not authenticated');
@@ -440,7 +472,7 @@ class OrderService {
       }
 
       final orderData = orderDoc.data() as Map<String, dynamic>;
-      
+
       // Verify this is the buyer's order
       if (orderData['buyerId'] != user.uid) {
         throw Exception('Unauthorized: You can only cancel your own orders');
@@ -448,8 +480,8 @@ class OrderService {
 
       // Check if order can be cancelled
       final currentStatus = orderData['status'] ?? 'pending';
-      if (currentStatus == 'shipped' || 
-          currentStatus == 'delivered' || 
+      if (currentStatus == 'shipped' ||
+          currentStatus == 'delivered' ||
           currentStatus == 'cancelled') {
         throw Exception('Order cannot be cancelled at this stage');
       }
@@ -490,7 +522,7 @@ class OrderService {
         try {
           final productId = item['productId'] as String?;
           final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-          
+
           if (productId != null && quantity > 0) {
             await _restoreProductStock(productId, quantity);
           }
@@ -513,7 +545,6 @@ class OrderService {
       }
 
       print('✅ Order cancelled successfully: $orderId');
-
     } catch (e) {
       print('❌ Error cancelling order: $e');
       rethrow;
@@ -523,23 +554,24 @@ class OrderService {
   // Helper method to restore product stock
   Future<void> _restoreProductStock(String productId, int quantity) async {
     try {
-      final productRef = FirebaseFirestore.instance
-          .collection('products')
-          .doc(productId);
+      final productRef =
+          FirebaseFirestore.instance.collection('products').doc(productId);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final productDoc = await transaction.get(productRef);
-        
+
         if (productDoc.exists) {
-          final currentStock = (productDoc.data()?['stock'] as num?)?.toInt() ?? 0;
+          final currentStock =
+              (productDoc.data()?['stock'] as num?)?.toInt() ?? 0;
           final newStock = currentStock + quantity;
-          
+
           transaction.update(productRef, {
             'stock': newStock,
             'updatedAt': Timestamp.now(),
           });
-          
-          print('📦 Restored $quantity units to product $productId (new stock: $newStock)');
+
+          print(
+              '📦 Restored $quantity units to product $productId (new stock: $newStock)');
         }
       });
     } catch (e) {
@@ -549,15 +581,15 @@ class OrderService {
   }
 
   // Helper method to notify seller of cancellation
-  Future<void> _notifySellerOfCancellation(String sellerId, String orderId, String reason) async {
+  Future<void> _notifySellerOfCancellation(
+      String sellerId, String orderId, String reason) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('notifications')
-          .add({
+      await FirebaseFirestore.instance.collection('notifications').add({
         'userId': sellerId,
         'type': 'order_cancelled',
         'title': 'Order Cancelled',
-        'body': 'Order #${orderId.substring(0, 8)} has been cancelled by the buyer',
+        'body':
+            'Order #${orderId.substring(0, 8)} has been cancelled by the buyer',
         'data': {
           'orderId': orderId,
           'reason': reason,
@@ -565,7 +597,7 @@ class OrderService {
         'isRead': false,
         'createdAt': Timestamp.now(),
       });
-      
+
       print('📧 Notified seller $sellerId about order cancellation');
     } catch (e) {
       print('⚠️ Error notifying seller: $e');
@@ -585,41 +617,75 @@ class OrderService {
 
   Future<void> _createOrderNotificationsForArtisans(Order order) async {
     final uniqueArtisanIds = order.uniqueArtisanIds;
-    
+
     for (final artisanId in uniqueArtisanIds) {
       final artisanItems = order.getItemsByArtisan(artisanId);
       final artisanSubtotal = order.getSubtotalForArtisan(artisanId);
-      
-      await _notificationsCollection.add({
-        'userId': artisanId,
-        'type': 'new_order',
-        'title': 'New Order Received!',
-        'message': 'You received an order for ${artisanItems.length} item(s) worth ₹${artisanSubtotal.toStringAsFixed(2)}',
-        'orderId': order.id,
-        'isRead': false,
-        'createdAt': Timestamp.fromDate(DateTime.now()),
-        'data': {
+
+      // Use the new notification service
+      try {
+        await NotificationService.sendOrderNotification(
+          userId: artisanId,
+          type: NotificationType.orderPlaced,
+          orderId: order.id,
+          customerName: order.buyerName,
+          sellerName: artisanItems.first.artisanName,
+          productName: artisanItems.length == 1
+              ? artisanItems.first.productName
+              : '${artisanItems.length} products',
+          totalAmount: artisanSubtotal,
+          targetRole: UserRole.seller,
+          priority: NotificationPriority.high,
+          additionalData: {
+            'itemCount': artisanItems.length,
+            'products': artisanItems
+                .map((item) => {
+                      'productId': item.productId,
+                      'productName': item.productName,
+                      'quantity': item.quantity,
+                      'price': item.price,
+                    })
+                .toList(),
+          },
+        );
+      } catch (e) {
+        print('Error sending order notification to artisan $artisanId: $e');
+        // Fallback to old method if new service fails
+        await _notificationsCollection.add({
+          'userId': artisanId,
+          'type': 'new_order',
+          'title': 'New Order Received!',
+          'message':
+              'You received an order for ${artisanItems.length} item(s) worth ₹${artisanSubtotal.toStringAsFixed(2)}',
           'orderId': order.id,
-          'buyerName': order.buyerName,
-          'itemCount': artisanItems.length,
-          'amount': artisanSubtotal,
-        },
-      });
+          'isRead': false,
+          'createdAt': Timestamp.fromDate(DateTime.now()),
+          'data': {
+            'orderId': order.id,
+            'buyerName': order.buyerName,
+            'itemCount': artisanItems.length,
+            'amount': artisanSubtotal,
+          },
+        });
+      }
     }
   }
 
-  Future<void> _createOrderStatusNotification(Order order, OrderStatus newStatus) async {
+  Future<void> _createOrderStatusNotification(
+      Order order, OrderStatus newStatus) async {
     String title = '';
     String message = '';
 
     switch (newStatus) {
       case OrderStatus.confirmed:
         title = 'Order Confirmed';
-        message = 'Your order #${order.id.substring(0, 8)} has been confirmed by the seller.';
+        message =
+            'Your order #${order.id.substring(0, 8)} has been confirmed by the seller.';
         break;
       case OrderStatus.processing:
         title = 'Order Being Prepared';
-        message = 'Your order #${order.id.substring(0, 8)} is being prepared for shipment.';
+        message =
+            'Your order #${order.id.substring(0, 8)} is being prepared for shipment.';
         break;
       case OrderStatus.shipped:
         title = 'Order Shipped';
@@ -627,7 +693,8 @@ class OrderService {
         break;
       case OrderStatus.delivered:
         title = 'Order Delivered';
-        message = 'Your order #${order.id.substring(0, 8)} has been delivered successfully.';
+        message =
+            'Your order #${order.id.substring(0, 8)} has been delivered successfully.';
         break;
       case OrderStatus.cancelled:
         title = 'Order Cancelled';
@@ -654,7 +721,7 @@ class OrderService {
 
   Future<void> _updateProductStock(List<OrderItem> orderItems) async {
     final batch = _firestore.batch();
-    
+
     for (final item in orderItems) {
       final productRef = _firestore.collection('products').doc(item.productId);
       batch.update(productRef, {
@@ -662,7 +729,7 @@ class OrderService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
     }
-    
+
     await batch.commit();
   }
 }

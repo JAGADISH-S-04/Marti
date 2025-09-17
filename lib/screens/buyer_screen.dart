@@ -2,6 +2,8 @@ import 'package:arti/screens/store_product_screen.dart';
 import 'package:arti/widgets/store_audio_story_section.dart';
 import 'package:arti/screens/cart_screen.dart';
 import 'package:arti/screens/buyer_chatbot_screen.dart';
+import 'package:arti/widgets/notification_app_bar_icon.dart';
+import 'package:arti/notifications/models/notification_type.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,7 +20,7 @@ class BuyerScreen extends StatefulWidget {
 class _BuyerScreenState extends State<BuyerScreen> {
   String _userAddress = 'Select Location';
   String _searchQuery = '';
-  
+
   // Using the seed color
   final Color primaryBrown = const Color.fromARGB(255, 93, 64, 55);
   final Color lightBrown = const Color.fromARGB(255, 139, 98, 87);
@@ -41,15 +43,13 @@ class _BuyerScreenState extends State<BuyerScreen> {
   // Helper method to create sample stores for testing
   Future<void> _createSampleStoresIfNeeded() async {
     try {
-      final stores = await FirebaseFirestore.instance
-          .collection('stores')
-          .limit(1)
-          .get();
-      
+      final stores =
+          await FirebaseFirestore.instance.collection('stores').limit(1).get();
+
       if (stores.docs.isEmpty) {
         // Create sample stores for development
         final batch = FirebaseFirestore.instance.batch();
-        
+
         final sampleStores = [
           {
             'storeName': 'Artisan Gallery',
@@ -79,14 +79,14 @@ class _BuyerScreenState extends State<BuyerScreen> {
             'createdAt': FieldValue.serverTimestamp(),
           },
         ];
-        
+
         for (int i = 0; i < sampleStores.length; i++) {
           batch.set(
             FirebaseFirestore.instance.collection('stores').doc(),
             sampleStores[i],
           );
         }
-        
+
         await batch.commit();
         print('Sample stores created successfully');
       }
@@ -113,19 +113,19 @@ class _BuyerScreenState extends State<BuyerScreen> {
   Future<QuerySnapshot> _fetchStoresWithFallback() async {
     try {
       // Strategy 1: Try the basic query first
-      final result = await FirebaseFirestore.instance
-          .collection('stores')
-          .get();
-      
+      final result =
+          await FirebaseFirestore.instance.collection('stores').get();
+
       // If collection is empty, check if we need to create sample data
       if (result.docs.isEmpty) {
-        print('Stores collection is empty. This might be expected for a new app.');
+        print(
+            'Stores collection is empty. This might be expected for a new app.');
       }
-      
+
       return result;
     } catch (e) {
       print('Primary stores query failed: $e');
-      
+
       try {
         // Strategy 2: Try with ordering (in case the issue is with ordering)
         return await FirebaseFirestore.instance
@@ -134,7 +134,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
             .get();
       } catch (e2) {
         print('Ordered stores query failed: $e2');
-        
+
         try {
           // Strategy 3: Try with limit (in case there are too many documents)
           return await FirebaseFirestore.instance
@@ -143,19 +143,18 @@ class _BuyerScreenState extends State<BuyerScreen> {
               .get();
         } catch (e3) {
           print('Limited stores query failed: $e3');
-          
+
           try {
             // Strategy 4: Check if we can access Firestore at all
-            await FirebaseFirestore.instance
-                .collection('test')
-                .limit(1)
-                .get();
-            
+            await FirebaseFirestore.instance.collection('test').limit(1).get();
+
             // If we reach here, Firestore works but stores collection has issues
-            throw Exception('Stores collection access denied. Please check Firestore security rules.');
+            throw Exception(
+                'Stores collection access denied. Please check Firestore security rules.');
           } catch (e4) {
             // Complete Firestore failure
-            throw Exception('Firestore connection failed. Please check your internet connection and Firebase configuration.');
+            throw Exception(
+                'Firestore connection failed. Please check your internet connection and Firebase configuration.');
           }
         }
       }
@@ -216,7 +215,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Use Current Location
               ListTile(
                 leading: Icon(Icons.my_location, color: primaryBrown),
@@ -228,9 +227,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
                   _fetchUserLocation();
                 },
               ),
-              
+
               const Divider(),
-              
+
               // Manual Location Entry
               ListTile(
                 leading: Icon(Icons.edit_location, color: primaryBrown),
@@ -241,9 +240,9 @@ class _BuyerScreenState extends State<BuyerScreen> {
                   _showLocationDialog();
                 },
               ),
-              
+
               const Divider(),
-              
+
               // Preset Locations
               ListTile(
                 leading: Icon(Icons.location_city, color: primaryBrown),
@@ -253,7 +252,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
                   setState(() => _userAddress = 'Mumbai, Maharashtra');
                 },
               ),
-              
+
               ListTile(
                 leading: Icon(Icons.location_city, color: primaryBrown),
                 title: const Text('Delhi, India'),
@@ -271,7 +270,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
 
   void _showLocationDialog() {
     final TextEditingController locationController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -336,246 +335,307 @@ class _BuyerScreenState extends State<BuyerScreen> {
 
     return Scaffold(
       backgroundColor: backgroundBrown,
-      body: Column(
-        children: [
-          // Top bar with search, cart and location
-          Container(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 10,
-              left: screenSize.width * 0.06,
-              right: screenSize.width * 0.06,
-              bottom: screenSize.height * 0.02,
-            ),
-            decoration: BoxDecoration(
-              color: primaryBrown,
-              boxShadow: [
-                BoxShadow(
-                  color: primaryBrown.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Search bar and cart row
-                Row(
-                  children: [
-                    // Search bar
-                    Expanded(
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search artisan stores or products...',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 16,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: primaryBrown,
-                              size: 24,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide(
-                                color: primaryBrown,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: primaryBrown,
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value.trim().toLowerCase();
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: screenSize.width * 0.03),
-                    // Cart button
-                    SizedBox(
-                      height: 50,
-                      width: 50,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(15),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CartScreen(),
-                            ),
-                          );
-                        },
-                        child: Center(
-                          child: Icon(
-                            Icons.shopping_cart_outlined,
-                            color: Colors.white,
-                            size: isTablet ? 28 : 26,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: screenSize.height * 0.015),
-                
-                // Location row
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _showLocationPicker,
-                        child: Text(
-                          _userAddress,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          // Content area
-          Expanded(
-            child: SingleChildScrollView(
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            // Improved header with better spacing and status bar handling
+            Container(
+              padding: EdgeInsets.only(
+                left: screenSize.width * 0.06,
+                right: screenSize.width * 0.06,
+                top: 10, // Added top padding for better spacing
+                bottom: screenSize.height * 0.015,
+              ),
+              decoration: BoxDecoration(
+                color: primaryBrown,
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryBrown.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: screenSize.height * 0.025),
-                  
-                  // Stores header section
-                  Container(
-                    margin: EdgeInsets.symmetric(
-                      horizontal: screenSize.width * 0.04,
-                    ),
-                    padding: EdgeInsets.all(isTablet ? 20 : 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryBrown.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(isTablet ? 12 : 10),
+                  // Search bar and action buttons row
+                  Row(
+                    children: [
+                      // Search bar
+                      Expanded(
+                        child: Container(
+                          height:
+                              48, // Slightly reduced height for better proportion
                           decoration: BoxDecoration(
-                            color: primaryBrown,
-                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
                             boxShadow: [
                               BoxShadow(
-                                color: primaryBrown.withOpacity(0.3),
-                                blurRadius: 5,
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: Icon(
-                            Icons.store,
-                            color: Colors.white,
-                            size: isTablet ? 24 : 20,
-                          ),
-                        ),
-                        SizedBox(width: screenSize.width * 0.03),
-                        Expanded(
-                          child: Text(
-                            'Artisan Stores Near You',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: isTablet ? 22 : 18,
-                              fontWeight: FontWeight.bold,
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search artisan stores...',
+                              hintStyle: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 15, // Slightly smaller font
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: primaryBrown,
+                                size: 22, // Slightly smaller icon
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide(
+                                  color: primaryBrown,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 16,
+                              ),
+                            ),
+                            style: TextStyle(
+                              fontSize: 15,
                               color: primaryBrown,
                             ),
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value.trim().toLowerCase();
+                              });
+                            },
                           ),
                         ),
-                        // Refresh button
-                        Container(
-                          decoration: BoxDecoration(
-                            color: lightBrown.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: lightBrown.withOpacity(0.3),
+                      ),
+                      SizedBox(width: screenSize.width * 0.025),
+
+                      // Action buttons container
+                      Row(
+                        children: [
+                          // Notification button with improved design
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white.withOpacity(0.15),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: const NotificationAppBarIcon(
+                              iconColor: Colors.white,
+                              forceUserRole: UserRole.buyer,
                             ),
                           ),
-                          child: Material(
-                            color: Colors.transparent,
+                          SizedBox(width: screenSize.width * 0.025),
+
+                          // Cart button with improved design
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white.withOpacity(0.15),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
                               onTap: () {
-                                setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text('Refreshing stores...'),
-                                    duration: const Duration(seconds: 1),
-                                    backgroundColor: primaryBrown,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CartScreen(),
                                   ),
                                 );
                               },
-                              child: Padding(
-                                padding: EdgeInsets.all(isTablet ? 10 : 8),
+                              child: Center(
                                 child: Icon(
-                                  Icons.refresh,
-                                  color: primaryBrown,
-                                  size: isTablet ? 22 : 18,
+                                  Icons.shopping_cart_outlined,
+                                  color: Colors.white,
+                                  size: isTablet ? 26 : 24,
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
-                  
                   SizedBox(height: screenSize.height * 0.015),
 
-                  // Stores list with enhanced error handling
-                  FutureBuilder<QuerySnapshot>(
+                  // Location row with improved design
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _showLocationPicker,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 6,
+                              horizontal: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              'Current Location - $_userAddress',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Content area
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: screenSize.height * 0.025),
+
+                    // Stores header section
+                    Container(
+                      margin: EdgeInsets.symmetric(
+                        horizontal: screenSize.width * 0.04,
+                      ),
+                      padding: EdgeInsets.all(isTablet ? 20 : 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryBrown.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(isTablet ? 12 : 10),
+                            decoration: BoxDecoration(
+                              color: primaryBrown,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryBrown.withOpacity(0.3),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.store,
+                              color: Colors.white,
+                              size: isTablet ? 24 : 20,
+                            ),
+                          ),
+                          SizedBox(width: screenSize.width * 0.03),
+                          Expanded(
+                            child: Text(
+                              'Artisan Stores Near You',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: isTablet ? 22 : 18,
+                                fontWeight: FontWeight.bold,
+                                color: primaryBrown,
+                              ),
+                            ),
+                          ),
+                          // Refresh button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: lightBrown.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: lightBrown.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () {
+                                  setState(() {});
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          const Text('Refreshing stores...'),
+                                      duration: const Duration(seconds: 1),
+                                      backgroundColor: primaryBrown,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: EdgeInsets.all(isTablet ? 10 : 8),
+                                  child: Icon(
+                                    Icons.refresh,
+                                    color: primaryBrown,
+                                    size: isTablet ? 22 : 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: screenSize.height * 0.015),
+
+                    // Stores list with enhanced error handling
+                    FutureBuilder<QuerySnapshot>(
                       future: _fetchStoresWithFallback(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -590,7 +650,7 @@ class _BuyerScreenState extends State<BuyerScreen> {
 
                         if (snapshot.hasError) {
                           print('Firestore error: ${snapshot.error}');
-                          
+
                           // Enhanced error handling with user-friendly messages
                           return Padding(
                             padding: EdgeInsets.all(screenSize.width * 0.04),
@@ -721,13 +781,14 @@ class _BuyerScreenState extends State<BuyerScreen> {
                       },
                     ),
 
-                  SizedBox(height: screenSize.height * 0.025),
-                ],
+                    SizedBox(height: screenSize.height * 0.025),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ), // Close SafeArea child
+      ), // Close SafeArea
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(

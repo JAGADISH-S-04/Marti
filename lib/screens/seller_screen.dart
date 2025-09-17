@@ -4,6 +4,8 @@ import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
 import 'package:arti/models/product.dart';
+import 'package:arti/widgets/notification_app_bar_icon.dart';
+import 'package:arti/notifications/models/notification_type.dart';
 import 'package:arti/widgets/review_widgets.dart';
 import 'package:arti/screens/product_reviews_management_screen.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +25,7 @@ import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
 import 'artisan_media_upload_screen.dart';
 import '../services/order_service.dart';
+import 'collaboration/seller_collaboration_screen.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -114,7 +117,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     try {
       // Convert Map to Product object
       final product = _mapToProduct(productData);
-      
+
       // Navigate to the enhanced product listing page with the product data
       final result = await Navigator.push(
         context,
@@ -122,7 +125,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           builder: (context) => EnhancedProductListingPage(product: product),
         ),
       );
-      
+
       // Refresh the products list if the product was updated
       if (result == true) {
         _showSnackBar('Product updated successfully!');
@@ -219,11 +222,12 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
 
       // Use the enhanced ProductDatabaseService for secure deletion
       final success = await _productService.deleteProduct(productData['id']);
-      
+
       if (success) {
         _showSnackBar('Product "${productData['name']}" deleted successfully!');
       } else {
-        _showSnackBar('Failed to delete product. Please try again.', isError: true);
+        _showSnackBar('Failed to delete product. Please try again.',
+            isError: true);
       }
     } catch (e) {
       _showSnackBar('Error deleting product: $e', isError: true);
@@ -240,33 +244,34 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
       description: data['description'] ?? '',
       category: data['category'] ?? '',
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
-      materials: data['materials'] is List 
+      materials: data['materials'] is List
           ? List<String>.from(data['materials'])
-          : (data['materials'] as String?)?.split(',').map((s) => s.trim()).toList() ?? [],
+          : (data['materials'] as String?)
+                  ?.split(',')
+                  .map((s) => s.trim())
+                  .toList() ??
+              [],
       craftingTime: data['craftingTime'] ?? '',
       dimensions: data['dimensions'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
-      imageUrls: data['imageUrls'] is List 
-          ? List<String>.from(data['imageUrls'])
-          : [],
+      imageUrls:
+          data['imageUrls'] is List ? List<String>.from(data['imageUrls']) : [],
       videoUrl: data['videoUrl'],
-      createdAt: data['createdAt'] is Timestamp 
+      createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: data['updatedAt'] is Timestamp 
+      updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
       stockQuantity: data['stockQuantity'] ?? 0,
-      tags: data['tags'] is List 
-          ? List<String>.from(data['tags'])
-          : [],
+      tags: data['tags'] is List ? List<String>.from(data['tags']) : [],
       careInstructions: data['careInstructions'],
-      aiAnalysis: data['aiAnalysis'] is Map 
+      aiAnalysis: data['aiAnalysis'] is Map
           ? Map<String, dynamic>.from(data['aiAnalysis'])
           : null,
       audioStoryUrl: data['audioStoryUrl'],
       audioStoryTranscription: data['audioStoryTranscription'],
-      audioStoryTranslations: data['audioStoryTranslations'] is Map 
+      audioStoryTranslations: data['audioStoryTranslations'] is Map
           ? Map<String, String>.from(data['audioStoryTranslations'])
           : null,
     );
@@ -609,7 +614,31 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const EnhancedProductListingPage(),
+                          builder: (context) =>
+                              const StoreAudioManagementPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.record_voice_over, size: 18),
+                    label: const Text('Audio Story'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C1810),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const EnhancedProductListingPage(),
                         ),
                       );
                     },
@@ -618,8 +647,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -640,8 +669,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8B4513),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -662,8 +691,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50),
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -745,7 +774,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   Widget _buildProductCard(Map<String, dynamic> product) {
     final bool isLowStock = (product['stockQuantity'] ?? 0) < 5;
     final bool isOutOfStock = (product['stockQuantity'] ?? 0) == 0;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -753,10 +782,10 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isOutOfStock 
-              ? Colors.red.shade200 
-              : isLowStock 
-                  ? Colors.orange.shade200 
+          color: isOutOfStock
+              ? Colors.red.shade200
+              : isLowStock
+                  ? Colors.orange.shade200
                   : Colors.grey.shade200,
           width: isOutOfStock || isLowStock ? 1.5 : 1,
         ),
@@ -785,13 +814,15 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: product['imageUrls'] != null && product['imageUrls'].isNotEmpty
+                      child: product['imageUrls'] != null &&
+                              product['imageUrls'].isNotEmpty
                           ? Image.network(
                               product['imageUrls'][0],
                               fit: BoxFit.cover,
                               width: 60,
                               height: 60,
-                              errorBuilder: (context, error, stackTrace) => Icon(
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
                                 Icons.image,
                                 color: Colors.grey[400],
                               ),
@@ -841,7 +872,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                         // Status badge
                         if (isOutOfStock)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.red.shade100,
                               borderRadius: BorderRadius.circular(4),
@@ -858,7 +890,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                           )
                         else if (isLowStock)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade100,
                               borderRadius: BorderRadius.circular(4),
@@ -899,13 +932,13 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                           'Stock: ${product['stockQuantity'] ?? 0}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isOutOfStock 
-                                ? Colors.red.shade600 
-                                : isLowStock 
-                                    ? Colors.orange.shade600 
+                            color: isOutOfStock
+                                ? Colors.red.shade600
+                                : isLowStock
+                                    ? Colors.orange.shade600
                                     : Colors.grey[600],
-                            fontWeight: isOutOfStock || isLowStock 
-                                ? FontWeight.w600 
+                            fontWeight: isOutOfStock || isLowStock
+                                ? FontWeight.w600
                                 : FontWeight.normal,
                           ),
                         ),
@@ -1084,14 +1117,14 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Revenue Overview Cards with real data
         FutureBuilder<Map<String, double>>(
           future: _getRevenueOverviewData(),
           builder: (context, snapshot) {
             final todayRevenue = snapshot.data?['today'] ?? 475.0;
             final monthRevenue = snapshot.data?['month'] ?? 12450.0;
-            
+
             return Row(
               children: [
                 Expanded(
@@ -1116,7 +1149,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
           },
         ),
         const SizedBox(height: 16),
-        
+
         // Revenue Chart
         const RevenueAnalyticsChart(),
       ],
@@ -1129,7 +1162,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
       final revenueService = RevenueService();
       final todayRevenue = await revenueService.getTodayRevenue();
       final monthRevenue = await revenueService.getCurrentMonthRevenue();
-      
+
       return {
         'today': todayRevenue,
         'month': monthRevenue,
@@ -1144,7 +1177,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   }
 
   /// Build individual revenue card
-  Widget _buildRevenueCard(String title, String value, IconData icon, Color color) {
+  Widget _buildRevenueCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1202,7 +1236,7 @@ class RevenueAnalyticsChart extends StatefulWidget {
 class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   // State variables for chart data and UI
   List<FlSpot> _chartData = [];
   bool _isLoading = true;
@@ -1242,7 +1276,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
     // Calculate date range for the last 30 days
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-    
+
     // Generate list of dates for the last 30 days
     final dateRange = <String>[];
     for (int i = 0; i < 30; i++) {
@@ -1261,8 +1295,11 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
       final querySnapshot = await _firestore
           .collection('daily_revenue')
           .where('sellerId', isEqualTo: user.uid) // Filter by current seller
-          .where('date', isGreaterThanOrEqualTo: DateFormat('yyyy-MM-dd').format(thirtyDaysAgo))
-          .where('date', isLessThanOrEqualTo: DateFormat('yyyy-MM-dd').format(now))
+          .where('date',
+              isGreaterThanOrEqualTo:
+                  DateFormat('yyyy-MM-dd').format(thirtyDaysAgo))
+          .where('date',
+              isLessThanOrEqualTo: DateFormat('yyyy-MM-dd').format(now))
           .orderBy('date')
           .get();
 
@@ -1283,7 +1320,8 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
         final date = thirtyDaysAgo.add(Duration(days: i));
         final dateStr = DateFormat('yyyy-MM-dd').format(date);
         // Generate sample revenue data
-        revenueData[dateStr] = (i % 7 == 0) ? 0.0 : (100 + (i * 50) + (i % 3) * 200).toDouble();
+        revenueData[dateStr] =
+            (i % 7 == 0) ? 0.0 : (100 + (i * 50) + (i % 3) * 200).toDouble();
       }
     }
 
@@ -1295,16 +1333,16 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
   void _prepareChartData(Map<String, double> revenueData) {
     final spots = <FlSpot>[];
     final dateLabels = <String>[];
-    
+
     // Sort dates and create chart points
     final sortedDates = revenueData.keys.toList()..sort();
-    
+
     for (int i = 0; i < sortedDates.length; i++) {
       final date = sortedDates[i];
       final revenue = revenueData[date] ?? 0.0;
-      
+
       spots.add(FlSpot(i.toDouble(), revenue));
-      
+
       // Format date for display (show only day/month for cleaner labels)
       final dateTime = DateTime.parse(date);
       dateLabels.add(DateFormat('dd/MM').format(dateTime));
@@ -1312,9 +1350,11 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
 
     // Calculate Y-axis range for better chart scaling
     final revenues = revenueData.values.toList();
-    final maxRevenue = revenues.isNotEmpty ? revenues.reduce((a, b) => a > b ? a : b) : 100.0;
-    final minRevenue = revenues.isNotEmpty ? revenues.reduce((a, b) => a < b ? a : b) : 0.0;
-    
+    final maxRevenue =
+        revenues.isNotEmpty ? revenues.reduce((a, b) => a > b ? a : b) : 100.0;
+    final minRevenue =
+        revenues.isNotEmpty ? revenues.reduce((a, b) => a < b ? a : b) : 0.0;
+
     setState(() {
       _chartData = spots;
       _dateLabels = dateLabels;
@@ -1356,7 +1396,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Chart content
           Expanded(
             child: _buildChartContent(),
@@ -1484,13 +1524,13 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             );
           },
         ),
-        
+
         // Chart border
         borderData: FlBorderData(
           show: true,
           border: Border.all(color: Colors.grey[300]!, width: 1),
         ),
-        
+
         // Axis titles
         titlesData: FlTitlesData(
           show: true,
@@ -1507,7 +1547,9 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
               interval: _chartData.length > 10 ? _chartData.length / 5 : 2,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
-                if (index >= 0 && index < _dateLabels.length && index % 5 == 0) {
+                if (index >= 0 &&
+                    index < _dateLabels.length &&
+                    index % 5 == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6.0),
                     child: Text(
@@ -1543,13 +1585,13 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             ),
           ),
         ),
-        
+
         // Chart scaling
         minX: 0,
         maxX: (_chartData.length - 1).toDouble(),
         minY: _minY,
         maxY: _maxY,
-        
+
         // Line data
         lineBarsData: [
           LineChartBarData(
@@ -1560,7 +1602,7 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
             barWidth: 2.5,
             isStrokeCapRound: true,
             preventCurveOverShooting: true,
-            
+
             // Area under the curve (optional gradient fill)
             belowBarData: BarAreaData(
               show: true,
@@ -1573,14 +1615,14 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
                 ],
               ),
             ),
-            
+
             // Data point dots
             dotData: FlDotData(
               show: false, // Hide dots for cleaner look in compact view
             ),
           ),
         ],
-        
+
         // Touch interaction
         lineTouchData: LineTouchData(
           enabled: true,
@@ -1591,8 +1633,9 @@ class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
               return touchedBarSpots.map((barSpot) {
                 final index = barSpot.x.toInt();
                 final revenue = barSpot.y;
-                final date = index < _dateLabels.length ? _dateLabels[index] : '';
-                
+                final date =
+                    index < _dateLabels.length ? _dateLabels[index] : '';
+
                 return LineTooltipItem(
                   '$date\n₹${revenue.toStringAsFixed(0)}',
                   GoogleFonts.inter(
@@ -1621,7 +1664,7 @@ class RevenueAnalyticsScreen extends StatelessWidget {
     final revenueService = RevenueService();
     final todayRevenue = await revenueService.getTodayRevenue();
     final monthRevenue = await revenueService.getCurrentMonthRevenue();
-    
+
     return {
       'today': todayRevenue,
       'month': monthRevenue,
@@ -1653,14 +1696,14 @@ class RevenueAnalyticsScreen extends StatelessWidget {
             // Revenue Overview Cards
             _buildRevenueOverview(),
             const SizedBox(height: 20),
-            
+
             // Main Revenue Chart with larger height
             Container(
               height: 350,
               child: const RevenueAnalyticsChart(),
             ),
             const SizedBox(height: 20),
-            
+
             // Additional Analytics
             _buildAdditionalMetrics(),
           ],
@@ -1695,7 +1738,8 @@ class RevenueAnalyticsScreen extends StatelessWidget {
   }
 
   /// Build individual metric card
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1833,19 +1877,19 @@ class RevenueService {
     try {
       final userId = sellerId ?? _auth.currentUser?.uid;
       if (userId == null) return 475.0; // Sample data
-      
+
       final today = DateTime.now();
       final todayString = DateFormat('yyyy-MM-dd').format(today);
-      
+
       final doc = await _firestore
           .collection('daily_revenue')
           .doc('${userId}_$todayString')
           .get();
-      
+
       if (doc.exists) {
         return (doc.data()?['revenue'] as num?)?.toDouble() ?? 0.0;
       }
-      
+
       return 475.0; // Sample data if no real data exists
     } catch (e) {
       print('Error fetching today revenue: $e');
@@ -1858,12 +1902,12 @@ class RevenueService {
     try {
       final userId = sellerId ?? _auth.currentUser?.uid;
       if (userId == null) return 12450.0; // Sample data
-      
+
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
       final startOfMonthString = DateFormat('yyyy-MM-dd').format(startOfMonth);
       final nowString = DateFormat('yyyy-MM-dd').format(now);
-      
+
       final querySnapshot = await _firestore
           .collection('daily_revenue')
           .where('sellerId', isEqualTo: userId)
@@ -1876,14 +1920,18 @@ class RevenueService {
         final revenue = (doc.data()['revenue'] as num?)?.toDouble() ?? 0.0;
         totalRevenue += revenue;
       }
-      
-      return totalRevenue > 0 ? totalRevenue : 12450.0; // Return sample data if no real data
+
+      return totalRevenue > 0
+          ? totalRevenue
+          : 12450.0; // Return sample data if no real data
     } catch (e) {
       print('Error fetching current month revenue: $e');
       return 12450.0; // Sample data on error
     }
   }
 }
+
+// Replace the existing SellerScreen class with this enhanced version
 
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
@@ -1911,7 +1959,7 @@ class _SellerScreenState extends State<SellerScreen> {
             .collection('stores')
             .doc(user.uid)
             .get();
-        
+
         if (mounted) {
           setState(() {
             _storeData = storeDoc.exists ? storeDoc.data() : null;
@@ -2007,6 +2055,11 @@ class _SellerScreenState extends State<SellerScreen> {
   }
 
   @override
+  // Replace the build method in _SellerScreenState class
+
+  // Replace the entire build method content with this simplified version:
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
@@ -2025,13 +2078,19 @@ class _SellerScreenState extends State<SellerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Top bar with logout button
+              // Top bar with notification and logout buttons
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20.0, vertical: 12.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // Notification icon
+                    const NotificationAppBarIcon(
+                      iconColor: Colors.white,
+                      forceUserRole: UserRole.seller,
+                    ),
+                    const SizedBox(width: 8),
+                    // Logout button
                     IconButton(
                       icon: const Icon(Icons.logout,
                           color: Colors.white, size: 28),
@@ -2041,9 +2100,10 @@ class _SellerScreenState extends State<SellerScreen> {
                   ],
                 ),
               ),
-              // Content Area
+
+              // Scrollable Content Area
               Expanded(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20.0),
                   child: SingleChildScrollView(
                     child: Column(
@@ -2060,7 +2120,7 @@ class _SellerScreenState extends State<SellerScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Action Buttons Row 1
+                      // Action Buttons Row 1 - My Store and Collaboration
                       Row(
                         children: [
                           Expanded(
@@ -2078,7 +2138,30 @@ class _SellerScreenState extends State<SellerScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildActionButton(
+                              context,
+                              'Collaboration', // Regular styling like other buttons
+                              Icons.group_work,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SellerCollaborationScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Action Buttons Row 2
+                      Row(
+                        children: [
                           Expanded(
                             child: _buildActionButton(
                               context,
@@ -2088,30 +2171,31 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) =>
+                                        const SellerRequestsScreen(),
                                   ),
                                 );
                               },
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Action Buttons Row 3 - Artisan's Legacy
-                      Row(
-                        children: [
+                          const SizedBox(width: 8),
                           Expanded(
                             child: _buildActionButton(
                               context,
-                              'Artisan\'s Legacy',
+                              'Artisan Legacy',
                               Icons.auto_stories,
                               () {
                                 _showArtisanLegacyDialog(context);
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Action Buttons Row 3
+                      Row(
+                        children: [
                           Expanded(
                             child: _buildActionButton(
                               context,
@@ -2131,7 +2215,7 @@ class _SellerScreenState extends State<SellerScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Action Buttons Row 4 - Living Workshop
                       SizedBox(
                         width: double.infinity,
@@ -2143,14 +2227,15 @@ class _SellerScreenState extends State<SellerScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ArtisanMediaUploadScreen(),
+                                builder: (context) =>
+                                    const ArtisanMediaUploadScreen(),
                               ),
                             );
                           },
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Dynamic Store Button (Test Store / Edit Store)
                       SizedBox(
                         width: double.infinity,
@@ -2161,20 +2246,28 @@ class _SellerScreenState extends State<SellerScreen> {
                           () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const TestStoreCreationScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                              _storeData == null
+                                  ? 'Test Store Creation'
+                                  : 'Edit Store Settings',
+                              _storeData == null ? Icons.science : Icons.edit,
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TestStoreCreationScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
 
-                      const SizedBox(height: 30),
-
-                      // Stats Cards
+                      // Stats Cards Section
                       Text(
-                        'Overview',
+                        'Overview & Analytics',
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -2182,6 +2275,8 @@ class _SellerScreenState extends State<SellerScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Stats Row 1
                       Row(
                         children: [
                           Expanded(
@@ -2204,6 +2299,8 @@ class _SellerScreenState extends State<SellerScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
+
+                      // Stats Row 2
                       Row(
                         children: [
                           Expanded(
@@ -2216,7 +2313,8 @@ class _SellerScreenState extends State<SellerScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerOrdersPage(),
+                                    builder: (context) =>
+                                        const SellerOrdersPage(),
                                   ),
                                 );
                               },
@@ -2226,14 +2324,15 @@ class _SellerScreenState extends State<SellerScreen> {
                           Expanded(
                             child: _buildStatsCard(
                               context,
-                              'Requests',
+                              'Collaborations', // Regular stats card
                               '0',
-                              Icons.assignment,
+                              Icons.group_work,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const SellerRequestsScreen(),
+                                    builder: (context) =>
+                                        const SellerCollaborationScreen(),
                                   ),
                                 );
                               },
@@ -2241,6 +2340,220 @@ class _SellerScreenState extends State<SellerScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Stats Row 3 - Additional metrics
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatsCard(
+                              context,
+                              'Store Views',
+                              '0',
+                              Icons.visibility,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatsCard(
+                              context,
+                              'Audio Stories',
+                              '0',
+                              Icons.headphones,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const StoreAudioManagementPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Recent Activity Section
+                      Text(
+                        'Recent Activity',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Activity placeholder
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondary
+                                .withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.timeline,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No Recent Activity',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your recent orders, collaborations, and updates will appear here',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Help & Support Section
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.1),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.help_outline,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Need Help?',
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Get support for your store, products, collaborations, and more.',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Help Center coming soon!'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.support_agent,
+                                        size: 18),
+                                    label: const Text('Support'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Tutorials coming soon!'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.school, size: 18),
+                                    label: const Text('Tutorials'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Bottom padding to ensure FAB doesn't overlap content
+                      const SizedBox(height: 100),
                     ],
                   ),
                 ),
@@ -2250,24 +2563,26 @@ class _SellerScreenState extends State<SellerScreen> {
           ),
         ),
       ),
-      // Floating Action Button for quick access to requests
+      // Simplified Floating Action Button
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "main_action",
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const SellerRequestsScreen(),
+              builder: (context) => const AddProductScreen(),
             ),
           );
         },
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.assignment),
-        label: const Text('View Requests'),
-        tooltip: 'View Craft Requests',
+        icon: const Icon(Icons.add),
+        label: const Text('Add Product'),
       ),
     );
   }
+
+  // Replace the incomplete _showArtisanLegacyDialog method with this complete version:
 
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -2289,7 +2604,8 @@ class _SellerScreenState extends State<SellerScreen> {
       if (snapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('You need to create products first before adding Artisan Legacy stories'),
+            content: Text(
+                'You need to create products first before adding Artisan Legacy stories'),
           ),
         );
         return;
@@ -2297,13 +2613,15 @@ class _SellerScreenState extends State<SellerScreen> {
 
       // Show product selection dialog
       final products = snapshot.docs
-          .map((doc) => Product.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+          .map((doc) => Product.fromMap(
+              {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
           .toList();
 
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.auto_stories, color: Color(0xFF8B6914)),
@@ -2325,7 +2643,7 @@ class _SellerScreenState extends State<SellerScreen> {
               itemBuilder: (context, index) {
                 final product = products[index];
                 final hasStory = product.artisanLegacyStory != null;
-                
+
                 return ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -2362,7 +2680,8 @@ class _SellerScreenState extends State<SellerScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => EditArtisanStoryScreen(product: product),
+                        builder: (context) =>
+                            EditArtisanStoryScreen(product: product),
                       ),
                     );
                   },
@@ -2385,6 +2704,8 @@ class _SellerScreenState extends State<SellerScreen> {
     }
   }
 
+  // Replace the _buildActionButton method to remove highlighting logic:
+
   Widget _buildActionButton(
     BuildContext context,
     String title,
@@ -2392,45 +2713,52 @@ class _SellerScreenState extends State<SellerScreen> {
     VoidCallback onPressed,
   ) {
     return SizedBox(
-      height: 100,
+      height: 85,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor:
+              Colors.white, // Consistent background for all buttons
           foregroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 8,
+          elevation: 8, // Consistent elevation
           shadowColor: Colors.black.withOpacity(0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
               color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+              width: 1, // Consistent border width
             ),
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                size: 24,
+                size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: 4),
+            Flexible(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600, // Consistent font weight
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
