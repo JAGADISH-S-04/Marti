@@ -2086,15 +2086,19 @@ class _EnhancedProductListingPageState
                         Icon(Icons.diamond,
                             color: Colors.purple.shade600, size: 16),
                         const SizedBox(width: 8),
-                        Text(
-                          'Option 1: Luxury & Elegance',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple.shade700,
-                            fontSize: 14,
+                        Expanded(
+                          child: Text(
+                            'Option 1: Luxury & Elegance',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple.shade700,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                         ),
-                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -2174,15 +2178,19 @@ class _EnhancedProductListingPageState
                         Icon(Icons.favorite,
                             color: Colors.teal.shade600, size: 16),
                         const SizedBox(width: 8),
-                        Text(
-                          'Option 2: Personal & Emotional',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal.shade700,
-                            fontSize: 14,
+                        Expanded(
+                          child: Text(
+                            'Option 2: Personal & Emotional',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal.shade700,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                         ),
-                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -2665,58 +2673,56 @@ class _EnhancedProductListingPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Audio Story Ready',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.green.shade700,
-                  fontSize: 16,
+              Expanded(
+                child: Text(
+                  'Audio Story Ready',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green.shade700,
+                    fontSize: 16,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
-              // Action buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Preview button
-                  TextButton.icon(
-                    onPressed: _showAudioStoryPreview,
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Preview'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: accentGold,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Edit button
-                  TextButton.icon(
-                    onPressed: _editAudioStory,
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: primaryBrown,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Delete button
-                  TextButton.icon(
-                    onPressed: _deleteAudioStory,
-                    icon: const Icon(Icons.delete, size: 18),
-                    label: const Text('Delete'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade600,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Action buttons arranged below title to avoid overflow
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton.icon(
+                onPressed: _showAudioStoryPreview,
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Preview'),
+                style: TextButton.styleFrom(
+                  foregroundColor: accentGold,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _editAudioStory,
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit'),
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryBrown,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _deleteAudioStory,
+                icon: const Icon(Icons.delete, size: 18),
+                label: const Text('Delete'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red.shade600,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
               ),
             ],
           ),
