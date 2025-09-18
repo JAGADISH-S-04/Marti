@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'edit_project_screen.dart';
 import 'project_management.dart';
-
+import 'collaboration_chat_screen.dart';
 class CollaborationDetailsScreen extends StatefulWidget {
   final CollaborationRequest collaboration;
 
@@ -243,11 +243,11 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
   }
 
   Widget _buildOverviewTab(CollaborationRequest collaboration, bool isLeader, bool isParticipant) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           // Project Header Card
           Container(
             width: double.infinity,
@@ -447,6 +447,10 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
+        
+        // Add Team Communication Section
+        _buildTeamCommunicationSection(collaboration),
+                const SizedBox(height: 20),
                 _buildDetailRow('Category', collaboration.category),
                 _buildDetailRow('Created', _formatDate(collaboration.createdAt)),
                 _buildDetailRow('Last Updated', _formatDate(collaboration.updatedAt)),
@@ -478,7 +482,10 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
                         height: 1.5,
                       ),
                     ),
-                  ),
+                  )
+                  
+        
+        
                 ],
               ],
             ),
@@ -1137,6 +1144,223 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
     );
   }
 
+  Widget _buildTeamCommunicationSection(CollaborationRequest collaboration) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final isLeader = currentUser?.uid == collaboration.leadArtisanId;
+  final isParticipant = collaboration.collaboratorIds.contains(currentUser?.uid);
+  
+  if (!isLeader && !isParticipant) {
+    return const SizedBox.shrink(); // Only show to team members
+  }
+
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.white, craftBeige.withOpacity(0.3)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: craftBrown.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, 3),
+        ),
+      ],
+      border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: craftGold.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.chat, color: craftBrown, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Team Communication',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: craftDarkBrown,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Team Chat Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _openTeamChat(collaboration),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: craftGold,
+              foregroundColor: craftDarkBrown,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 4,
+            ),
+            icon: const Icon(Icons.group, size: 18),
+            label: Text(
+              'Open Team Chat',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Individual member chats for ALL team members (not just leader)
+        Text(
+          'Chat with team members:',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: craftBrown,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // Chat with project leader (if current user is not the leader)
+        if (!isLeader)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              onTap: () => _openDirectChatWithLeader(collaboration),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: craftGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: craftGold.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: craftGold,
+                      child: const Icon(Icons.star, color: Colors.white, size: 16),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Project Leader',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: craftDarkBrown,
+                            ),
+                          ),
+                          Text(
+                            'Chat with your project leader',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: craftBrown.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chat_bubble_outline, color: craftBrown, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        
+        // Chat with other collaborators
+        ...collaboration.collaboratorIds.where((memberId) => 
+          memberId != currentUser?.uid // Exclude current user
+        ).map((memberId) => 
+          FutureBuilder<Map<String, dynamic>?>(
+            future: _getMemberInfo(memberId),
+            builder: (context, snapshot) {
+              final memberInfo = snapshot.data;
+              if (memberInfo == null) {
+                return const SizedBox.shrink();
+              }
+              
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () => _openDirectChat(collaboration, memberId, memberInfo['name']),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: craftBeige.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: craftBrown,
+                          child: Text(
+                            memberInfo['name'][0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                memberInfo['name'],
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: craftDarkBrown,
+                                ),
+                              ),
+                              Text(
+                                'Team Member',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: craftBrown.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chat_bubble_outline, color: craftBrown, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   // Helper methods
   Widget _buildRoleStatusBadge(String status) {
     Color color;
@@ -1486,6 +1710,83 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
       }
     }
   }
+
+  void _openDirectChatWithLeader(CollaborationRequest collaboration) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
+
+  // Create a direct chat room ID between current user and leader
+  final List<String> userIds = [currentUser.uid, collaboration.leadArtisanId];
+  userIds.sort(); // Sort to ensure consistent chat room ID regardless of who initiates
+  final directChatRoomId = 'direct_${collaboration.id}_${userIds[0]}_${userIds[1]}';
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CollaborationChatScreen(
+        collaborationId: collaboration.id,
+        chatRoomId: directChatRoomId,
+        chatType: 'direct',
+        collaboration: collaboration,
+        currentUserName: _getCurrentUserName(),
+        otherUserName: 'Project Leader',
+        otherUserId: collaboration.leadArtisanId,
+      ),
+    ),
+  );
+}
+
+  void _openTeamChat(CollaborationRequest collaboration) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
+
+  // Create a team chat room ID
+  final teamChatRoomId = 'team_${collaboration.id}';
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CollaborationChatScreen(
+        collaborationId: collaboration.id,
+        chatRoomId: teamChatRoomId,
+        chatType: 'team',
+        collaboration: collaboration,
+        currentUserName: _getCurrentUserName(),
+      ),
+    ),
+  );
+}
+
+void _openDirectChat(CollaborationRequest collaboration, String memberId, String memberName) {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
+
+  // Create a consistent direct chat room ID by sorting user IDs
+  final List<String> userIds = [currentUser.uid, memberId];
+  userIds.sort(); // Sort to ensure consistent chat room ID regardless of who initiates
+  final directChatRoomId = 'direct_${collaboration.id}_${userIds[0]}_${userIds[1]}';
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CollaborationChatScreen(
+        collaborationId: collaboration.id,
+        chatRoomId: directChatRoomId,
+        chatType: 'direct',
+        collaboration: collaboration,
+        currentUserName: _getCurrentUserName(),
+        otherUserName: memberName,
+        otherUserId: memberId,
+      ),
+    ),
+  );
+}
+
+String _getCurrentUserName() {
+  // You'll need to implement this based on your user data structure
+  final currentUser = FirebaseAuth.instance.currentUser;
+  return currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? 'User';
+}
 
   void _navigateToEditScreen(CollaborationRequest collaboration) async {
     final result = await Navigator.push(

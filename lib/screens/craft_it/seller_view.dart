@@ -1041,28 +1041,59 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   }
 
   Widget _buildInsightsTab() {
-    if (_retailerInsights.isEmpty) {
+    if (_isLoadingRecommendations || _retailerInsights.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: primaryBrown),
             const SizedBox(height: 16),
-            const Text('Loading your insights...'),
+            Text(
+              _isLoadingRecommendations
+                  ? 'Loading your insights...'
+                  : 'No insights available yet',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            if (!_isLoadingRecommendations && _retailerInsights.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Complete some projects to see your performance insights',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _loadRecommendations,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryBrown,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ],
         ),
       );
     }
 
+    // Safely extract data with null checks
     final performanceSummary =
         _retailerInsights['performanceSummary'] as Map<String, dynamic>? ?? {};
-    final opportunities = (_retailerInsights['marketOpportunities'] as List?)
-            ?.cast<Map<String, dynamic>>() ??
-        [];
+    final opportunities =
+        _retailerInsights['marketOpportunities'] as List? ?? [];
     final recommendations =
-        (_retailerInsights['strategicRecommendations'] as List?)
-                ?.cast<Map<String, dynamic>>() ??
-            [];
+        _retailerInsights['strategicRecommendations'] as List? ?? [];
+
+    // Convert to proper types
+    final opportunitiesList = opportunities.cast<Map<String, dynamic>>();
+    final recommendationsList = recommendations.cast<Map<String, dynamic>>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1070,45 +1101,61 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Performance Summary Card
-          _buildInsightCard(
-            title: 'Your Performance',
-            icon: Icons.trending_up,
-            color: Colors.blue,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatRow(
-                  'Success Rate',
-                  '${_safeToInt(performanceSummary['successRate'])}%', // Fix: Use safe conversion
-                  Colors.green,
-                ),
-                _buildStatRow(
-                  'Avg Project Value',
-                  '₹${_safeToInt(performanceSummary['averageProjectValue'])}', // Fix: Use safe conversion
-                  Colors.blue,
-                ),
-                if ((performanceSummary['strongCategories'] as List?)
-                        ?.isNotEmpty ==
-                    true)
-                  _buildStatRow(
-                    'Strong Categories',
-                    (performanceSummary['strongCategories'] as List).join(', '),
-                    Colors.purple,
-                  ),
-              ],
+          if (performanceSummary.isNotEmpty)
+            _buildInsightCard(
+              title: 'Your Performance',
+              icon: Icons.trending_up,
+              color: Colors.blue,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (performanceSummary.containsKey('successRate'))
+                    _buildStatRow(
+                      'Success Rate',
+                      '${_safeToInt(performanceSummary['successRate'])}%',
+                      Colors.green,
+                    ),
+                  if (performanceSummary.containsKey('averageProjectValue'))
+                    _buildStatRow(
+                      'Avg Project Value',
+                      '₹${_safeToInt(performanceSummary['averageProjectValue'])}',
+                      Colors.blue,
+                    ),
+                  if (performanceSummary.containsKey('strongCategories') &&
+                      (performanceSummary['strongCategories'] as List?)
+                              ?.isNotEmpty ==
+                          true)
+                    _buildStatRow(
+                      'Strong Categories',
+                      (performanceSummary['strongCategories'] as List)
+                          .join(', '),
+                      Colors.purple,
+                    ),
+                  if (performanceSummary.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'No performance data available yet',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
 
           const SizedBox(height: 16),
 
           // Market Opportunities
-          if (opportunities.isNotEmpty)
+          if (opportunitiesList.isNotEmpty)
             _buildInsightCard(
               title: 'Market Opportunities',
               icon: Icons.business_center,
               color: Colors.green,
               child: Column(
-                children: opportunities
+                children: opportunitiesList
                     .map((opp) => _buildOpportunityItem(opp))
                     .toList(),
               ),
@@ -1117,15 +1164,72 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           const SizedBox(height: 16),
 
           // Strategic Recommendations
-          if (recommendations.isNotEmpty)
+          if (recommendationsList.isNotEmpty)
             _buildInsightCard(
               title: 'Strategic Recommendations',
               icon: Icons.lightbulb,
               color: Colors.orange,
               child: Column(
-                children: recommendations
+                children: recommendationsList
                     .map((rec) => _buildRecommendationItem(rec))
                     .toList(),
+              ),
+            ),
+
+          // Empty state if no insights data
+          if (performanceSummary.isEmpty &&
+              opportunitiesList.isEmpty &&
+              recommendationsList.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.analytics_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Insights Available',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Complete some projects and submit quotations to see your performance insights and market opportunities.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _loadRecommendations,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryBrown,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
@@ -1134,9 +1238,15 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   }
 
   int _safeToInt(dynamic value) {
+    if (value == null) return 0;
     if (value is int) return value;
     if (value is double) return value.round();
-    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) return parsed;
+      final doubleValue = double.tryParse(value);
+      if (doubleValue != null) return doubleValue.round();
+    }
     return 0;
   }
 
@@ -1216,7 +1326,11 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   }
 
   Widget _buildOpportunityItem(Map<String, dynamic> opportunity) {
-    final potential = opportunity['potential'] ?? 'medium';
+    final potential = opportunity['potential']?.toString() ?? 'medium';
+    final category = opportunity['category']?.toString() ?? 'Unknown';
+    final reason = opportunity['reason']?.toString() ?? 'No reason provided';
+    final action = opportunity['action']?.toString() ?? '';
+
     Color potentialColor = potential == 'high'
         ? Colors.green
         : potential == 'medium'
@@ -1238,7 +1352,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             children: [
               Expanded(
                 child: Text(
-                  opportunity['category'] ?? 'Unknown',
+                  category,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: potentialColor,
@@ -1264,13 +1378,13 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            opportunity['reason'] ?? '',
+            reason,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
-          if (opportunity['action']?.toString().isNotEmpty == true) ...[
+          if (action.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Action: ${opportunity['action']}',
+              'Action: $action',
               style: TextStyle(
                 fontSize: 11,
                 color: potentialColor,
@@ -1284,7 +1398,12 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   }
 
   Widget _buildRecommendationItem(Map<String, dynamic> recommendation) {
-    final priority = recommendation['priority'] ?? 'medium';
+    final priority = recommendation['priority']?.toString() ?? 'medium';
+    final recommendationText = recommendation['recommendation']?.toString() ??
+        'No recommendation available';
+    final timeframe = recommendation['timeframe']?.toString() ?? '';
+    final expectedImpact = recommendation['expectedImpact']?.toString() ?? '';
+
     Color priorityColor = priority == 'high'
         ? Colors.red
         : priority == 'medium'
@@ -1319,11 +1438,10 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
               ),
-              if (recommendation['timeframe']?.toString().isNotEmpty ==
-                  true) ...[
+              if (timeframe.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Text(
-                  recommendation['timeframe'],
+                  timeframe,
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.grey.shade600,
@@ -1334,17 +1452,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            recommendation['recommendation'] ?? '',
+            recommendationText,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (recommendation['expectedImpact']?.toString().isNotEmpty ==
-              true) ...[
+          if (expectedImpact.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Impact: ${recommendation['expectedImpact']}',
+              'Impact: $expectedImpact',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade700,
@@ -1615,7 +1732,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        ProjectManagementScreen(
+                                        CollaborationDetailsScreen(
                                       collaboration: collaboration,
                                     ),
                                   ),
@@ -1716,79 +1833,6 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check_circle,
-                                size: 16, color: Colors.green.shade800),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Accepted',
-                              style: TextStyle(
-                                color: Colors.green.shade800,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (status != 'completed') ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            try {
-                              await FirebaseFirestore.instance
-                                  .collection('craft_requests')
-                                  .doc(requestId)
-                                  .update({
-                                'status': 'completed',
-                                'completedAt': Timestamp.now(),
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Request marked as completed!'),
-                                  backgroundColor: Colors.green,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Error marking completed: ${e.toString()}'),
-                                  backgroundColor: Colors.red,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.done_all, size: 16),
-                          label: const Text('Completed',
-                              style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1991,13 +2035,44 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         text: existingQuotation['quotationAmount']?.toString() ??
             existingQuotation['price']?.toString() ??
             '');
-    final deliveryController = TextEditingController(
-        text: existingQuotation['deliveryTime']?.toString() ?? '');
+
+    // Get existing delivery date if available with safe conversion
+    DateTime? _selectedDeliveryDate;
+    if (existingQuotation['deliveryDate'] != null) {
+      try {
+        if (existingQuotation['deliveryDate'] is Timestamp) {
+          _selectedDeliveryDate =
+              (existingQuotation['deliveryDate'] as Timestamp).toDate();
+        } else if (existingQuotation['deliveryDate'] is String) {
+          _selectedDeliveryDate =
+              DateTime.parse(existingQuotation['deliveryDate']);
+        }
+      } catch (e) {
+        print('Error parsing delivery date: $e');
+      }
+    }
+
     final notesController = TextEditingController(
         text: existingQuotation['notes']?.toString() ??
             existingQuotation['message']?.toString() ??
             '');
     bool isSubmitting = false;
+
+    // Extract customer's expected delivery date from deadline with safe conversion
+    final customerDeadline = requestData['deadline'];
+    DateTime? customerExpectedDate;
+
+    if (customerDeadline != null) {
+      if (customerDeadline is Timestamp) {
+        customerExpectedDate = customerDeadline.toDate();
+      } else if (customerDeadline is String) {
+        try {
+          customerExpectedDate = DateTime.parse(customerDeadline);
+        } catch (e) {
+          print('Error parsing deadline string: $e');
+        }
+      }
+    }
 
     showDialog(
       context: context,
@@ -2013,6 +2088,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Show request details
                 Container(
@@ -2036,6 +2112,63 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 ),
                 const SizedBox(height: 16),
 
+                // Customer Expected Delivery Date Section
+                if (customerExpectedDate != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blue.shade50,
+                          Colors.blue.shade100.withOpacity(0.5),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.access_time,
+                                color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Customer Expected Delivery',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _formatDetailedDate(customerExpectedDate),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getTimeFromNow(customerExpectedDate),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Price field
                 TextField(
                   controller: priceController,
@@ -2050,17 +2183,15 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // Delivery time field
-                TextField(
-                  controller: deliveryController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Delivery Time (Days) *',
-                    hintText: 'Number of days to complete',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: Icon(Icons.schedule, color: primaryBrown),
-                  ),
+                // Delivery Date Picker
+                _buildDeliveryDatePicker(
+                  customerExpectedDate,
+                  _selectedDeliveryDate,
+                  (DateTime? date) {
+                    setState(() {
+                      _selectedDeliveryDate = date;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -2104,20 +2235,27 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         return;
                       }
 
-                      if (deliveryController.text.trim().isEmpty) {
+                      if (_selectedDeliveryDate == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please enter delivery time'),
+                            content: Text('Please select delivery date'),
                             backgroundColor: Colors.red,
                           ),
                         );
                         return;
                       }
 
+                      // Validate delivery date against customer deadline
+                      if (customerExpectedDate != null &&
+                          _selectedDeliveryDate!
+                              .isAfter(customerExpectedDate)) {
+                        _showDateExceedsDialog(context, customerExpectedDate,
+                            _selectedDeliveryDate!);
+                        return;
+                      }
+
                       final price =
                           double.tryParse(priceController.text.trim());
-                      final deliveryDays =
-                          int.tryParse(deliveryController.text.trim());
 
                       if (price == null || price <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -2129,24 +2267,20 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         return;
                       }
 
-                      if (deliveryDays == null || deliveryDays <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter valid delivery time'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-
                       setState(() => isSubmitting = true);
 
                       try {
+                        // Calculate delivery time in days from now
+                        final now = DateTime.now();
+                        final deliveryDays =
+                            _selectedDeliveryDate!.difference(now).inDays + 1;
+
                         await _updateQuotation(
                           requestId,
                           requestData,
                           price,
-                          deliveryDays,
+                          '$deliveryDays days',
+                          _selectedDeliveryDate!,
                           notesController.text.trim(),
                         );
 
@@ -2191,7 +2325,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     String requestId,
     Map<String, dynamic> requestData,
     double newPrice,
-    int newDeliveryDays,
+    String newDeliveryTime,
+    DateTime newDeliveryDate,
     String newNotes,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -2234,7 +2369,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         ...quotations[quotationIndex],
         'quotationAmount': newPrice,
         'price': newPrice, // Keep both field names for compatibility
-        'deliveryTime': newDeliveryDays,
+        'deliveryTime': newDeliveryTime,
+        'deliveryDate': Timestamp.fromDate(newDeliveryDate),
         'notes': newNotes,
         'message': newNotes, // Keep both field names for compatibility
         'artisanName': artisanName,
@@ -2266,6 +2402,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             'artisanId': user.uid,
             'artisanName': artisanName,
             'newQuotationAmount': newPrice,
+            'newDeliveryDate': Timestamp.fromDate(newDeliveryDate),
           },
           'isRead': false,
           'createdAt': FieldValue.serverTimestamp(),
@@ -2646,8 +2783,25 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
       Map<String, dynamic> requestData) {
     final priceController = TextEditingController();
     final messageController = TextEditingController();
-    final deliveryController = TextEditingController();
+    DateTime? _selectedDeliveryDate;
     bool isSubmitting = false;
+
+    // Extract customer's expected delivery date from deadline
+    final customerDeadline = requestData['deadline'];
+    DateTime? customerExpectedDate;
+
+    // Safe conversion of deadline to DateTime
+    if (customerDeadline != null) {
+      if (customerDeadline is Timestamp) {
+        customerExpectedDate = customerDeadline.toDate();
+      } else if (customerDeadline is String) {
+        try {
+          customerExpectedDate = DateTime.parse(customerDeadline);
+        } catch (e) {
+          print('Error parsing deadline string: $e');
+        }
+      }
+    }
 
     showDialog(
       context: context,
@@ -2663,6 +2817,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Show request details
                 Container(
@@ -2686,6 +2841,90 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 ),
                 const SizedBox(height: 16),
 
+                // Customer Expected Delivery Date Section
+                if (customerExpectedDate != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blue.shade50,
+                          Colors.blue.shade100.withOpacity(0.5),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.access_time,
+                                color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Customer Expected Delivery',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _formatDetailedDate(customerExpectedDate),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getTimeFromNow(customerExpectedDate),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.amber.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.amber.shade700, size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Select your delivery date on or before this date',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.amber.shade800,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Price field
                 TextField(
                   controller: priceController,
                   keyboardType: TextInputType.number,
@@ -2698,17 +2937,20 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: deliveryController,
-                  decoration: InputDecoration(
-                    labelText: 'Delivery Time *',
-                    hintText: 'e.g., 2 weeks, 10 days',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: Icon(Icons.schedule, color: primaryBrown),
-                  ),
+
+                // Delivery Date Picker
+                _buildDeliveryDatePicker(
+                  customerExpectedDate,
+                  _selectedDeliveryDate,
+                  (DateTime? date) {
+                    setState(() {
+                      _selectedDeliveryDate = date;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
+
+                // Notes field
                 TextField(
                   controller: messageController,
                   maxLines: 3,
@@ -2750,11 +2992,20 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         return;
                       }
 
-                      if (deliveryController.text.trim().isEmpty) {
+                      if (_selectedDeliveryDate == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Please enter delivery time')),
+                              content: Text('Please select delivery date')),
                         );
+                        return;
+                      }
+
+                      // Validate delivery date against customer deadline
+                      if (customerExpectedDate != null &&
+                          _selectedDeliveryDate!
+                              .isAfter(customerExpectedDate)) {
+                        _showDateExceedsDialog(context, customerExpectedDate,
+                            _selectedDeliveryDate!);
                         return;
                       }
 
@@ -2771,9 +3022,14 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       setState(() => isSubmitting = true);
 
                       try {
-                        // Check if deadline has passed
-                        final deadline = requestData['deadline'];
-                        if (DeadlineUtils.isDeadlinePassed(deadline)) {
+                        // Check if deadline has passed with safe conversion
+                        bool deadlinePassed = false;
+                        if (requestData['deadline'] != null) {
+                          deadlinePassed = DeadlineUtils.isDeadlinePassed(
+                              requestData['deadline']);
+                        }
+
+                        if (deadlinePassed) {
                           setState(() => isSubmitting = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -2812,15 +3068,26 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           // Continue with default name
                         }
 
-                        // Create quotation
+                        // Calculate delivery time in days from now
+                        final now = DateTime.now();
+                        final deliveryDays =
+                            _selectedDeliveryDate!.difference(now).inDays + 1;
+
+                        // Create quotation with safe data types
                         final quotation = {
                           'artisanId': user.uid,
                           'artisanName': sellerName,
                           'artisanEmail': user.email ?? '',
                           'price': price,
-                          'deliveryTime': deliveryController.text.trim(),
+                          'quotationAmount': price, // For compatibility
+                          'deliveryTime': '$deliveryDays days',
+                          'deliveryDate':
+                              Timestamp.fromDate(_selectedDeliveryDate!),
                           'message': messageController.text.trim(),
+                          'notes': messageController.text
+                              .trim(), // For compatibility
                           'submittedAt': Timestamp.now(),
+                          'status': 'pending',
                         };
 
                         // Add quotation to the request
@@ -2829,7 +3096,37 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             .doc(requestId)
                             .update({
                           'quotations': FieldValue.arrayUnion([quotation]),
+                          'lastUpdated': Timestamp.now(),
                         });
+
+                        // Create notification for the buyer
+                        final buyerId =
+                            requestData['userId'] ?? requestData['buyerId'];
+                        if (buyerId != null && buyerId != user.uid) {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('notifications')
+                                .add({
+                              'userId': buyerId,
+                              'title': 'New Quotation Received',
+                              'message':
+                                  '$sellerName submitted a quotation for "${requestData['title']}"',
+                              'type': 'quotation_received',
+                              'data': {
+                                'requestId': requestId,
+                                'artisanId': user.uid,
+                                'artisanName': sellerName,
+                                'quotationAmount': price,
+                                'deliveryTime': '$deliveryDays days',
+                              },
+                              'isRead': false,
+                              'createdAt': Timestamp.now(),
+                            });
+                          } catch (e) {
+                            print('Error creating notification: $e');
+                            // Don't fail the quotation submission for notification errors
+                          }
+                        }
 
                         // Close dialog
                         Navigator.of(dialogContext).pop();
@@ -2871,5 +3168,421 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildDeliveryDatePicker(
+    DateTime? customerDeadline,
+    DateTime? selectedDate,
+    Function(DateTime?) onDateSelected,
+  ) {
+    final now = DateTime.now();
+    final minDate = now;
+    final maxDate = customerDeadline ?? now.add(const Duration(days: 365));
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: selectedDate != null
+              ? (customerDeadline != null &&
+                      selectedDate.isAfter(customerDeadline)
+                  ? Colors.red
+                  : primaryBrown)
+              : Colors.grey.shade400,
+          width: selectedDate != null ? 2 : 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: selectedDate ??
+                  (customerDeadline != null
+                      ? (customerDeadline
+                              .isBefore(minDate.add(const Duration(days: 7)))
+                          ? customerDeadline
+                          : minDate.add(const Duration(days: 7)))
+                      : minDate.add(const Duration(days: 7))),
+              firstDate: minDate,
+              lastDate: maxDate,
+              helpText: 'Select Delivery Date',
+              cancelText: 'Cancel',
+              confirmText: 'Select Date',
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: primaryBrown,
+                      onPrimary: Colors.white,
+                      onSurface: Colors.black,
+                      surface: Colors.white,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+
+            if (picked != null) {
+              onDateSelected(picked);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: selectedDate != null
+                          ? (customerDeadline != null &&
+                                  selectedDate.isAfter(customerDeadline)
+                              ? Colors.red
+                              : primaryBrown)
+                          : Colors.grey.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Expected Delivery Date *',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: selectedDate != null
+                            ? (customerDeadline != null &&
+                                    selectedDate.isAfter(customerDeadline)
+                                ? Colors.red
+                                : primaryBrown)
+                            : Colors.grey.shade700,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (selectedDate != null)
+                      GestureDetector(
+                        onTap: () => onDateSelected(null),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Icon(
+                            Icons.clear,
+                            color: Colors.grey.shade600,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (selectedDate != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: customerDeadline != null &&
+                              selectedDate.isAfter(customerDeadline)
+                          ? Colors.red.shade50
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: customerDeadline != null &&
+                                selectedDate.isAfter(customerDeadline)
+                            ? Colors.red.shade300
+                            : Colors.green.shade300,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _formatDetailedDate(selectedDate),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: customerDeadline != null &&
+                                    selectedDate.isAfter(customerDeadline)
+                                ? Colors.red.shade700
+                                : Colors.green.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getTimeFromNow(selectedDate),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: customerDeadline != null &&
+                                    selectedDate.isAfter(customerDeadline)
+                                ? Colors.red.shade600
+                                : Colors.green.shade600,
+                          ),
+                        ),
+                        if (customerDeadline != null &&
+                            selectedDate.isAfter(customerDeadline)) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.warning,
+                                  color: Colors.red.shade600, size: 14),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Exceeds customer deadline by ${selectedDate.difference(customerDeadline).inDays} days',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.touch_app,
+                            color: Colors.grey.shade500, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Tap to select your delivery date',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDateExceedsDialog(
+      BuildContext context, DateTime customerDeadline, DateTime selectedDate) {
+    final daysDifference = selectedDate.difference(customerDeadline).inDays;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.orange.shade700, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Delivery Date Exceeds Customer Deadline',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.access_time,
+                          color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Customer Expected:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDetailedDate(customerDeadline),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.schedule,
+                          color: Colors.orange.shade700, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Your Selected Date:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDetailedDate(selectedDate),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade400),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: Colors.amber.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your delivery date is $daysDifference day${daysDifference > 1 ? 's' : ''} later than expected.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Please select an earlier date or contact the customer to discuss an extension.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Choose Different Date',
+              style: TextStyle(
+                color: primaryBrown,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDetailedDate(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+
+    return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _getTimeFromNow(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now);
+
+    if (difference.isNegative) {
+      final daysPast = (-difference.inDays);
+      if (daysPast == 0) return 'Today';
+      if (daysPast == 1) return 'Yesterday';
+      return '$daysPast days ago';
+    }
+
+    final daysFromNow = difference.inDays;
+    if (daysFromNow == 0) return 'Today';
+    if (daysFromNow == 1) return 'Tomorrow';
+    return 'In $daysFromNow days';
   }
 }
