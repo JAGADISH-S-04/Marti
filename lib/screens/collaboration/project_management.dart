@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/collab_service.dart';
 import '../../models/collab_model.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'edit_project_screen.dart'; 
+import 'edit_project_screen.dart';
 
 class ProjectManagementScreen extends StatefulWidget {
   final CollaborationRequest collaboration;
@@ -25,6 +22,13 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
   final CollaborationService _collaborationService = CollaborationService();
   late TabController _tabController;
 
+  // Craftwork-themed colors
+  final Color craftBrown = const Color(0xFF8B4513);
+  final Color craftGold = const Color(0xFFD4AF37);
+  final Color craftBeige = const Color(0xFFF5F5DC);
+  final Color craftDarkBrown = const Color(0xFF5D2E0A);
+  final Color craftLightBrown = const Color(0xFFDEB887);
+
   @override
   void initState() {
     super.initState();
@@ -40,36 +44,57 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: craftBeige,
       appBar: AppBar(
-        title: Text(
-          'Manage Project',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [craftBrown, craftDarkBrown],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Manage Craft Project',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.edit, color: Colors.white),
+            ),
             onPressed: () {
-              // Navigate to edit screen
               _navigateToEditScreen();
             },
             tooltip: 'Edit Project',
           ),
           PopupMenuButton(
-            icon: const Icon(Icons.more_vert),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.more_vert, color: Colors.white),
+            ),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'status',
                 child: Row(
                   children: [
-                    Icon(Icons.update, size: 18),
+                    Icon(Icons.flag, size: 18),
                     SizedBox(width: 8),
                     Text('Update Status'),
                   ],
@@ -97,9 +122,9 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF2C1810),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFFD4AF37),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: craftGold,
           isScrollable: true,
           tabs: const [
             Tab(text: 'Overview', icon: Icon(Icons.dashboard)),
@@ -118,18 +143,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
           _buildProgressTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Add team member functionality coming soon')),
-          );
-        },
-        backgroundColor: const Color(0xFFD4AF37),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Member'),
-      ),
+      
     );
   }
 
@@ -145,100 +159,79 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFD4AF37).withOpacity(0.9),
-                  const Color(0xFFD4AF37).withOpacity(0.7),
-                ],
+                colors: [craftBrown, craftDarkBrown],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  spreadRadius: 0,
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: craftBrown.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Project Header
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(20),
+                        color: craftGold,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: craftGold.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Icon(
+                        Icons.handyman,
+                        size: 32,
+                        color: craftDarkBrown,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.star, size: 16, color: Colors.white),
-                          SizedBox(width: 6),
                           Text(
-                            'PROJECT LEADER',
-                            style: TextStyle(
-                              fontSize: 11,
+                            widget.collaboration.title,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
-                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Master Craft Project',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.8),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(widget.collaboration.status)
-                            .withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        widget.collaboration.status.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 20),
-
-                // Project Title
-                Text(
-                  widget.collaboration.title,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Project Description
+                const SizedBox(height: 24),
                 Text(
                   widget.collaboration.description,
                   style: GoogleFonts.inter(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withOpacity(0.9),
                     height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Project Stats Grid
                 Row(
                   children: [
                     Expanded(
@@ -246,169 +239,29 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                         'Total Budget',
                         '₹${widget.collaboration.totalBudget.toStringAsFixed(0)}',
                         Icons.account_balance_wallet,
-                        Colors.white.withOpacity(0.9),
+                        craftGold,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _buildOverviewStatCard(
                         'Team Size',
-                        '${widget.collaboration.collaboratorIds.length + 1} Members',
+                        '${widget.collaboration.collaboratorIds.length + 1}',
                         Icons.group,
-                        Colors.white.withOpacity(0.9),
+                        Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildOverviewStatCard(
+                        'Roles',
+                        '${widget.collaboration.requiredRoles.length}',
+                        Icons.assignment_ind,
+                        Colors.blue,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildOverviewStatCard(
-                        'Open Roles',
-                        '${widget.collaboration.requiredRoles.where((r) => r.status == 'open').length} Available',
-                        Icons.work_outline,
-                        Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildOverviewStatCard(
-                        'Deadline',
-                        '${widget.collaboration.deadline.day}/${widget.collaboration.deadline.month}/${widget.collaboration.deadline.year}',
-                        Icons.event,
-                        Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Project Timeline
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Project Timeline',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Created',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.8),
-                                  ),
-                                ),
-                                Text(
-                                  '${widget.collaboration.createdAt.day}/${widget.collaboration.createdAt.month}/${widget.collaboration.createdAt.year}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: 2,
-                            height: 30,
-                            color: Colors.white.withOpacity(0.3),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Duration',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.8),
-                                  ),
-                                ),
-                                Text(
-                                  '${widget.collaboration.deadline.difference(widget.collaboration.createdAt).inDays} Days',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: 2,
-                            height: 30,
-                            color: Colors.white.withOpacity(0.3),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'Days Left',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.8),
-                                  ),
-                                ),
-                                Text(
-                                  '${widget.collaboration.deadline.difference(DateTime.now()).inDays > 0 ? widget.collaboration.deadline.difference(DateTime.now()).inDays : 0}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Project Features
-                if (widget.collaboration.isUrgent == true ||
-                    widget.collaboration.allowPartialDelivery == true ||
-                    widget.collaboration.requireQualitySamples == true) ...[
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (widget.collaboration.isUrgent == true)
-                        _buildFeatureChip(
-                            'Urgent Priority', Icons.priority_high, Colors.red),
-                      if (widget.collaboration.allowPartialDelivery == true)
-                        _buildFeatureChip('Partial Delivery OK',
-                            Icons.inventory, Colors.blue),
-                      if (widget.collaboration.requireQualitySamples == true)
-                        _buildFeatureChip('Quality Samples Required',
-                            Icons.verified, Colors.purple),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
@@ -423,16 +276,16 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                   'Category',
                   widget.collaboration.category,
                   Icons.category,
-                  Colors.blue.shade600,
+                  craftBrown,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildDetailCard(
-                  'Complexity',
-                  widget.collaboration.complexity ?? 'Standard',
-                  Icons.settings,
-                  Colors.purple.shade600,
+                  'Deadline',
+                  '${widget.collaboration.deadline.day}/${widget.collaboration.deadline.month}/${widget.collaboration.deadline.year}',
+                  Icons.schedule,
+                  Colors.orange,
                 ),
               ),
             ],
@@ -448,29 +301,29 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 0,
+                    color: craftBrown.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    offset: const Offset(0, 4),
                   ),
                 ],
+                border: Border.all(color: craftLightBrown.withOpacity(0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.note, color: Colors.amber.shade600, size: 20),
+                      Icon(Icons.note, color: craftBrown),
                       const SizedBox(width: 8),
                       Text(
                         'Additional Notes',
                         style: GoogleFonts.playfairDisplay(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2C1810),
+                          color: craftDarkBrown,
                         ),
                       ),
                     ],
@@ -480,7 +333,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                     widget.collaboration.additionalNotes!,
                     style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: Colors.grey[700],
+                      color: craftBrown.withOpacity(0.8),
                       height: 1.5,
                     ),
                   ),
@@ -498,55 +351,53 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 0,
+                    color: craftBrown.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    offset: const Offset(0, 4),
                   ),
                 ],
+                border: Border.all(color: craftGold.withOpacity(0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.pie_chart,
-                          color: Colors.green.shade600, size: 20),
+                      Icon(Icons.pie_chart, color: craftGold),
                       const SizedBox(width: 8),
                       Text(
                         'Budget Allocation',
                         style: GoogleFonts.playfairDisplay(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2C1810),
+                          color: craftDarkBrown,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   ...widget.collaboration.budgetAllocation!.entries.map(
                     (entry) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: Text(
-                              entry.key,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
+                          Text(
+                            entry.key,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: craftBrown.withOpacity(0.8),
                             ),
                           ),
                           Text(
                             '₹${entry.value.toStringAsFixed(0)}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                              color: craftDarkBrown,
                             ),
                           ),
                         ],
@@ -581,7 +432,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
               Text(
                 value,
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -655,7 +506,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
@@ -666,7 +517,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
+              color: craftDarkBrown,
             ),
           ),
         ],
@@ -685,7 +536,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
             style: GoogleFonts.playfairDisplay(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
+              color: craftDarkBrown,
             ),
           ),
           const SizedBox(height: 16),
@@ -704,13 +555,42 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
           .getCollaborationApplications(widget.collaboration.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(craftGold),
+            ),
+          );
         }
 
         final applications = snapshot.data ?? [];
         if (applications.isEmpty) {
-          return const Center(
-            child: Text('No applications received yet'),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No applications received yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Applications from artisans will appear here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
           );
         }
 
@@ -727,9 +607,25 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
 
   Widget _buildProgressTab() {
     return Center(
-      child: Text(
-        'Progress tracking coming soon...',
-        style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600]),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.timeline,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Progress tracking coming soon...',
+            style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Track project milestones and deliverables',
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ],
       ),
     );
   }
@@ -762,9 +658,9 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
               Text(
                 value,
                 style: GoogleFonts.inter(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
+                  color: color,
                 ),
               ),
             ],
@@ -807,21 +703,19 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
+                Row(
+                  children: [
+                    Icon(icon, color: color, size: 24),
+                    const Spacer(),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
                   title,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -829,7 +723,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                   subtitle,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -867,7 +761,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
               ),
@@ -932,7 +826,7 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
               ),
@@ -969,26 +863,32 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        _updateApplicationStatus(application.id, 'rejected'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                    child: const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
                   child: ElevatedButton(
                     onPressed: () =>
                         _updateApplicationStatus(application.id, 'accepted'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        _updateApplicationStatus(application.id, 'rejected'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Reject'),
                   ),
                 ),
               ],
@@ -1012,24 +912,24 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
               title: const Text('In Progress'),
               leading: const Icon(Icons.play_arrow, color: Colors.blue),
               onTap: () {
-                Navigator.of(context).pop();
                 _updateProjectStatus('in_progress');
+                Navigator.of(context).pop();
               },
             ),
             ListTile(
               title: const Text('Completed'),
               leading: const Icon(Icons.check_circle, color: Colors.green),
               onTap: () {
-                Navigator.of(context).pop();
                 _updateProjectStatus('completed');
+                Navigator.of(context).pop();
               },
             ),
             ListTile(
               title: const Text('Cancelled'),
               leading: const Icon(Icons.cancel, color: Colors.red),
               onTap: () {
-                Navigator.of(context).pop();
                 _updateProjectStatus('cancelled');
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -1052,8 +952,8 @@ class _ProjectManagementScreenState extends State<ProjectManagementScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
               _updateProjectStatus('cancelled');
+              Navigator.of(context).pop();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Close Project'),

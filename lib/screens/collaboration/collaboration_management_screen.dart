@@ -20,6 +20,13 @@ class _CollaborationManagementScreenState
   final CollaborationService _collaborationService = CollaborationService();
   late TabController _tabController;
 
+  // Craftwork-themed colors
+  final Color craftBrown = const Color(0xFF8B4513);
+  final Color craftGold = const Color(0xFFD4AF37);
+  final Color craftBeige = const Color(0xFFF5F5DC);
+  final Color craftDarkBrown = const Color(0xFF5D2E0A);
+  final Color craftLightBrown = const Color(0xFFDEB887);
+
   @override
   void initState() {
     super.initState();
@@ -35,28 +42,42 @@ class _CollaborationManagementScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: craftBeige,
       appBar: AppBar(
-        title: Text(
-          'Collaboration Projects',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [craftBrown, craftDarkBrown],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Collaboration Hub',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF2C1810),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFFD4AF37),
+          labelColor: craftGold,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: craftGold,
+          indicatorWeight: 3,
+          labelStyle:
+              GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+          unselectedLabelStyle:
+              GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 14),
           tabs: const [
-            Tab(text: 'My Projects', icon: Icon(Icons.person)),
-            Tab(text: 'Available', icon: Icon(Icons.search)),
-            Tab(text: 'Participating', icon: Icon(Icons.group)),
+            Tab(text: 'My Projects'),
+            Tab(text: 'Available'),
+            Tab(text: 'Joined'),
           ],
         ),
       ),
@@ -68,13 +89,7 @@ class _CollaborationManagementScreenState
           _buildParticipatingTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateCollaborationDialog(),
-        backgroundColor: const Color(0xFFD4AF37),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.group_add),
-        label: const Text('New Collaboration'),
-      ),
+      
     );
   }
 
@@ -83,34 +98,41 @@ class _CollaborationManagementScreenState
       stream: _collaborationService.getMyLeadCollaborations(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(craftGold),
+                  strokeWidth: 3,
+                ),
                 const SizedBox(height: 16),
-                Text('Error: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
+                Text(
+                  'Loading your projects...',
+                  style: GoogleFonts.inter(
+                    color: craftBrown,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
           );
         }
 
+        if (snapshot.hasError) {
+          return _buildErrorState(
+              'Error loading projects', () => setState(() {}));
+        }
+
         final projects = snapshot.data ?? [];
 
         if (projects.isEmpty) {
           return _buildEmptyState(
+            Icons.work_outline,
             'No Projects Yet',
-            'Create your first collaboration project to work with other artisans',
-            Icons.group_work,
+            'Create your first collaboration project to work with other artisans and bring beautiful crafts to life',
+            'Create Project',
+            () => _showCreateCollaborationDialog(),
           );
         }
 
@@ -118,7 +140,7 @@ class _CollaborationManagementScreenState
           padding: const EdgeInsets.all(16),
           itemCount: projects.length,
           itemBuilder: (context, index) {
-            return _buildProjectCard(projects[index], isLeader: true);
+            return _buildCraftProjectCard(projects[index], isLeader: true);
           },
         );
       },
@@ -130,42 +152,53 @@ class _CollaborationManagementScreenState
       stream: _collaborationService.getOpenCollaborationRequests(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(craftGold),
+                  strokeWidth: 3,
+                ),
                 const SizedBox(height: 16),
-                Text('Error: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
+                Text(
+                  'Finding opportunities...',
+                  style: GoogleFonts.inter(
+                    color: craftBrown,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
           );
         }
 
+        if (snapshot.hasError) {
+          return _buildErrorState(
+              'Error loading projects', () => setState(() {}));
+        }
+
         final projects = snapshot.data ?? [];
         final currentUser = FirebaseAuth.instance.currentUser;
 
-        // Filter out projects where user is already the lead or collaborator
         final availableProjects = projects.where((project) {
-          return project.leadArtisanId != currentUser?.uid &&
-              !project.collaboratorIds.contains(currentUser?.uid) &&
-              project.status == 'open'; // Only show open projects
+          final isNotLeader = project.leadArtisanId != currentUser?.uid;
+          final isNotCollaborator =
+              !project.collaboratorIds.contains(currentUser?.uid);
+          final isOpen = project.status == 'open';
+          final hasOpenRoles =
+              project.requiredRoles.any((role) => role.status == 'open');
+
+          return isNotLeader && isNotCollaborator && isOpen && hasOpenRoles;
         }).toList();
 
         if (availableProjects.isEmpty) {
           return _buildEmptyState(
-            'No Available Projects',
-            'Check back later for new collaboration opportunities from fellow artisans',
-            Icons.search,
+            Icons.search_off,
+            'No Opportunities Available',
+            'New collaboration projects from fellow artisans will appear here. Check back soon for exciting craft projects!',
+            null,
+            null,
           );
         }
 
@@ -173,7 +206,8 @@ class _CollaborationManagementScreenState
           padding: const EdgeInsets.all(16),
           itemCount: availableProjects.length,
           itemBuilder: (context, index) {
-            return _buildProjectCard(availableProjects[index], isLeader: false);
+            return _buildCraftProjectCard(availableProjects[index],
+                isLeader: false);
           },
         );
       },
@@ -185,22 +219,41 @@ class _CollaborationManagementScreenState
       stream: _collaborationService.getMyCollaborations(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(craftGold),
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Loading collaborations...',
+                  style: GoogleFonts.inter(
+                    color: craftBrown,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
+          return _buildErrorState(
+              'Error loading collaborations', () => setState(() {}));
         }
 
         final projects = snapshot.data ?? [];
 
         if (projects.isEmpty) {
           return _buildEmptyState(
+            Icons.group_outlined,
             'No Collaborations Yet',
-            'Join collaboration projects to work with other artisans',
-            Icons.group,
+            'Join collaboration projects to work alongside talented artisans and learn new craft techniques',
+            null,
+            null,
           );
         }
 
@@ -208,273 +261,264 @@ class _CollaborationManagementScreenState
           padding: const EdgeInsets.all(16),
           itemCount: projects.length,
           itemBuilder: (context, index) {
-            return _buildProjectCard(projects[index], isLeader: false);
+            return _buildCraftProjectCard(projects[index], isLeader: false);
           },
         );
       },
     );
   }
 
-  Widget _buildEmptyState(String title, String subtitle, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 100,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProjectCard(CollaborationRequest project,
+  Widget _buildCraftProjectCard(CollaborationRequest project,
       {required bool isLeader}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        gradient: LinearGradient(
+          colors: [Colors.white, craftBeige.withOpacity(0.5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: craftBrown.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: isLeader
+              ? craftGold.withOpacity(0.5)
+              : craftLightBrown.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
-      child: InkWell(
-        onTap: () => _navigateToProjectDetails(project),
-        borderRadius: BorderRadius.circular(15),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      project.title,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C1810),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(project.status).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: _getStatusColor(project.status)),
-                    ),
-                    child: Text(
-                      project.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _getStatusColor(project.status),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Description
-              Text(
-                project.description,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 16),
-
-              // Project info
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoChip(
-                      'Budget',
-                      '₹${project.totalBudget.toStringAsFixed(0)}',
-                      Icons.account_balance_wallet,
-                      Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildInfoChip(
-                      'Roles',
-                      '${project.requiredRoles.length} roles',
-                      Icons.people,
-                      Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Collaborators and deadline
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoChip(
-                      'Team',
-                      '${project.collaboratorIds.length + 1} members',
-                      Icons.group,
-                      Colors.purple,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildInfoChip(
-                      'Deadline',
-                      _formatDeadline(project.deadline),
-                      Icons.schedule,
-                      Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Role tags
-              if (project.requiredRoles.isNotEmpty) ...[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: project.requiredRoles.take(3).map((role) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD4AF37).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        role.title,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2C1810),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToProjectDetails(project),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with role indicator
+                Row(
+                  children: [
+                    if (isLeader)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [craftGold, craftGold.withOpacity(0.8)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: craftGold.withOpacity(0.3),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: craftDarkBrown,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'MASTER ARTISAN',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: craftDarkBrown,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Actions
-              Row(
-                children: [
-                  if (isLeader) ...[
-                    Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Project Leader',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.amber,
+                    if (isLeader) const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        project.title,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: craftDarkBrown,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ] else ...[
-                    Icon(Icons.group_work, size: 16, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Collaborator',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue,
-                      ),
-                    ),
+                    _buildCraftStatusBadge(project.status),
                   ],
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => _navigateToProjectDetails(project),
-                    child: const Text('View Details'),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Description
+                Text(
+                  project.description,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: craftBrown.withOpacity(0.8),
+                    height: 1.5,
                   ),
-                ],
-              ),
-            ],
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Project metrics in a grid
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: craftBeige.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildCraftMetric(
+                          Icons.currency_rupee,
+                          'Budget',
+                          '₹${_formatCurrency(project.totalBudget)}',
+                          const Color(0xFF228B22),
+                        ),
+                      ),
+                      Container(
+                        height: 30,
+                        width: 1,
+                        color: craftLightBrown.withOpacity(0.5),
+                      ),
+                      Expanded(
+                        child: _buildCraftMetric(
+                          Icons.groups,
+                          'Artisans',
+                          '${project.collaboratorIds.length + 1}',
+                          craftBrown,
+                        ),
+                      ),
+                      Container(
+                        height: 30,
+                        width: 1,
+                        color: craftLightBrown.withOpacity(0.5),
+                      ),
+                      Expanded(
+                        child: _buildCraftMetric(
+                          Icons.handyman,
+                          'Roles',
+                          '${project.requiredRoles.length}',
+                          const Color(0xFF8B008B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Category and action button
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: craftLightBrown.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: craftLightBrown),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.category,
+                            size: 14,
+                            color: craftBrown,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            project.category,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: craftBrown,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(
-      String label, String value, IconData icon, Color color) {
+  Widget _buildCraftStatusBadge(String status) {
+    Color color;
+    String text;
+    IconData icon;
+
+    switch (status.toLowerCase()) {
+      case 'open':
+        color = const Color(0xFF228B22);
+        text = 'Open';
+        icon = Icons.lock_open;
+        break;
+      case 'in_progress':
+        color = const Color(0xFF4169E1);
+        text = 'Crafting';
+        icon = Icons.build;
+        break;
+      case 'completed':
+        color = const Color(0xFF8B008B);
+        text = 'Crafted';
+        icon = Icons.check_circle;
+        break;
+      case 'cancelled':
+        color = const Color(0xFFDC143C);
+        text = 'Paused';
+        icon = Icons.pause_circle;
+        break;
+      default:
+        color = craftBrown;
+        text = status;
+        icon = Icons.info;
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -482,35 +526,183 @@ class _CollaborationManagementScreenState
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return Colors.green;
-      case 'in_progress':
-        return Colors.blue;
-      case 'completed':
-        return Colors.purple;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  Widget _buildCraftMetric(
+      IconData icon, String label, String value, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: craftDarkBrown,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            color: craftBrown.withOpacity(0.8),
+          ),
+        ),
+      ],
+    );
   }
 
-  String _formatDeadline(DateTime deadline) {
-    final now = DateTime.now();
-    final difference = deadline.difference(now).inDays;
+  Widget _buildEmptyState(
+    IconData icon,
+    String title,
+    String subtitle,
+    String? buttonText,
+    VoidCallback? onPressed,
+  ) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    craftGold.withOpacity(0.1),
+                    craftBeige.withOpacity(0.3),
+                  ],
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(color: craftGold.withOpacity(0.3), width: 2),
+              ),
+              child: Icon(
+                icon,
+                size: 64,
+                color: craftBrown,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: craftDarkBrown,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: craftBrown.withOpacity(0.8),
+                  height: 1.6,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (buttonText != null && onPressed != null) ...[
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: craftGold,
+                  foregroundColor: craftDarkBrown,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  elevation: 8,
+                ),
+                icon: const Icon(Icons.add_circle),
+                label: Text(
+                  buttonText,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
-    if (difference < 0) {
-      return 'Overdue';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
-    } else if (difference < 7) {
-      return '$difference days';
+  Widget _buildErrorState(String message, VoidCallback onRetry) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border:
+                    Border.all(color: Colors.red.withOpacity(0.3), width: 2),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Oops! Something went wrong',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: craftDarkBrown,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                color: craftBrown,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: craftBrown,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatCurrency(double amount) {
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
     } else {
-      return '${(difference / 7).floor()} weeks';
+      return amount.toStringAsFixed(0);
     }
   }
 
@@ -529,15 +721,51 @@ class _CollaborationManagementScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create New Collaboration'),
-        content: const Text(
-          'To create a collaboration project, you need to have an accepted craft request. '
-          'Please go to your accepted requests and open one for collaboration.',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: craftGold.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.info_outline, color: craftBrown),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Create Collaboration',
+                style: GoogleFonts.playfairDisplay(
+                  color: craftDarkBrown,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'To create a collaboration project, you need an accepted craft request. Please go to your requests and open one for collaboration.',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              color: craftBrown,
+              height: 1.5,
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            style: TextButton.styleFrom(
+              foregroundColor: craftBrown,
+            ),
+            child: Text(
+              'Got it',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

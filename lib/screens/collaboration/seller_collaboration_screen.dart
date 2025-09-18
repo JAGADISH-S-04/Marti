@@ -19,25 +19,48 @@ class SellerCollaborationScreen extends StatefulWidget {
 class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
   final CollaborationService _collaborationService = CollaborationService();
 
+  // Craftwork-themed colors
+  final Color craftBrown = const Color(0xFF8B4513);
+  final Color craftGold = const Color(0xFFD4AF37);
+  final Color craftBeige = const Color(0xFFF5F5DC);
+  final Color craftDarkBrown = const Color(0xFF5D2E0A);
+  final Color craftLightBrown = const Color(0xFFDEB887);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: craftBeige,
       appBar: AppBar(
-        title: Text(
-          'Collaboration Hub',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [craftBrown, craftDarkBrown],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Artisan Collaboration Hub',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.view_list),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.view_list, color: Colors.white),
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -58,57 +81,76 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
             // Welcome Card
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFD4AF37).withOpacity(0.8),
-                    const Color(0xFFD4AF37).withOpacity(0.6),
-                  ],
+                  colors: [Colors.white, craftBeige.withOpacity(0.5)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 0,
-                    blurRadius: 10,
+                    color: craftBrown.withOpacity(0.15),
+                    blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
                 ],
+                border:
+                    Border.all(color: craftGold.withOpacity(0.3), width: 1.5),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.group_work,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Collaborate with Fellow Artisans',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [craftGold, craftGold.withOpacity(0.8)],
                           ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: craftGold.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.handyman,
+                          size: 32,
+                          color: craftDarkBrown,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome, Master Artisan!',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: craftDarkBrown,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Collaborate with fellow craftspeople to create extraordinary pieces together',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: craftBrown.withOpacity(0.8),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Work together on large projects, share skills, and create amazing crafts as a team.',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white,
-                      height: 1.4,
-                    ),
                   ),
                 ],
               ),
@@ -117,19 +159,29 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
             const SizedBox(height: 30),
 
             // Quick Actions
+            Text(
+              'Quick Actions',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: craftDarkBrown,
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: _buildQuickActionCard(
-                    'My Accepted Requests',
-                    'Open requests for collaboration',
-                    Icons.assignment_turned_in,
-                    Colors.blue,
+                    'Browse Projects',
+                    'Discover collaboration opportunities',
+                    Icons.search,
+                    craftBrown,
                     () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SellerRequestsScreen(),
+                          builder: (context) =>
+                              const CollaborationManagementScreen(),
                         ),
                       );
                     },
@@ -138,16 +190,15 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildQuickActionCard(
-                    'Browse Projects',
-                    'Find collaboration opportunities',
-                    Icons.search,
-                    Colors.green,
+                    'My Requests',
+                    'Manage craft requests',
+                    Icons.assignment,
+                    const Color(0xFF228B22),
                     () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const CollaborationManagementScreen(),
+                          builder: (context) => const SellerRequestsScreen(),
                         ),
                       );
                     },
@@ -164,7 +215,7 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
               style: GoogleFonts.playfairDisplay(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
+                color: craftDarkBrown,
               ),
             ),
             const SizedBox(height: 16),
@@ -172,37 +223,51 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
             StreamBuilder<List<CollaborationRequest>>(
               stream: _collaborationService.getMyLeadCollaborations(),
               builder: (context, leadSnapshot) {
+                if (leadSnapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation(craftGold),
+                      ),
+                    ),
+                  );
+                }
+
+                final leadProjects = leadSnapshot.data ?? [];
+
                 return StreamBuilder<List<CollaborationRequest>>(
                   stream: _collaborationService.getMyCollaborations(),
-                  builder: (context, participatingSnapshot) {
-                    if (leadSnapshot.connectionState ==
-                            ConnectionState.waiting ||
-                        participatingSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                  builder: (context, memberSnapshot) {
+                    if (memberSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(craftGold),
+                          ),
+                        ),
+                      );
                     }
 
-                    final leadProjects = leadSnapshot.data ?? [];
-                    final participatingProjects =
-                        participatingSnapshot.data ?? [];
+                    final memberProjects = memberSnapshot.data ?? [];
                     final allActiveProjects = [
                       ...leadProjects,
-                      ...participatingProjects
-                    ]
-                        .where((project) =>
-                            project.status != 'completed' &&
-                            project.status != 'cancelled')
-                        .toList();
+                      ...memberProjects
+                    ];
 
                     if (allActiveProjects.isEmpty) {
                       return _buildEmptyCollaborationsCard();
                     }
 
                     return Column(
-                      children: allActiveProjects.map((project) {
-                        final isLeader = leadProjects.contains(project);
-                        return _buildCollaborationCard(project, isLeader);
-                      }).toList(),
+                      children: allActiveProjects
+                          .map((project) => _buildCollaborationCard(
+                                project,
+                                leadProjects.contains(project),
+                              ))
+                          .toList(),
                     );
                   },
                 );
@@ -213,11 +278,11 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
 
             // Available Opportunities
             Text(
-              'Available Opportunities',
+              'Available Craft Opportunities',
               style: GoogleFonts.playfairDisplay(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
+                color: craftDarkBrown,
               ),
             ),
             const SizedBox(height: 16),
@@ -226,44 +291,73 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
               stream: _collaborationService.getOpenCollaborationRequests(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation(craftGold),
+                      ),
+                    ),
+                  );
                 }
 
-                final projects = snapshot.data ?? [];
+                final allProjects = snapshot.data ?? [];
                 final currentUser = FirebaseAuth.instance.currentUser;
 
-                // Filter out projects where user is already involved
-                final availableProjects = projects
-                    .where((project) {
-                      return project.leadArtisanId != currentUser?.uid &&
-                          !project.collaboratorIds.contains(currentUser?.uid);
-                    })
-                    .take(3)
-                    .toList();
+                // Filter available projects
+                final availableProjects = allProjects.where((project) {
+                  final isNotLeader = project.leadArtisanId != currentUser?.uid;
+                  final isNotMember =
+                      !project.collaboratorIds.contains(currentUser?.uid);
+                  final isOpen = project.status == 'open';
+                  final hasOpenRoles = project.requiredRoles
+                      .any((role) => role.status == 'open');
+
+                  return isNotLeader && isNotMember && isOpen && hasOpenRoles;
+                }).toList();
 
                 if (availableProjects.isEmpty) {
                   return _buildNoOpportunitiesCard();
                 }
 
+                // Show only first 3 opportunities
+                final displayProjects = availableProjects.take(3).toList();
+
                 return Column(
                   children: [
-                    ...availableProjects
+                    ...displayProjects
                         .map((project) => _buildOpportunityCard(project)),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const CollaborationManagementScreen(),
+                    if (availableProjects.length > 3) ...[
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const CollaborationManagementScreen(),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: craftBrown,
+                            backgroundColor: craftBeige,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
                             ),
-                          );
-                        },
-                        child: const Text('View All Opportunities'),
+                          ),
+                          icon: const Icon(Icons.visibility),
+                          label: Text(
+                            'View All ${availableProjects.length} Opportunities',
+                            style:
+                                GoogleFonts.inter(fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 );
               },
@@ -271,20 +365,7 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SellerRequestsScreen(),
-            ),
-          );
-        },
-        backgroundColor: const Color(0xFFD4AF37),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Open for Collaboration'),
-      ),
+      
     );
   }
 
@@ -296,24 +377,24 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
     VoidCallback onTap,
   ) {
     return Container(
-      height: 120,
+      height: 130,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: color.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -322,26 +403,30 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 24),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   title,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: craftBrown.withOpacity(0.7),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -355,39 +440,57 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
   Widget _buildEmptyCollaborationsCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: craftBrown.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.group_work_outlined,
-            size: 60,
-            color: Colors.grey[400],
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: craftBeige.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.group_work_outlined,
+              size: 48,
+              color: craftBrown,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             'No Active Collaborations',
             style: GoogleFonts.playfairDisplay(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: craftDarkBrown,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Start collaborating by opening your accepted requests for collaboration or browse available projects',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[500],
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Start collaborating by opening your accepted requests for collaboration or browse available craft projects from fellow artisans',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: craftBrown.withOpacity(0.8),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
             onPressed: () {
               Navigator.push(
                 context,
@@ -397,10 +500,19 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4AF37),
-              foregroundColor: Colors.white,
+              backgroundColor: craftGold,
+              foregroundColor: craftDarkBrown,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: 4,
             ),
-            child: const Text('Browse Projects'),
+            icon: const Icon(Icons.search),
+            label: Text(
+              'Browse Craft Projects',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -410,34 +522,49 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
   Widget _buildNoOpportunitiesCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: craftBrown.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.search_off,
-            size: 60,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Available Opportunities',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: craftBeige.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.search_off,
+              size: 48,
+              color: craftBrown,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
           Text(
-            'Check back later for new collaboration projects',
+            'No Opportunities Available',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: craftDarkBrown,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'New collaboration projects from fellow artisans will appear here. Check back soon for exciting craft opportunities!',
             style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[500],
+              fontSize: 15,
+              color: craftBrown.withOpacity(0.8),
+              height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
@@ -451,20 +578,28 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            isLeader
+                ? craftGold.withOpacity(0.05)
+                : craftBeige.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isLeader
-              ? const Color(0xFFD4AF37).withOpacity(0.3)
-              : Colors.grey[200]!,
+              ? craftGold.withOpacity(0.5)
+              : craftLightBrown.withOpacity(0.5),
           width: isLeader ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: craftBrown.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -476,50 +611,53 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
               if (isLeader) ...[
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD4AF37).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFD4AF37)),
+                    gradient: LinearGradient(
+                      colors: [craftGold, craftGold.withOpacity(0.8)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.star, size: 12, color: Color(0xFFD4AF37)),
-                      SizedBox(width: 4),
+                      Icon(Icons.star, size: 14, color: craftDarkBrown),
+                      const SizedBox(width: 4),
                       Text(
                         'LEADER',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFD4AF37),
+                          color: craftDarkBrown,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
               ],
               Expanded(
                 child: Text(
                   project.title,
                   style: GoogleFonts.playfairDisplay(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(project.status).withOpacity(0.2),
+                  color: _getStatusColor(project.status).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: _getStatusColor(project.status).withOpacity(0.5)),
                 ),
                 child: Text(
-                  project.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
+                  _getStatusText(project.status),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: _getStatusColor(project.status),
                   ),
@@ -532,7 +670,8 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
             project.description,
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: craftBrown.withOpacity(0.8),
+              height: 1.4,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -540,23 +679,26 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.currency_rupee, size: 16, color: Colors.green),
+              Icon(Icons.currency_rupee,
+                  size: 16, color: const Color(0xFF228B22)),
               const SizedBox(width: 4),
               Text(
-                '₹${project.totalBudget.toStringAsFixed(0)}',
-                style: const TextStyle(
+                '₹${_formatCurrency(project.totalBudget)}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green,
+                  color: const Color(0xFF228B22),
                 ),
               ),
               const SizedBox(width: 16),
-              Icon(Icons.group, size: 16, color: Colors.blue),
+              Icon(Icons.group, size: 16, color: craftBrown),
               const SizedBox(width: 4),
               Text(
-                '${project.collaboratorIds.length + 1} members',
-                style: const TextStyle(
+                '${project.collaboratorIds.length + 1} artisans',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue,
+                  color: craftBrown,
                 ),
               ),
               const Spacer(),
@@ -571,7 +713,18 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
                     ),
                   );
                 },
-                child: const Text('View Details'),
+                style: TextButton.styleFrom(
+                  foregroundColor: craftBrown,
+                  backgroundColor: craftBeige,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: Text(
+                  'View Details',
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -586,15 +739,15 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: craftBrown.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: craftLightBrown.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,26 +758,35 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
                 child: Text(
                   project.title,
                   style: GoogleFonts.playfairDisplay(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
+                  color: const Color(0xFF228B22).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green),
+                  border: Border.all(
+                      color: const Color(0xFF228B22).withOpacity(0.5)),
                 ),
-                child: const Text(
-                  'OPEN',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_open,
+                        size: 12, color: const Color(0xFF228B22)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'OPEN',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF228B22),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -634,7 +796,8 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
             project.description,
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: craftBrown.withOpacity(0.8),
+              height: 1.4,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -642,23 +805,26 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.currency_rupee, size: 16, color: Colors.green),
+              Icon(Icons.currency_rupee,
+                  size: 16, color: const Color(0xFF228B22)),
               const SizedBox(width: 4),
               Text(
-                '₹${project.totalBudget.toStringAsFixed(0)}',
-                style: const TextStyle(
+                '₹${_formatCurrency(project.totalBudget)}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green,
+                  color: const Color(0xFF228B22),
                 ),
               ),
               const SizedBox(width: 16),
-              Icon(Icons.people, size: 16, color: Colors.blue),
+              Icon(Icons.people, size: 16, color: craftBrown),
               const SizedBox(width: 4),
               Text(
-                '${project.requiredRoles.length} roles needed',
-                style: const TextStyle(
+                '${project.requiredRoles.where((r) => r.status == 'open').length} open roles',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue,
+                  color: craftBrown,
                 ),
               ),
               const Spacer(),
@@ -674,12 +840,18 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  backgroundColor: craftGold,
+                  foregroundColor: craftDarkBrown,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 2,
                 ),
-                child: const Text('Apply'),
+                child: Text(
+                  'Join Craft',
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -688,18 +860,43 @@ class _SellerCollaborationScreenState extends State<SellerCollaborationScreen> {
     );
   }
 
+  String _formatCurrency(double amount) {
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    } else {
+      return amount.toStringAsFixed(0);
+    }
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'open':
-        return Colors.green;
+        return const Color(0xFF228B22);
       case 'in_progress':
-        return Colors.blue;
+        return const Color(0xFF4169E1);
       case 'completed':
-        return Colors.purple;
+        return const Color(0xFF8B008B);
       case 'cancelled':
         return Colors.red;
       default:
-        return Colors.grey;
+        return craftBrown;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'OPEN';
+      case 'in_progress':
+        return 'CRAFTING';
+      case 'completed':
+        return 'COMPLETED';
+      case 'cancelled':
+        return 'PAUSED';
+      default:
+        return status.toUpperCase();
     }
   }
 }
