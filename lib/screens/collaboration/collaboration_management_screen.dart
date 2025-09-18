@@ -6,6 +6,7 @@ import '../../services/collab_service.dart';
 import '../../models/collab_model.dart';
 import 'collaboration_details_screen.dart';
 import 'create_collaboration_screen.dart';
+import 'collaboration_chat_screen.dart';
 
 class CollaborationManagementScreen extends StatefulWidget {
   const CollaborationManagementScreen({Key? key}) : super(key: key);
@@ -92,6 +93,149 @@ class _CollaborationManagementScreenState
       
     );
   }
+
+  // Add this method to show recent chats for each project card
+Widget _buildRecentChatsButton(CollaborationRequest project) {
+  return PopupMenuButton<String>(
+    icon: Icon(Icons.chat_bubble_outline, color: craftBrown, size: 16),
+    tooltip: 'Recent Chats',
+    onSelected: (value) {
+      if (value == 'team') {
+        _openTeamChat(project);
+      } else if (value.startsWith('direct_')) {
+        final memberId = value.substring(7); // Remove 'direct_' prefix
+        _openDirectChatFromList(project, memberId);
+      }
+    },
+    itemBuilder: (context) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final isLeader = currentUser?.uid == project.leadArtisanId;
+      
+      List<PopupMenuEntry<String>> items = [
+        PopupMenuItem<String>(
+          value: 'team',
+          child: Row(
+            children: [
+              Icon(Icons.group, size: 16, color: craftBrown),
+              const SizedBox(width: 8),
+              const Text('Team Chat'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+      ];
+      
+      // Add chat with leader option (if not leader)
+      if (!isLeader) {
+        items.add(
+          PopupMenuItem<String>(
+            value: 'direct_${project.leadArtisanId}',
+            child: Row(
+              children: [
+                Icon(Icons.star, size: 16, color: craftGold),
+                const SizedBox(width: 8),
+                const Text('Project Leader'),
+              ],
+            ),
+          ),
+        );
+      }
+      
+      // Add other team members
+      for (final memberId in project.collaboratorIds) {
+        if (memberId != currentUser?.uid) {
+          items.add(
+            PopupMenuItem<String>(
+              value: 'direct_$memberId',
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 8,
+                    backgroundColor: craftBrown,
+                    child: Text(
+                      'M',
+                      style: TextStyle(color: Colors.white, fontSize: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Team Member'),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+      
+      return items;
+    },
+  );
+}
+
+void _openTeamChat(CollaborationRequest project) {
+  final teamChatRoomId = 'team_${project.id}';
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CollaborationChatScreen(
+        collaborationId: project.id,
+        chatRoomId: teamChatRoomId,
+        chatType: 'team',
+        collaboration: project,
+        currentUserName: 'Current User', // You'll need to get this dynamically
+      ),
+    ),
+  );
+}
+
+void _openDirectChatFromList(CollaborationRequest project, String memberId) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
+
+  // Get member info
+  final memberInfo = await _getMemberInfo(memberId);
+  final memberName = memberInfo?['name'] ?? 'Team Member';
+
+  // Create consistent chat room ID
+  final List<String> userIds = [currentUser.uid, memberId];
+  userIds.sort();
+  final directChatRoomId = 'direct_${project.id}_${userIds[0]}_${userIds[1]}';
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CollaborationChatScreen(
+        collaborationId: project.id,
+        chatRoomId: directChatRoomId,
+        chatType: 'direct',
+        collaboration: project,
+        currentUserName: 'Current User',
+        otherUserName: memberName,
+        otherUserId: memberId,
+      ),
+    ),
+  );
+}
+
+Future<Map<String, dynamic>?> _getMemberInfo(String memberId) async {
+  try {
+    var doc = await FirebaseFirestore.instance
+        .collection('retailers')
+        .doc(memberId)
+        .get();
+
+    if (doc.exists) {
+      final data = doc.data()!;
+      return {
+        'name': data['fullName'] ?? data['name'] ?? 'Unknown Member',
+        'email': data['email'] ?? '',
+      };
+    }
+    return {'name': 'Unknown Member', 'email': ''};
+  } catch (e) {
+    return {'name': 'Unknown Member', 'email': ''};
+  }
+}
 
   Widget _buildMyProjectsTab() {
     return StreamBuilder<List<CollaborationRequest>>(
