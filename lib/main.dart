@@ -12,7 +12,7 @@ import 'package:arti/screens/admin/product_migration_screen.dart';
 import 'package:arti/screens/product_migration_page.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/gemini_service.dart';
-import 'package:arti/services/vertex_ai_service.dart';
+import 'package:arti/services/gemini/gemini_image_uploader.dart';
 import 'package:arti/services/CI_retailer_analytics_service.dart';
 import 'package:arti/screens/craft_it/seller_view.dart';
 import 'package:arti/notifications/services/push_notification_service.dart';
@@ -36,16 +36,10 @@ void main() async {
 
   // Initialize Gemini Service
   GeminiService.initialize();
-  // Initialize Firebase Vertex AI Service
-  try {
-    await VertexAIService.initialize();
-    print('🤖 Vertex AI service initialized successfully');
-  } catch (e) {
-    print('⚠️ Vertex AI service initialization failed: $e');
-    print('💡 The app will continue, but AI features may be limited');
-  }
   // Initialize Retailer Analytics Service for AI recommendations
   RetailerAnalyticsService.initialize();
+  // Initialize Nano-Banana (Gemini Image Enhancement) Service
+  GeminiImageUploader.setApiKey('AIzaSyClh0fFyyJmwe5NAB_SM43vcaTOQfsn50E');
   // Initialize Push Notification Service
   await PushNotificationService.initialize();
 
