@@ -389,6 +389,15 @@ function validateTaskStatusUpdate(newData, existingData) {
       allow read: if request.auth != null;
       allow write: if false; // System only
     }
+
+    // Seller Analytics Categories Stats (to fix permission denied at analytics/categories/stats/*)
+    match /analytics/categories/stats/{docId} {
+      // Allow authenticated users to update aggregated stats written by client-side after product creation
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      // Prevent deletes from clients for safety
+      allow delete: if false;
+    }
     
     // Promotions and marketing
     match /promotions/{promotionId} {

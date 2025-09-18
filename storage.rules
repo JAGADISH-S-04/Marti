@@ -37,12 +37,30 @@ service firebase.storage {
       allow write: if request.auth != null; // Only authenticated users can upload
     }
     
+    // Products images - fallback path for buyer display images
+    match /products/images/{imageId} {
+      allow read: if true; // Anyone can read product images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Products buyer_display - legacy fallback path
+    match /products/buyer_display/{imageId} {
+      allow read: if true; // Anyone can read buyer display images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
     // Legacy audio stories path for backward compatibility
     match /products/audio_stories/{fileName} {
       allow read: if true; // Anyone can read audio stories
       allow write: if request.auth != null; // Only authenticated users can upload
     }
-    
+
+    // Enhanced images with AI (Imagen 2)
+    match /enhanced_images/{allPaths=**} {
+      allow read: if true; // Anyone can read enhanced images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+
     // User profile images
     match /users/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

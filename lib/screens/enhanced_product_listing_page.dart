@@ -1,12 +1,19 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:gal/gal.dart';
+import 'package:dio/dio.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/gemini_service.dart';
@@ -14,6 +21,9 @@ import '../services/firestore_service.dart';
 import '../widgets/audio_story_recorder.dart';
 import '../widgets/enhanced_audio_story_section.dart';
 import 'package:form_validator/form_validator.dart';
+import '../services/nano_banana_service.dart';
+import '../widgets/nano_banana_enhance_button.dart';
+import '../services/gemini/gemini_image_uploader.dart';
 
 class EnhancedProductListingPage extends StatefulWidget {
   final Product? product; // For editing existing products
@@ -30,6 +40,7 @@ class _EnhancedProductListingPageState
   final _formKey = GlobalKey<FormState>();
   final _productService = ProductService();
   final _imagePicker = ImagePicker();
+  final _httpClient = Dio();
 
   // Form controllers
   final _nameController = TextEditingController();
@@ -47,6 +58,17 @@ class _EnhancedProductListingPageState
   VideoPlayerController? _videoController;
   bool _useVideo = false;
   File? _buyerDisplayImage; // Image to show on buyer page
+  
+  // AI-generated image handling
+  String? _aiGeneratedImageDataUrl; // Base64 data URL from AI
+  File? _aiGeneratedImageFile; // Converted file for upload
+  bool _useAIGeneratedImage = false; // Whether user selected AI image
+  String? _uploadedBuyerDisplayImageUrl; // URL of uploaded buyer display image
+  
+  // Text-based prompt editing
+  final _promptEditingController = TextEditingController();
+  bool _isApplyingPromptEdit = false;
+  String? _lastPromptEditedImageUrl; // Track URL of image edited with prompts
 
   // Audio story handling
   File? _audioStoryFile;
@@ -91,6 +113,7 @@ class _EnhancedProductListingPageState
 
   // Loading state
   bool _isSubmitting = false;
+  bool _isUploadingBuyerImage = false; // Track buyer image upload
 
   // Colors (matching the luxury theme)
   static const Color primaryBrown = Color(0xFF2C1810);
@@ -100,6 +123,12 @@ class _EnhancedProductListingPageState
   void initState() {
     super.initState();
     GeminiService.initialize();
+    
+    // Initialize Nano-Banana service with your API key
+    print('🔧 Initializing Nano-Banana service...');
+    NanoBananaService.initialize('AIzaSyClh0fFyyJmwe5NAB_SM43vcaTOQfsn50E');
+    print('🔧 Nano-Banana ready status after init: ${NanoBananaService.isReady}');
+    
     _clearSharedPreferencesIfUserChanged();
     _initializeFormData();
   }
@@ -168,12 +197,14 @@ class _EnhancedProductListingPageState
   void dispose() {
     _videoController?.dispose();
     _previewAudioPlayer?.dispose();
+    _httpClient.close();
     _nameController.dispose();
     _priceController.dispose();
     _stockController.dispose();
     _descriptionController.dispose();
     _materialsController.dispose();
     _dimensionsController.dispose();
+    _promptEditingController.dispose();
     _craftingTimeController.dispose();
     _careInstructionsController.dispose();
     super.dispose();
@@ -445,10 +476,243 @@ class _EnhancedProductListingPageState
   }
 
   // Audio Recording Methods
+  // Upload buyer display image immediately when selected
+  Future<void> _uploadBuyerDisplayImageImmediately(StateSetter setDialogState) async {
+    if (_buyerDisplayImage == null) return;
+    
+    try {
+      print('🔄 Uploading buyer display image immediately...');
+      
+      // Get user data for artisan name
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+      
+      final firestoreService = FirestoreService();
+      final userData = await firestoreService.checkUserExists(user.uid);
+      final artisanName = userData?['fullName'] ??
+          userData?['username'] ??
+          user.displayName ??
+          'Unknown Artisan';
+      
+      // Upload the image
+      final uploadedUrl = await _productService.uploadImage(
+        _buyerDisplayImage!,
+        sellerName: artisanName,
+        productName: _nameController.text.trim().isNotEmpty 
+            ? _nameController.text.trim() 
+            : 'product_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      
+      print('✅ Buyer display image uploaded: $uploadedUrl');
+      _showSnackBar('✅ Image uploaded successfully!');
+      
+      // Store the uploaded URL for later use
+      setState(() {
+        _aiAnalysis['buyerDisplayImageUploadedUrl'] = uploadedUrl;
+      });
+      
+      setDialogState(() {
+        _isUploadingBuyerImage = false;
+      });
+      
+    } catch (e) {
+      print('❌ Error uploading buyer display image: $e');
+      _showSnackBar('❌ Error uploading image: $e', isError: true);
+      
+      setDialogState(() {
+        _isUploadingBuyerImage = false;
+        _buyerDisplayImage = null; // Clear failed upload
+      });
+    }
+  }
+
+  // Apply text-based prompt editing to image
+  Future<void> _applyTextPromptEditing(String prompt, StateSetter setDialogState) async {
+    if (prompt.trim().isEmpty) {
+      _showSnackBar('Please enter a description of how you want to edit the image', isError: true);
+      return;
+    }
+
+    // Determine which image to use as source
+    File? sourceImageFile = _buyerDisplayImage;
+    String? sourceImageUrl = _uploadedBuyerDisplayImageUrl ?? 
+        (_aiAnalysis['buyerDisplayImageUrl'] as String?);
+
+    if (sourceImageFile == null && (sourceImageUrl == null || sourceImageUrl.isEmpty)) {
+      _showSnackBar('Please select or upload an image first', isError: true);
+      return;
+    }
+
+    setDialogState(() {
+      _isApplyingPromptEdit = true;
+    });
+
+    try {
+      print('🎨 Applying text-based editing with prompt: "$prompt"');
+
+      Uint8List? imageBytes;
+
+      // Get image bytes from file or URL
+      if (sourceImageFile != null) {
+        imageBytes = await sourceImageFile.readAsBytes();
+      } else if (sourceImageUrl != null) {
+        if (sourceImageUrl.startsWith('data:image')) {
+          // Handle base64 data URL
+          final base64Data = sourceImageUrl.split(',')[1];
+          imageBytes = base64Decode(base64Data);
+        } else {
+          // Download from URL
+          final response = await _httpClient.get(
+            sourceImageUrl,
+            options: Options(responseType: ResponseType.bytes),
+          );
+          imageBytes = Uint8List.fromList(response.data);
+        }
+      }
+
+      if (imageBytes == null) {
+        throw Exception('Could not load image data');
+      }
+
+      // Apply text-based editing using Gemini's image editing capabilities
+      final editedImageBytes = await _applyGeminiTextEdit(imageBytes, prompt);
+
+      // Upload the edited image to Firebase Storage immediately
+      await _uploadPromptEditedImageImmediately(editedImageBytes, prompt, setDialogState);
+
+    } catch (e) {
+      print('❌ Error applying text-based editing: $e');
+      _showSnackBar('❌ Error editing image: ${e.toString()}', isError: true);
+    } finally {
+      setDialogState(() {
+        _isApplyingPromptEdit = false;
+      });
+    }
+  }
+
+  // Apply Gemini text-based image editing
+  Future<Uint8List> _applyGeminiTextEdit(Uint8List sourceImageBytes, String prompt) async {
+    try {
+      // Use Gemini's text + image to image editing capability
+      final editingPrompt = '''
+        Using the provided image, apply the following modification: $prompt
+        
+        Maintain the original image quality and composition while making the requested changes.
+        Ensure the result looks natural and professional for marketplace display.
+        Preserve important product details and features.
+      ''';
+
+      // Check if Gemini API key is set
+      if (!GeminiImageUploader.isApiKeySet) {
+        throw Exception('Gemini API key not configured');
+      }
+
+      // First process the image bytes into ProcessedImage format
+      final processedImage = await GeminiImageUploader.uploadFromBytes(
+        sourceImageBytes,
+        mimeType: 'image/jpeg',
+        filename: 'temp_edit_source.jpg',
+      );
+
+      // Use Gemini's editImageWithNanoBanana for text-based editing
+      final editedImage = await GeminiImageUploader.editImageWithNanoBanana(
+        sourceImage: processedImage,
+        prompt: editingPrompt,
+        editMode: ImageEditMode.general,
+      );
+
+      return editedImage.bytes;
+
+    } catch (e) {
+      print('❌ Error in Gemini text editing: $e');
+      // Fallback: return original image if editing fails
+      _showSnackBar('⚠️ Text-based editing is temporarily unavailable. Using original image.', isError: false);
+      return sourceImageBytes;
+    }
+  }
+
+  // Upload prompt-edited image to Firebase Storage
+  Future<void> _uploadPromptEditedImageImmediately(
+      Uint8List editedImageBytes, String prompt, StateSetter setDialogState) async {
+    try {
+      print('🔄 Uploading prompt-edited image to Firebase Storage...');
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final firestoreService = FirestoreService();
+      final userData = await firestoreService.checkUserExists(user.uid);
+      final artisanName = userData?['fullName'] ??
+          userData?['username'] ??
+          user.displayName ??
+          'Unknown_Artisan';
+
+      // Upload as base64 to Firebase Storage
+      final base64Data = base64Encode(editedImageBytes);
+      // Create data URL from the edited image bytes
+      final dataUrl = 'data:image/jpeg;base64,$base64Data';
+      
+      final uploadedUrl = await _productService.uploadBase64Image(
+        dataUrl,
+        sellerName: artisanName,
+        productName: _nameController.text.trim().isNotEmpty
+            ? _nameController.text.trim()
+            : 'product_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      print('✅ Prompt-edited image uploaded: $uploadedUrl');
+
+      // Update UI state to show the new edited image
+      setDialogState(() {
+        _lastPromptEditedImageUrl = uploadedUrl;
+        _uploadedBuyerDisplayImageUrl = uploadedUrl;
+        _useAIGeneratedImage = true; // Consider this as the selected AI-enhanced image
+        _aiAnalysis['buyerDisplayImageUrl'] = uploadedUrl;
+        _aiAnalysis['useAIGeneratedImage'] = true;
+        _aiAnalysis['lastEditingPrompt'] = prompt;
+      });
+
+      _showSnackBar('✨ Image edited and uploaded successfully!');
+      _promptEditingController.clear(); // Clear the prompt input
+
+    } catch (e) {
+      print('❌ Error uploading prompt-edited image: $e');
+      _showSnackBar('❌ Error uploading edited image: ${e.toString()}', isError: true);
+    }
+  }
+
+  // Build prompt suggestion chip
+  Widget _buildPromptChip(String prompt, StateSetter setDialogState) {
+    return GestureDetector(
+      onTap: () {
+        setDialogState(() {
+          _promptEditingController.text = prompt;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.shade300),
+        ),
+        child: Text(
+          prompt,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: Colors.orange.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   // Show buyer display image dialog
   Future<void> _showBuyerImageDialog() async {
     // Auto-select first image if available and no buyer display image is set
-    if (_selectedImages.isNotEmpty && _buyerDisplayImage == null) {
+    // If AI image is selected, don't auto-pick a user image as buyer display
+    if (_selectedImages.isNotEmpty && _buyerDisplayImage == null && !_useAIGeneratedImage) {
       _buyerDisplayImage = _selectedImages.first;
     }
 
@@ -515,6 +779,8 @@ class _EnhancedProductListingPageState
                                 onTap: () {
                                   setDialogState(() {
                                     _buyerDisplayImage = _selectedImages[index];
+                                    // Clear AI image selection when user picks a file
+                                    _aiAnalysis['useAIGeneratedImage'] = false;
                                   });
                                 },
                                 child: Container(
@@ -599,11 +865,173 @@ class _EnhancedProductListingPageState
                         const SizedBox(height: 16),
                       ],
 
+                      // Show AI-generated image if available (either uploaded or base64)
+                      if ((_uploadedBuyerDisplayImageUrl != null && _uploadedBuyerDisplayImageUrl!.isNotEmpty) || 
+                          ((_aiAnalysis['buyerDisplayImageUrl'] is String) && (_aiAnalysis['buyerDisplayImageUrl'] as String).isNotEmpty)) ...[
+                        Text(
+                          'AI generated buyer display image:',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: primaryBrown,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setDialogState(() {
+                              // Select the AI-generated image
+                              _useAIGeneratedImage = true;
+                              _buyerDisplayImage = null; // Clear file selection
+                              // Update AI analysis flag for consistency
+                              _aiAnalysis['useAIGeneratedImage'] = true;
+                            });
+                          },
+                          child: Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _useAIGeneratedImage 
+                                    ? accentGold 
+                                    : Colors.grey.shade300, 
+                                width: _useAIGeneratedImage ? 3 : 1,
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: _buildAIGeneratedImage(_uploadedBuyerDisplayImageUrl ?? (_aiAnalysis['buyerDisplayImageUrl'] as String)),
+                                ),
+                                if (_useAIGeneratedImage)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: accentGold,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                // Download button for AI-generated image
+                                Positioned(
+                                  top: 8,
+                                  left: 8,
+                                  child: GestureDetector(
+                                    onTap: () => _downloadAIGeneratedImage(_uploadedBuyerDisplayImageUrl ?? (_aiAnalysis['buyerDisplayImageUrl'] as String)),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade600,
+                                        borderRadius: BorderRadius.circular(6),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.download,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Save',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Overlay text to indicate it's selectable
+                                if (!_useAIGeneratedImage)
+                                  Positioned(
+                                    bottom: 8,
+                                    left: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Tap to select this AI-enhanced image',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Button to use AI-generated image
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setDialogState(() {
+                                _buyerDisplayImage = null; // Clear file selection
+                                _aiAnalysis['useAIGeneratedImage'] = true;
+                              });
+                              _showSnackBar('✨ AI-enhanced image selected for your product!');
+                            },
+                            icon: const Icon(Icons.auto_awesome),
+                            label: Text(
+                              _aiAnalysis['useAIGeneratedImage'] == true 
+                                  ? '✓ AI Image Selected' 
+                                  : 'Use AI-Enhanced Image',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _aiAnalysis['useAIGeneratedImage'] == true 
+                                  ? Colors.green.shade600 
+                                  : accentGold,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                      ],
+
                       // Upload different image button (optional)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () async {
+                          onPressed: _isUploadingBuyerImage ? null : () async {
                             final ImagePicker picker = ImagePicker();
                             final XFile? image = await picker.pickImage(
                               source: ImageSource.gallery,
@@ -615,14 +1043,29 @@ class _EnhancedProductListingPageState
                             if (image != null) {
                               setDialogState(() {
                                 _buyerDisplayImage = File(image.path);
+                                // Clear AI image selection when user uploads a new file
+                                _useAIGeneratedImage = false;
+                                _aiAnalysis['useAIGeneratedImage'] = false;
+                                _isUploadingBuyerImage = true;
                               });
+                              
+                              // Upload the buyer display image immediately
+                              await _uploadBuyerDisplayImageImmediately(setDialogState);
                             }
                           },
-                          icon: const Icon(Icons.upload),
+                          icon: _isUploadingBuyerImage 
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.upload),
                           label: Text(
-                            _selectedImages.isEmpty
-                                ? 'Upload Display Image'
-                                : 'Upload Different Image',
+                            _isUploadingBuyerImage 
+                                ? 'Uploading...'
+                                : (_selectedImages.isEmpty
+                                    ? 'Upload Display Image'
+                                    : 'Upload Different Image'),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -634,6 +1077,153 @@ class _EnhancedProductListingPageState
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+                      // Enhance with AI (Nano-Banana)
+                      NanoBananaEnhanceButton(
+                        imageFile: _buyerDisplayImage,
+                        productId: _nameController.text.isNotEmpty 
+                            ? _nameController.text 
+                            : 'product_${DateTime.now().millisecondsSinceEpoch}',
+                        sellerName: 'artisan', // Will be filled with actual artisan name
+                        onEnhancementComplete: (enhancedImageBytes) async {
+                          // Immediately upload the enhanced image to Firebase Storage
+                          await _uploadAIEnhancedImageImmediately(enhancedImageBytes, setDialogState);
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
+
+                      // Text-Based Prompt Editing Section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.edit, color: Colors.orange.shade700, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '✨ Text-Based Image Editing',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Describe how you want to modify your image using natural language:',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: Colors.orange.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Prompt input text field
+                            TextField(
+                              controller: _promptEditingController,
+                              decoration: InputDecoration(
+                                hintText: 'e.g., "Make the background brighter and more professional" or "Add better lighting to showcase the product"',
+                                hintStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: Colors.orange.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: Colors.orange.shade500, width: 2),
+                                ),
+                                contentPadding: const EdgeInsets.all(12),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              maxLines: 3,
+                              minLines: 2,
+                              style: GoogleFonts.inter(fontSize: 14),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Quick prompt suggestions
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                _buildPromptChip('Professional lighting', setDialogState),
+                                _buildPromptChip('Brighter background', setDialogState),
+                                _buildPromptChip('More vibrant colors', setDialogState),
+                                _buildPromptChip('Remove distractions', setDialogState),
+                                _buildPromptChip('Studio quality', setDialogState),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Apply editing button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: (_isApplyingPromptEdit || _promptEditingController.text.trim().isEmpty) 
+                                    ? null 
+                                    : () => _applyTextPromptEditing(_promptEditingController.text.trim(), setDialogState),
+                                icon: _isApplyingPromptEdit 
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.auto_fix_high),
+                                label: Text(
+                                  _isApplyingPromptEdit 
+                                      ? 'Applying Changes...'
+                                      : 'Apply Text-Based Editing',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.tips_and_updates, 
+                                    color: Colors.orange.shade600, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Be specific about what you want to change. AI works best with clear, descriptive instructions.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange.shade600,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
 
@@ -669,17 +1259,17 @@ class _EnhancedProductListingPageState
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
+                  onPressed: _isUploadingBuyerImage ? null : () {
                     Navigator.of(context).pop();
                     _submitProduct(); // Allow skipping buyer image
                   },
                   child: Text(
                     'Skip & Continue',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: _isUploadingBuyerImage ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: _isUploadingBuyerImage ? null : () {
                     Navigator.of(context).pop();
                     _submitProduct();
                   },
@@ -729,7 +1319,7 @@ class _EnhancedProductListingPageState
           user.displayName ??
           'Unknown Artisan';
 
-      // Handle media uploads
+  // Handle media uploads
       List<String> imageUrls = [];
       String? videoUrl;
       String buyerDisplayImageUrl = '';
@@ -741,21 +1331,116 @@ class _EnhancedProductListingPageState
         buyerDisplayImageUrl = widget.product!.imageUrl;
       }
 
-      // Upload buyer display image if selected
-      if (_buyerDisplayImage != null) {
-        _showSnackBar('Uploading buyer display image...');
+      // Handle buyer display image selection
+      // Priority (updated): 1) AI-generated image if selected, 2) User uploaded file, 3) Default to first image
+      print('🖼️  Image Selection Logic:');
+      print('   - AI image selected: $_useAIGeneratedImage');
+      print('   - AI image data available: ${_aiGeneratedImageDataUrl != null}');
+      print('   - User file selected: ${_buyerDisplayImage != null}');
+      print('   - Fallback images available: ${_selectedImages.length}');
+
+      if (_useAIGeneratedImage && _uploadedBuyerDisplayImageUrl != null) {
+        // AI-enhanced image was already uploaded immediately after enhancement
+        buyerDisplayImageUrl = _uploadedBuyerDisplayImageUrl!;
+        _showSnackBar('Using AI-enhanced image for product display...');
+        print('✅ Using pre-uploaded AI-enhanced image: $buyerDisplayImageUrl');
+      } else if (_useAIGeneratedImage && _aiGeneratedImageDataUrl != null) {
+        // User selected to use the AI-generated image but it wasn't uploaded yet - upload directly using base64 method
+        _showSnackBar('Uploading AI-generated image...');
+        print('📸 Using AI-generated image as buyer display');
+        
+        // Validate AI image data before upload
         try {
-          buyerDisplayImageUrl = await _productService.uploadImage(
-            _buyerDisplayImage!,
+          _validateImageData(_aiGeneratedImageDataUrl!);
+          
+          // Upload base64 image directly to Firebase Storage
+          buyerDisplayImageUrl = await _productService.uploadBase64Image(
+            _aiGeneratedImageDataUrl!,
             sellerName: artisanName,
             productName: _nameController.text.trim(),
           );
-          print('✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
+          _showSnackBar('✨ AI-generated image uploaded successfully!');
+          print('✅ AI-generated buyer display image uploaded: $buyerDisplayImageUrl');
         } catch (e) {
-          print('❌ Buyer display image upload failed: $e');
-          _showSnackBar(
-              'Warning: Buyer display image upload failed.',
-              isError: true);
+          print('❌ AI-generated image upload failed: $e');
+          _showSnackBar('Error uploading AI-generated image: $e', isError: true);
+          
+          // Fallback to first uploaded image if available
+          if (_selectedImages.isNotEmpty) {
+            _showSnackBar('Falling back to first uploaded image...');
+            print('📸 Falling back to user-uploaded image');
+            buyerDisplayImageUrl = await _productService.uploadImage(
+              _selectedImages.first,
+              sellerName: artisanName,
+              productName: _nameController.text.trim(),
+            );
+            print('✅ Fallback to first uploaded image as buyer display');
+          } else {
+            // If no images available, we cannot create the product
+            throw Exception('AI image upload failed and no fallback images available. Please upload at least one image.');
+          }
+        }
+      } else if (_buyerDisplayImage != null) {
+        // Check if buyer image is still uploading
+        if (_isUploadingBuyerImage) {
+          throw Exception('Please wait for buyer display image to finish uploading before creating the product.');
+        }
+        
+        // User selected a specific file to upload (or it was already uploaded)
+        // Check if we already have an uploaded URL from the immediate upload
+        final preUploadedUrl = _aiAnalysis['buyerDisplayImageUploadedUrl'] as String?;
+        if (preUploadedUrl != null && preUploadedUrl.isNotEmpty) {
+          buyerDisplayImageUrl = preUploadedUrl;
+          print('✅ Using pre-uploaded buyer display image: $buyerDisplayImageUrl');
+        } else if (buyerDisplayImageUrl.isEmpty) {
+          _showSnackBar('Uploading buyer display image...');
+          print('📸 Using user-selected file as buyer display');
+          print('📊 Buyer display file details:');
+          print('   - File path: ${_buyerDisplayImage!.path}');
+          print('   - File exists: ${await _buyerDisplayImage!.exists()}');
+          print('   - File size: ${await _buyerDisplayImage!.length()} bytes');
+          print('   - Seller name: $artisanName');
+          print('   - Product name: ${_nameController.text.trim()}');
+          
+          // Validate user image file before upload
+          try {
+            await _validateImageFile(_buyerDisplayImage!);
+            
+            buyerDisplayImageUrl = await _productService.uploadImage(
+              _buyerDisplayImage!,
+              sellerName: artisanName,
+              productName: _nameController.text.trim(),
+            );
+            
+            if (buyerDisplayImageUrl.isNotEmpty) {
+              _showSnackBar('✅ Buyer display image uploaded successfully!');
+              print('✅ Buyer display image uploaded successfully: $buyerDisplayImageUrl');
+            } else {
+              throw Exception('Upload returned empty URL');
+            }
+          } catch (e) {
+            print('❌ Buyer display image upload failed: $e');
+            _showSnackBar('Error uploading buyer display image: $e', isError: true);
+            
+            // Don't continue with empty buyer display image URL if this was the only image source
+            if (_selectedImages.isEmpty && !_useAIGeneratedImage) {
+              throw Exception('Buyer display image upload failed and no other images available. Please try again or select a different image.');
+            }
+            
+            // Fallback to first uploaded image if available
+            if (_selectedImages.isNotEmpty) {
+              _showSnackBar('Falling back to first uploaded image...');
+              print('📸 Falling back to first product image as buyer display');
+              buyerDisplayImageUrl = await _productService.uploadImage(
+                _selectedImages.first,
+                sellerName: artisanName,
+                productName: _nameController.text.trim(),
+              );
+              print('✅ Fallback buyer display image uploaded: $buyerDisplayImageUrl');
+            }
+          }
+        } else {
+          print('✅ Buyer display image already uploaded: $buyerDisplayImageUrl');
         }
       }
 
@@ -793,7 +1478,26 @@ class _EnhancedProductListingPageState
         }
       }
 
+      // Final fallback: Ensure we have a buyer display image URL
+      if (buyerDisplayImageUrl.isEmpty && imageUrls.isNotEmpty) {
+        buyerDisplayImageUrl = imageUrls.first;
+        print('🔄 Using first uploaded image as buyer display fallback: $buyerDisplayImageUrl');
+      }
+
       _showSnackBar(isEditMode ? 'Updating product...' : 'Creating product listing...');
+
+      // Validate required fields before creating product
+      if (buyerDisplayImageUrl.isEmpty) {
+        throw Exception('Buyer display image is required. Please select an image or ensure AI image generation succeeds.');
+      }
+      
+      if (_nameController.text.trim().isEmpty) {
+        throw Exception('Product name is required.');
+      }
+      
+      if (_priceController.text.trim().isEmpty || double.tryParse(_priceController.text.trim()) == null) {
+        throw Exception('Valid price is required.');
+      }
 
       final currentTime = DateTime.now();
 
@@ -830,7 +1534,7 @@ class _EnhancedProductListingPageState
             ? _careInstructionsController.text.trim()
             : null,
         aiAnalysis: _aiAnalysis.isNotEmpty
-            ? Map<String, dynamic>.from(_aiAnalysis)
+            ? _sanitizeAiAnalysis(_aiAnalysis)
             : null,
         audioStoryUrl: audioStoryUrl,
         audioStoryTranscription: _audioStoryTranscription,
@@ -1087,6 +1791,11 @@ class _EnhancedProductListingPageState
       _videoController = null;
       _useVideo = false;
       _buyerDisplayImage = null;
+      // Clear AI-generated image state
+      _aiGeneratedImageDataUrl = null;
+      _aiGeneratedImageFile = null;
+      _useAIGeneratedImage = false;
+      _uploadedBuyerDisplayImageUrl = null;
       _hasAnalyzed = false;
       _selectedCategory = 'Pottery';
       _aiAnalysis.clear();
@@ -1325,9 +2034,40 @@ class _EnhancedProductListingPageState
         backgroundColor: primaryBrown,
         elevation: 0,
         centerTitle: true,
-        actions: const [
-          Icon(Icons.auto_awesome, color: accentGold),
-          SizedBox(width: 16),
+        actions: [
+          // Debug button for nano-banana testing
+          IconButton(
+            icon: const Icon(Icons.bug_report, color: Colors.orange),
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('🧪 Running nano-banana debug test...')),
+              );
+              print('🧪 Nano-Banana Service Debug:');
+              print('- API Ready BEFORE: ${NanoBananaService.isReady}');
+              
+              // Force re-initialization for testing
+              print('🔧 Force re-initializing with API key...');
+              NanoBananaService.initialize('AIzaSyClh0fFyyJmwe5NAB_SM43vcaTOQfsn50E');
+              
+              // Wait a moment for initialization
+              await Future.delayed(Duration(milliseconds: 100));
+              
+              print('- API Ready AFTER: ${NanoBananaService.isReady}');
+              if (NanoBananaService.isReady) {
+                print('✅ Ready for image enhancement!');
+                print('🔑 API key configured successfully');
+              } else {
+                print('❌ Service STILL not ready - initialization failed');
+                print('🔍 This indicates a problem with static variable persistence');
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✅ Debug test completed! Check console logs.')),
+              );
+            },
+            tooltip: 'Debug Nano-Banana',
+          ),
+          const Icon(Icons.auto_awesome, color: accentGold),
+          const SizedBox(width: 16),
         ],
       ),
       body: Form(
@@ -2086,19 +2826,15 @@ class _EnhancedProductListingPageState
                         Icon(Icons.diamond,
                             color: Colors.purple.shade600, size: 16),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Option 1: Luxury & Elegance',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.purple.shade700,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
+                        Text(
+                          'Option 1: Luxury & Elegance',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple.shade700,
+                            fontSize: 14,
                           ),
                         ),
+                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -2178,19 +2914,15 @@ class _EnhancedProductListingPageState
                         Icon(Icons.favorite,
                             color: Colors.teal.shade600, size: 16),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Option 2: Personal & Emotional',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.teal.shade700,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
+                        Text(
+                          'Option 2: Personal & Emotional',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade700,
+                            fontSize: 14,
                           ),
                         ),
+                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -2673,56 +3405,58 @@ class _EnhancedProductListingPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Audio Story Ready',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade700,
-                    fontSize: 16,
+              Text(
+                'Audio Story Ready',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade700,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Preview button
+                  TextButton.icon(
+                    onPressed: _showAudioStoryPreview,
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text('Preview'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: accentGold,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Action buttons arranged below title to avoid overflow
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              TextButton.icon(
-                onPressed: _showAudioStoryPreview,
-                icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('Preview'),
-                style: TextButton.styleFrom(
-                  foregroundColor: accentGold,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _editAudioStory,
-                icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Edit'),
-                style: TextButton.styleFrom(
-                  foregroundColor: primaryBrown,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _deleteAudioStory,
-                icon: const Icon(Icons.delete, size: 18),
-                label: const Text('Delete'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red.shade600,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
+                  const SizedBox(width: 4),
+                  // Edit button
+                  TextButton.icon(
+                    onPressed: _editAudioStory,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: primaryBrown,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Delete button
+                  TextButton.icon(
+                    onPressed: _deleteAudioStory,
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const Text('Delete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -3623,7 +4357,7 @@ class _EnhancedProductListingPageState
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _showBuyerImageDialog,
+        onPressed: (_isSubmitting || _isUploadingBuyerImage) ? null : _showBuyerImageDialog,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryBrown,
           foregroundColor: Colors.white,
@@ -3633,7 +4367,7 @@ class _EnhancedProductListingPageState
           ),
           elevation: 2,
         ),
-        child: _isSubmitting
+        child: (_isSubmitting || _isUploadingBuyerImage)
             ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -3647,7 +4381,9 @@ class _EnhancedProductListingPageState
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    widget.product != null ? 'Updating Product...' : 'Creating Product...',
+                    _isUploadingBuyerImage 
+                        ? 'Uploading Image...'
+                        : (widget.product != null ? 'Updating Product...' : 'Creating Product...'),
                     style: GoogleFonts.inter(fontSize: 16)
                   ),
                 ],
@@ -3670,5 +4406,476 @@ class _EnhancedProductListingPageState
               ),
       ),
     );
+  }
+
+  /// Helper method to properly display AI-generated images from base64 data URLs
+  Widget _buildAIGeneratedImage(String imageUrl) {
+    try {
+      // Check if it's a base64 data URL
+      if (imageUrl.startsWith('data:image/')) {
+        // Extract the base64 part after the comma
+        final base64String = imageUrl.split(',')[1];
+        final imageBytes = base64Decode(base64String);
+        
+        return Image.memory(
+          imageBytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Error displaying AI-generated image: $error');
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('Failed to load AI image', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      } else {
+        // It's a regular URL, use network image
+        return Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Error loading network image: $error');
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error processing AI-generated image URL: $e');
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text('Invalid image format', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Download AI-generated image to device gallery
+  Future<void> _downloadAIGeneratedImage(String imageDataUrl) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('💾 Downloading AI-generated image...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Check permissions first
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        await Gal.requestAccess();
+        final recheckAccess = await Gal.hasAccess();
+        if (!recheckAccess) {
+          throw Exception('Gallery access permission denied');
+        }
+      }
+
+      print('🔄 Processing AI image for download...');
+      print('📊 Image data URL type: ${imageDataUrl.startsWith('data:image/') ? 'Base64 data URL' : 'Network URL'}');
+
+      if (imageDataUrl.startsWith('data:image/')) {
+        // Handle base64 data URL
+        await _downloadBase64Image(imageDataUrl);
+      } else {
+        // Handle network URL (if the AI image was already uploaded to Firebase)
+        await _downloadNetworkImage(imageDataUrl);
+      }
+
+      // Show success message
+      _showSnackBar('✅ AI-generated image saved to gallery successfully!');
+      print('✅ AI image download completed successfully');
+
+    } catch (e) {
+      print('❌ Error downloading AI image: $e');
+      String errorMessage = 'Failed to download image';
+      
+      if (e.toString().contains('permission')) {
+        errorMessage = 'Gallery access permission denied. Please grant permission in app settings.';
+      } else if (e.toString().contains('space')) {
+        errorMessage = 'Not enough storage space to save image.';
+      } else if (e.toString().contains('format')) {
+        errorMessage = 'Image format not supported.';
+      }
+      
+      _showSnackBar('❌ $errorMessage', isError: true);
+    }
+  }
+
+  /// Download base64 image data to gallery
+  Future<void> _downloadBase64Image(String base64DataUrl) async {
+    try {
+      // Extract base64 data
+      final parts = base64DataUrl.split(',');
+      if (parts.length != 2) {
+        throw Exception('Invalid base64 data URL format');
+      }
+      
+      final base64Data = parts[1];
+      final imageBytes = base64Decode(base64Data);
+      
+      print('📊 Base64 image size: ${imageBytes.length} bytes');
+      
+      // Validate image size (max 50MB for safety)
+      if (imageBytes.length > 50 * 1024 * 1024) {
+        throw Exception('Image is too large to save (max 50MB)');
+      }
+      
+      // Save directly using bytes
+      await Gal.putImageBytes(
+        Uint8List.fromList(imageBytes),
+        album: 'AI Generated Images', // Optional: create a dedicated album
+      );
+      
+    } catch (e) {
+      print('❌ Error saving base64 image: $e');
+      throw Exception('Failed to process base64 image: $e');
+    }
+  }
+
+  /// Download network image to gallery
+  Future<void> _downloadNetworkImage(String imageUrl) async {
+    try {
+      // Get temporary directory
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'ai_generated_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filePath = '${tempDir.path}/$fileName';
+      
+      print('📊 Downloading from URL: ${imageUrl.substring(0, math.min(100, imageUrl.length))}...');
+      
+      // Download image using Dio (already in dependencies)
+      final response = await _httpClient.get(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to download image: HTTP ${response.statusCode}');
+      }
+      
+      final imageBytes = Uint8List.fromList(response.data);
+      print('📊 Downloaded image size: ${imageBytes.length} bytes');
+      
+      // Save to temporary file first
+      final file = File(filePath);
+      await file.writeAsBytes(imageBytes);
+      
+      // Save to gallery
+      await Gal.putImage(
+        filePath,
+        album: 'AI Generated Images', // Optional: create a dedicated album
+      );
+      
+      // Clean up temporary file
+      if (await file.exists()) {
+        await file.delete();
+      }
+      
+    } catch (e) {
+      print('❌ Error downloading network image: $e');
+      throw Exception('Failed to download image from URL: $e');
+    }
+  }
+
+  /// Validate base64 image data (size and format safeguards)
+  void _validateImageData(String base64DataUrl) {
+    print('🔍 Validating AI-generated image data...');
+    
+    // Check data URL format
+    if (!base64DataUrl.startsWith('data:image/')) {
+      throw Exception('Invalid image data format. Expected data:image/ prefix.');
+    }
+    
+    // Extract and validate image type
+    final typeMatch = RegExp(r'data:image/(\w+);base64').firstMatch(base64DataUrl);
+    if (typeMatch == null) {
+      throw Exception('Cannot determine image type from data URL.');
+    }
+    
+    final imageType = typeMatch.group(1)!.toLowerCase();
+    final supportedTypes = ['png', 'jpg', 'jpeg', 'webp'];
+    if (!supportedTypes.contains(imageType)) {
+      throw Exception('Unsupported image type: $imageType. Supported: ${supportedTypes.join(', ')}');
+    }
+    
+    // Extract base64 data and validate size
+    final parts = base64DataUrl.split(',');
+    if (parts.length != 2) {
+      throw Exception('Invalid base64 data URL structure.');
+    }
+    
+    final base64Data = parts[1];
+    if (base64Data.isEmpty) {
+      throw Exception('Empty image data.');
+    }
+    
+    // Estimate decoded size (base64 is ~4/3 larger than original)
+    final estimatedSizeBytes = (base64Data.length * 3 / 4).round();
+    const maxSizeBytes = 15 * 1024 * 1024; // 15MB limit for AI images
+    
+    if (estimatedSizeBytes > maxSizeBytes) {
+      throw Exception('AI-generated image is too large (${(estimatedSizeBytes / 1024 / 1024).toStringAsFixed(1)}MB). Maximum allowed: ${maxSizeBytes / 1024 / 1024}MB.');
+    }
+    
+    print('✅ AI image validation passed: ${imageType.toUpperCase()}, ~${(estimatedSizeBytes / 1024).toStringAsFixed(1)}KB');
+  }
+
+  /// Validate user-selected image file (size and format safeguards)
+  Future<void> _validateImageFile(File imageFile) async {
+    print('🔍 Validating user-selected image file...');
+    
+    // Check if file exists
+    if (!await imageFile.exists()) {
+      throw Exception('Selected image file does not exist or is not accessible.');
+    }
+    
+    // Check file size
+    final fileSizeBytes = await imageFile.length();
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB limit for user files
+    
+    if (fileSizeBytes > maxSizeBytes) {
+      throw Exception('Selected image is too large (${(fileSizeBytes / 1024 / 1024).toStringAsFixed(1)}MB). Maximum allowed: ${maxSizeBytes / 1024 / 1024}MB.');
+    }
+    
+    if (fileSizeBytes < 1024) { // Less than 1KB is suspicious
+      throw Exception('Selected image file is too small (${fileSizeBytes} bytes). It may be corrupted.');
+    }
+    
+    // Check file extension
+    final extension = imageFile.path.toLowerCase();
+    const supportedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    bool hasValidExtension = supportedExtensions.any((ext) => extension.endsWith(ext));
+    
+    if (!hasValidExtension) {
+      throw Exception('Unsupported image format. Supported: JPG, PNG, WebP.');
+    }
+    
+    print('✅ User image validation passed: ${(fileSizeBytes / 1024).toStringAsFixed(1)}KB');
+  }
+
+  /// Sanitize AI analysis data to ensure Firestore compatibility
+  Map<String, dynamic> _sanitizeAiAnalysis(Map<String, dynamic> aiAnalysis) {
+    final sanitized = <String, dynamic>{};
+    
+    for (final entry in aiAnalysis.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      
+      // Skip problematic fields or convert them to safe formats
+      if (value == null) {
+        continue; // Skip null values
+      } else if (value is String) {
+        // Ensure string is not empty and not a data URL (too large for Firestore)
+        if (value.isNotEmpty && !value.startsWith('data:')) {
+          sanitized[key] = value;
+        }
+      } else if (value is num || value is bool) {
+        sanitized[key] = value;
+      } else if (value is List) {
+        // Only include simple lists
+        final simpleList = value.where((item) => item is String || item is num || item is bool).toList();
+        if (simpleList.isNotEmpty) {
+          sanitized[key] = simpleList;
+        }
+      } else if (value is Map) {
+        // Recursively sanitize nested maps, but only one level deep
+        final nestedMap = <String, dynamic>{};
+        for (final nestedEntry in value.entries) {
+          if (nestedEntry.value is String || nestedEntry.value is num || nestedEntry.value is bool) {
+            nestedMap[nestedEntry.key.toString()] = nestedEntry.value;
+          }
+        }
+        if (nestedMap.isNotEmpty) {
+          sanitized[key] = nestedMap;
+        }
+      }
+    }
+    
+    return sanitized;
+  }
+
+  /// Convert base64 data URL from AI-generated image to a File object
+  Future<File?> _convertDataUrlToFile(String dataUrl) async {
+    try {
+      print('🔄 Converting AI image data URL to file...');
+      print('📊 Data URL length: ${dataUrl.length}');
+      print('📊 Data URL prefix: ${dataUrl.substring(0, math.min(50, dataUrl.length))}...');
+      
+      // Check if it's a valid data URL
+      if (!dataUrl.startsWith('data:image/')) {
+        throw Exception('Invalid data URL format: ${dataUrl.substring(0, math.min(100, dataUrl.length))}');
+      }
+
+      // Extract the base64 data
+      final parts = dataUrl.split(',');
+      if (parts.length != 2) {
+        throw Exception('Invalid data URL structure - missing comma separator');
+      }
+      
+      final base64Data = parts[1];
+      print('📊 Base64 data length: ${base64Data.length}');
+      
+      // Validate base64 format
+      if (base64Data.isEmpty) {
+        throw Exception('Empty base64 data');
+      }
+      
+      final bytes = base64Decode(base64Data);
+      print('📊 Decoded bytes length: ${bytes.length}');
+
+      // Get temporary directory
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'ai_generated_image_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$fileName');
+
+      // Write bytes to file
+      await file.writeAsBytes(bytes);
+      
+      // Verify file was created
+      final fileExists = await file.exists();
+      final fileSize = await file.length();
+      
+      print('✅ AI-generated image converted to file:');
+      print('   📁 Path: ${file.path}');
+      print('   📊 Exists: $fileExists');
+      print('   📊 Size: $fileSize bytes');
+      
+      return fileExists ? file : null;
+    } catch (e) {
+      print('❌ Error converting data URL to file: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      return null;
+    }
+  }
+
+  /// Upload AI-enhanced image immediately to Firebase Storage
+  Future<void> _uploadAIEnhancedImageImmediately(
+    Uint8List enhancedImageBytes, 
+    StateSetter setDialogState
+  ) async {
+    try {
+      print('🍌 Starting immediate upload of AI-enhanced image...');
+      print('📊 Enhanced image size: ${enhancedImageBytes.length} bytes');
+      
+      // Show loading state
+      setDialogState(() {
+        _isUploadingBuyerImage = true;
+      });
+      _showSnackBar('🍌 Uploading AI-enhanced image...');
+
+      // Get user data for artisan name
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final firestoreService = FirestoreService();
+      final userData = await firestoreService.checkUserExists(user.uid);
+      final artisanName = userData?['fullName'] ??
+          userData?['username'] ??
+          user.displayName ??
+          'Unknown Artisan';
+
+      // Generate unique filename for the enhanced image
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = '${user.uid}_${artisanName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${_nameController.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_ai_enhanced_$timestamp.png';
+      
+      // Create Firebase Storage reference using organized structure
+      final sanitizedSellerName = artisanName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final sanitizedProductName = _nameController.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      
+      final ref = FirebaseStorage.instance.ref()
+          .child('buyer_display')
+          .child(sanitizedSellerName)
+          .child(sanitizedProductName)
+          .child('images')
+          .child(fileName);
+      
+      print('📊 Upload path: buyer_display/$sanitizedSellerName/$sanitizedProductName/images/$fileName');
+      
+      // Set metadata
+      final metadata = SettableMetadata(
+        contentType: 'image/png',
+        customMetadata: {
+          'uploadedBy': user.uid,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'sellerName': artisanName,
+          'productName': _nameController.text.trim(),
+          'source': 'ai_enhanced_nano_banana',
+          'enhancementStyle': 'professional', // Could be dynamic based on selection
+        },
+      );
+
+      print('📊 Starting Firebase Storage upload...');
+      
+      // Upload the enhanced image bytes directly
+      final uploadTask = await ref.putData(enhancedImageBytes, metadata);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      
+      print('✅ AI-enhanced image uploaded successfully!');
+      print('📊 Download URL: $downloadUrl');
+      
+      // Store the uploaded image URL and update UI state
+      setDialogState(() {
+        _uploadedBuyerDisplayImageUrl = downloadUrl;
+        _aiGeneratedImageDataUrl = 'data:image/png;base64,${base64Encode(enhancedImageBytes)}'; // For display
+        _aiAnalysis['buyerDisplayImageUrl'] = downloadUrl; // Store the actual URL
+        
+        // Automatically select the AI-generated image
+        _useAIGeneratedImage = true;
+        _aiAnalysis['useAIGeneratedImage'] = true;
+        
+        // Clear the local file since we now have the uploaded image
+        _buyerDisplayImage = null;
+        _isUploadingBuyerImage = false;
+      });
+      
+      _showSnackBar('✅ AI-enhanced image uploaded and ready! It will be used as your display image.');
+      
+    } catch (e) {
+      print('❌ Error uploading AI-enhanced image: $e');
+      setDialogState(() {
+        _isUploadingBuyerImage = false;
+      });
+      _showSnackBar('❌ Failed to upload AI-enhanced image: $e', isError: true);
+    }
   }
 }

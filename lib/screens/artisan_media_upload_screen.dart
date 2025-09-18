@@ -8,7 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/living_workshop_service.dart';
 import '../services/product_service.dart';
-import '../services/vertex_ai_service.dart';
+import '../services/gemini/vertex_ai_service.dart';
 import '../models/product.dart';
 import 'workshop_dashboard_screen.dart';
 

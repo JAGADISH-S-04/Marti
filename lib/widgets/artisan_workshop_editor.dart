@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/artisan_workshop_customization_service.dart';
-import '../services/vertex_ai_service.dart';
+import '../services/gemini/vertex_ai_service.dart';
 
 class ArtisanWorkshopEditor extends StatefulWidget {
   final String workshopId;

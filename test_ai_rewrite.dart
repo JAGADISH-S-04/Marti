@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'lib/services/vertex_ai_service.dart';
+import 'lib/services/gemini/vertex_ai_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
