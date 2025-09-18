@@ -13,20 +13,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+// Removed fl_chart and intl imports as Revenue Analytics graph and backend are deleted
 import 'add_product_screen.dart';
 import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
-import 'admin/product_migration_screen.dart';
 import 'product_migration_page.dart';
 import 'workshop_dashboard_screen.dart';
 import '../services/order_service.dart';
 import 'collaboration/seller_collaboration_screen.dart';
-import 'store_audio_management_page.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -591,14 +588,13 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
         
           const SizedBox(height: 20),
 
-          // Revenue Analytics Section
-          _buildRevenueAnalyticsSection(),
+          // Revenue Analytics Section removed
 
           const SizedBox(height: 20),
 
           // Products Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'My Products',
@@ -608,94 +604,55 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   color: const Color(0xFF2C1810),
                 ),
               ),
+              const SizedBox(height: 12),
+              // Action buttons in a responsive layout
               Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const StoreAudioManagementPage(),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EnhancedProductListingPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Product'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.record_voice_over, size: 18),
-                    label: const Text('Audio Story'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C1810),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const EnhancedProductListingPage(),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SellerOrdersPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.list_alt, size: 18),
+                      label: const Text('Orders'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B4513),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Product'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4AF37),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SellerOrdersPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.list_alt, size: 18),
-                    label: const Text('Orders'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B4513),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ProductMigrationScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.cloud_upload, size: 18),
-                    label: const Text('Migrate'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
@@ -1080,857 +1037,10 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     );
   }
 
-  /// Build Revenue Analytics Section with chart
-  Widget _buildRevenueAnalyticsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Revenue Analytics',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RevenueAnalyticsScreen(),
-                  ),
-                );
-              },
-              child: Text(
-                'View Details',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFFD4AF37),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Revenue Overview Cards with real data
-        FutureBuilder<Map<String, double>>(
-          future: _getRevenueOverviewData(),
-          builder: (context, snapshot) {
-            final todayRevenue = snapshot.data?['today'] ?? 475.0;
-            final monthRevenue = snapshot.data?['month'] ?? 12450.0;
-
-            return Row(
-              children: [
-                Expanded(
-                  child: _buildRevenueCard(
-                    'Today\'s Revenue',
-                    '₹${todayRevenue.toStringAsFixed(0)}',
-                    Icons.today,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildRevenueCard(
-                    'This Month',
-                    '₹${monthRevenue.toStringAsFixed(0)}',
-                    Icons.calendar_month,
-                    Colors.blue,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-
-        // Revenue Chart
-        const RevenueAnalyticsChart(),
-      ],
-    );
-  }
-
-  /// Get revenue overview data
-  Future<Map<String, double>> _getRevenueOverviewData() async {
-    try {
-      final revenueService = RevenueService();
-      final todayRevenue = await revenueService.getTodayRevenue();
-      final monthRevenue = await revenueService.getCurrentMonthRevenue();
-
-      return {
-        'today': todayRevenue,
-        'month': monthRevenue,
-      };
-    } catch (e) {
-      // Return sample data if there's an error
-      return {
-        'today': 475.0,
-        'month': 12450.0,
-      };
-    }
-  }
-
-  /// Build individual revenue card
-  Widget _buildRevenueCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const Spacer(),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Revenue Analytics section removed entirely
 }
 
-/// Widget to display daily revenue analytics in a line chart
-/// Uses Firebase Firestore to fetch revenue data and fl_chart for visualization
-class RevenueAnalyticsChart extends StatefulWidget {
-  const RevenueAnalyticsChart({super.key});
-
-  @override
-  State<RevenueAnalyticsChart> createState() => _RevenueAnalyticsChartState();
-}
-
-class _RevenueAnalyticsChartState extends State<RevenueAnalyticsChart> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // State variables for chart data and UI
-  List<FlSpot> _chartData = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-  double _maxY = 100.0; // Default max Y value for chart scaling
-  double _minY = 0.0;
-  List<String> _dateLabels = [];
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize chart data on widget creation
-    _initializeChartData();
-  }
-
-  /// Initialize chart data by fetching revenue data from Firebase
-  Future<void> _initializeChartData() async {
-    try {
-      final data = await _fetchRevenueData();
-      _prepareChartData(data);
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading revenue data: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// Fetch daily revenue data from Firebase Firestore for the last 30 days
-  /// Returns a map of date strings to revenue amounts
-  Future<Map<String, double>> _fetchRevenueData() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-
-    // Calculate date range for the last 30 days
-    final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-
-    // Generate list of dates for the last 30 days
-    final dateRange = <String>[];
-    for (int i = 0; i < 30; i++) {
-      final date = thirtyDaysAgo.add(Duration(days: i));
-      dateRange.add(DateFormat('yyyy-MM-dd').format(date));
-    }
-
-    // Initialize revenue map with 0 values for all dates
-    final revenueData = <String, double>{};
-    for (final date in dateRange) {
-      revenueData[date] = 0.0;
-    }
-
-    try {
-      // Query Firebase for revenue data in the date range
-      final querySnapshot = await _firestore
-          .collection('daily_revenue')
-          .where('sellerId', isEqualTo: user.uid) // Filter by current seller
-          .where('date',
-              isGreaterThanOrEqualTo:
-                  DateFormat('yyyy-MM-dd').format(thirtyDaysAgo))
-          .where('date',
-              isLessThanOrEqualTo: DateFormat('yyyy-MM-dd').format(now))
-          .orderBy('date')
-          .get();
-
-      // Process the fetched data
-      for (final doc in querySnapshot.docs) {
-        final data = doc.data();
-        final date = data['date'] as String?;
-        final revenue = (data['revenue'] as num?)?.toDouble() ?? 0.0;
-
-        if (date != null && revenueData.containsKey(date)) {
-          revenueData[date] = revenue;
-        }
-      }
-    } catch (e) {
-      print('Error fetching revenue data: $e');
-      // Return sample data for demonstration if Firebase query fails
-      for (int i = 0; i < 30; i++) {
-        final date = thirtyDaysAgo.add(Duration(days: i));
-        final dateStr = DateFormat('yyyy-MM-dd').format(date);
-        // Generate sample revenue data
-        revenueData[dateStr] =
-            (i % 7 == 0) ? 0.0 : (100 + (i * 50) + (i % 3) * 200).toDouble();
-      }
-    }
-
-    return revenueData;
-  }
-
-  /// Prepare chart data from the fetched revenue data
-  /// Converts revenue data to FlSpot objects for fl_chart
-  void _prepareChartData(Map<String, double> revenueData) {
-    final spots = <FlSpot>[];
-    final dateLabels = <String>[];
-
-    // Sort dates and create chart points
-    final sortedDates = revenueData.keys.toList()..sort();
-
-    for (int i = 0; i < sortedDates.length; i++) {
-      final date = sortedDates[i];
-      final revenue = revenueData[date] ?? 0.0;
-
-      spots.add(FlSpot(i.toDouble(), revenue));
-
-      // Format date for display (show only day/month for cleaner labels)
-      final dateTime = DateTime.parse(date);
-      dateLabels.add(DateFormat('dd/MM').format(dateTime));
-    }
-
-    // Calculate Y-axis range for better chart scaling
-    final revenues = revenueData.values.toList();
-    final maxRevenue =
-        revenues.isNotEmpty ? revenues.reduce((a, b) => a > b ? a : b) : 100.0;
-    final minRevenue =
-        revenues.isNotEmpty ? revenues.reduce((a, b) => a < b ? a : b) : 0.0;
-
-    setState(() {
-      _chartData = spots;
-      _dateLabels = dateLabels;
-      _maxY = maxRevenue > 0 ? maxRevenue * 1.2 : 100.0; // Add 20% padding
-      _minY = minRevenue < 0 ? minRevenue * 1.2 : 0.0;
-      _isLoading = false;
-      _errorMessage = null;
-    });
-  }
-
-  /// Build the main chart widget
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 280,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Chart title
-          Text(
-            'Daily Revenue (Last 30 Days)',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Chart content
-          Expanded(
-            child: _buildChartContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build the chart content based on current state
-  Widget _buildChartContent() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
-        ),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return _buildErrorState();
-    }
-
-    if (_chartData.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return _buildChart();
-  }
-
-  /// Build error state widget
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 40,
-            color: Colors.red[400],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Failed to load revenue data',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.red[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-                _errorMessage = null;
-              });
-              _initializeChartData();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4AF37),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build empty state widget when no data is available
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.analytics_outlined,
-            size: 40,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No Revenue Data Available',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start selling to see your revenue analytics',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build the actual line chart widget
-  Widget _buildChart() {
-    return LineChart(
-      LineChartData(
-        // Grid and border configuration
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: true,
-          drawHorizontalLine: true,
-          horizontalInterval: _maxY / 4, // 4 horizontal grid lines
-          verticalInterval: _chartData.length > 10 ? _chartData.length / 5 : 2,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey[300]!,
-              strokeWidth: 1,
-            );
-          },
-          getDrawingVerticalLine: (value) {
-            return FlLine(
-              color: Colors.grey[300]!,
-              strokeWidth: 1,
-            );
-          },
-        ),
-
-        // Chart border
-        borderData: FlBorderData(
-          show: true,
-          border: Border.all(color: Colors.grey[300]!, width: 1),
-        ),
-
-        // Axis titles
-        titlesData: FlTitlesData(
-          show: true,
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 25,
-              interval: _chartData.length > 10 ? _chartData.length / 5 : 2,
-              getTitlesWidget: (value, meta) {
-                final index = value.toInt();
-                if (index >= 0 &&
-                    index < _dateLabels.length &&
-                    index % 5 == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6.0),
-                    child: Text(
-                      _dateLabels[index],
-                      style: GoogleFonts.inter(
-                        fontSize: 9,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  );
-                }
-                return const Text('');
-              },
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 50,
-              interval: _maxY / 4,
-              getTitlesWidget: (value, meta) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6.0),
-                  child: Text(
-                    '₹${(value.toInt() / 1000).toStringAsFixed(value >= 1000 ? 1 : 0)}${value >= 1000 ? 'k' : ''}',
-                    style: GoogleFonts.inter(
-                      fontSize: 9,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-
-        // Chart scaling
-        minX: 0,
-        maxX: (_chartData.length - 1).toDouble(),
-        minY: _minY,
-        maxY: _maxY,
-
-        // Line data
-        lineBarsData: [
-          LineChartBarData(
-            spots: _chartData,
-            isCurved: true, // Smooth curved line
-            curveSmoothness: 0.2,
-            color: const Color(0xFFD4AF37), // Gold color matching app theme
-            barWidth: 2.5,
-            isStrokeCapRound: true,
-            preventCurveOverShooting: true,
-
-            // Area under the curve (optional gradient fill)
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFFD4AF37).withOpacity(0.2),
-                  const Color(0xFFD4AF37).withOpacity(0.05),
-                ],
-              ),
-            ),
-
-            // Data point dots
-            dotData: FlDotData(
-              show: false, // Hide dots for cleaner look in compact view
-            ),
-          ),
-        ],
-
-        // Touch interaction
-        lineTouchData: LineTouchData(
-          enabled: true,
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (touchedSpot) => const Color(0xFF2C1810),
-            tooltipRoundedRadius: 6,
-            getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-              return touchedBarSpots.map((barSpot) {
-                final index = barSpot.x.toInt();
-                final revenue = barSpot.y;
-                final date =
-                    index < _dateLabels.length ? _dateLabels[index] : '';
-
-                return LineTooltipItem(
-                  '$date\n₹${revenue.toStringAsFixed(0)}',
-                  GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                );
-              }).toList();
-            },
-          ),
-          handleBuiltInTouches: true,
-        ),
-      ),
-    );
-  }
-}
-
-/// Complete Revenue Analytics Screen
-/// This screen provides detailed analytics view
-class RevenueAnalyticsScreen extends StatelessWidget {
-  const RevenueAnalyticsScreen({super.key});
-
-  /// Load revenue overview data
-  Future<Map<String, double>> _loadRevenueOverview() async {
-    final revenueService = RevenueService();
-    final todayRevenue = await revenueService.getTodayRevenue();
-    final monthRevenue = await revenueService.getCurrentMonthRevenue();
-
-    return {
-      'today': todayRevenue,
-      'month': monthRevenue,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Revenue Analytics',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Revenue Overview Cards
-            _buildRevenueOverview(),
-            const SizedBox(height: 20),
-
-            // Main Revenue Chart with larger height
-            Container(
-              height: 350,
-              child: const RevenueAnalyticsChart(),
-            ),
-            const SizedBox(height: 20),
-
-            // Additional Analytics
-            _buildAdditionalMetrics(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build revenue overview cards
-  Widget _buildRevenueOverview() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildMetricCard(
-            'Today\'s Revenue',
-            '₹475',
-            Icons.today,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildMetricCard(
-            'This Month',
-            '₹12,450',
-            Icons.calendar_month,
-            Colors.blue,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Build individual metric card
-  Widget _buildMetricCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const Spacer(),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build additional metrics section
-  Widget _buildAdditionalMetrics() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Performance Metrics',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSmallMetric('Avg. Daily Revenue', '₹415'),
-              ),
-              Expanded(
-                child: _buildSmallMetric('Best Day', '₹1,250'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSmallMetric('Growth Rate', '+15.2%'),
-              ),
-              Expanded(
-                child: _buildSmallMetric('Total Orders', '47'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build small metric widget
-  Widget _buildSmallMetric(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C1810),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Simple Revenue Service for getting revenue data
-class RevenueService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  /// Get revenue for today
-  Future<double> getTodayRevenue({String? sellerId}) async {
-    try {
-      final userId = sellerId ?? _auth.currentUser?.uid;
-      if (userId == null) return 475.0; // Sample data
-
-      final today = DateTime.now();
-      final todayString = DateFormat('yyyy-MM-dd').format(today);
-
-      final doc = await _firestore
-          .collection('daily_revenue')
-          .doc('${userId}_$todayString')
-          .get();
-
-      if (doc.exists) {
-        return (doc.data()?['revenue'] as num?)?.toDouble() ?? 0.0;
-      }
-
-      return 475.0; // Sample data if no real data exists
-    } catch (e) {
-      print('Error fetching today revenue: $e');
-      return 475.0; // Sample data on error
-    }
-  }
-
-  /// Get revenue for current month
-  Future<double> getCurrentMonthRevenue({String? sellerId}) async {
-    try {
-      final userId = sellerId ?? _auth.currentUser?.uid;
-      if (userId == null) return 12450.0; // Sample data
-
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final startOfMonthString = DateFormat('yyyy-MM-dd').format(startOfMonth);
-      final nowString = DateFormat('yyyy-MM-dd').format(now);
-
-      final querySnapshot = await _firestore
-          .collection('daily_revenue')
-          .where('sellerId', isEqualTo: userId)
-          .where('date', isGreaterThanOrEqualTo: startOfMonthString)
-          .where('date', isLessThanOrEqualTo: nowString)
-          .get();
-
-      double totalRevenue = 0.0;
-      for (final doc in querySnapshot.docs) {
-        final revenue = (doc.data()['revenue'] as num?)?.toDouble() ?? 0.0;
-        totalRevenue += revenue;
-      }
-
-      return totalRevenue > 0
-          ? totalRevenue
-          : 12450.0; // Return sample data if no real data
-    } catch (e) {
-      print('Error fetching current month revenue: $e');
-      return 12450.0; // Sample data on error
-    }
-  }
-}
+// Revenue analytics chart, screen, and related service removed.
 
 // Replace the existing SellerScreen class with this enhanced version
 
@@ -2106,8 +1216,7 @@ class _SellerScreenState extends State<SellerScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20.0),
-                  child: SingleChildScrollView(
-                    child: Column(
+                  child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                       const SizedBox(height: 20),
@@ -2353,18 +1462,9 @@ class _SellerScreenState extends State<SellerScreen> {
                           Expanded(
                             child: _buildStatsCard(
                               context,
-                              'Audio Stories',
+                              'Reviews',
                               '0',
-                              Icons.headphones,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const StoreAudioManagementPage(),
-                                  ),
-                                );
-                              },
+                              Icons.star_rate,
                             ),
                           ),
                         ],
@@ -2552,7 +1652,6 @@ class _SellerScreenState extends State<SellerScreen> {
                       const SizedBox(height: 100),
                     ],
                   ),
-                ),
                 ),
               ),
             ],
