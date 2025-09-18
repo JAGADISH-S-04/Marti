@@ -125,9 +125,10 @@ class _CreateCollaborationScreenState extends State<CreateCollaborationScreen>
       title: 'Lead Artisan',
       description: 'Primary craftsperson responsible for main production',
       domain: 'Manufacturing',
-      allocatedBudget: totalBudget * 0.6, // 60% of total budget
+      allocatedBudget: totalBudget * 0.6,
       maxArtisans: 1,
       requiredSkills: ['Hand Crafting'],
+      status: 'open', // Make sure this is 'open'
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -235,13 +236,7 @@ class _CreateCollaborationScreenState extends State<CreateCollaborationScreen>
                           Text('Creating...'),
                         ],
                       )
-                    : const Text(
-                        'Create Collaboration',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    : const Text('Create Collaboration'),
               ),
             ),
           ],

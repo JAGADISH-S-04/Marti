@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:uuid/uuid.dart';
 import '../../models/collab_model.dart';
 import '../../services/collab_service.dart';
 
@@ -41,6 +42,33 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   ];
 
   List<CollaborationRole> _updatedRoles = [];
+
+  // Available domains and skills for new roles
+  final List<String> _domains = [
+    'Design',
+    'Manufacturing',
+    'Quality Control',
+    'Packaging',
+    'Marketing',
+    'Photography',
+    'Logistics',
+    'Research'
+  ];
+
+  final List<String> _availableSkills = [
+    'Hand Crafting',
+    'Machine Operation',
+    'Design',
+    'Quality Control',
+    'Packaging',
+    'Marketing',
+    'Photography',
+    'Customer Service',
+    'Logistics',
+    'Research',
+    'Traditional Techniques',
+    'Modern Tools'
+  ];
 
   @override
   void initState() {
@@ -130,7 +158,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Project Title
+              // Project Details
               _buildSectionCard(
                 'Project Details',
                 [
@@ -180,7 +208,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                           controller: _budgetController,
                           keyboardType: TextInputType.number,
                           decoration: _buildInputDecoration(
-                              'Total Budget *', Icons.account_balance_wallet),
+                              'Total Budget *', Icons.currency_rupee),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Please enter budget';
@@ -200,15 +228,15 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
                               color: Colors.grey.shade50,
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today,
-                                    color: Colors.grey.shade600),
-                                const SizedBox(width: 12),
+                                Icon(Icons.schedule,
+                                    color: const Color(0xFFD4AF37)),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _selectedDeadline != null
@@ -216,7 +244,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                                         : 'Select Deadline',
                                     style: TextStyle(
                                       color: _selectedDeadline != null
-                                          ? const Color(0xFF2C1810)
+                                          ? Colors.black87
                                           : Colors.grey.shade600,
                                     ),
                                   ),
@@ -248,7 +276,9 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                         .toList(),
                     onChanged: (value) {
                       if (value != null) {
-                        setState(() => _selectedStatus = value);
+                        setState(() {
+                          _selectedStatus = value;
+                        });
                       }
                     },
                   ),
@@ -298,7 +328,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Current Team Members',
+                          'Roles & Team Members (${_updatedRoles.length})',
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -307,14 +337,15 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: _showAddMemberDialog,
-                        icon: const Icon(Icons.person_add, size: 16),
-                        label: const Text('Add Member'),
+                        onPressed: _addNewRole,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add Role'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD4AF37),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ],
@@ -329,11 +360,32 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: const Center(
-                        child: Text('No team roles defined yet'),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.people_outline,
+                                size: 48, color: Colors.grey.shade500),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No roles defined yet',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add roles to define your team structure',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -491,87 +543,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     }
   }
 
-  Future<void> _saveChanges() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (_selectedDeadline == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a deadline'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      // Prepare updated data
-      final updatedData = {
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'totalBudget': double.parse(_budgetController.text.trim()),
-        'deadline': Timestamp.fromDate(_selectedDeadline!),
-        'status': _selectedStatus,
-        'isUrgent': _isUrgent,
-        'allowPartialDelivery': _allowPartialDelivery,
-        'requireQualitySamples': _requireQualitySamples,
-        'additionalNotes': _notesController.text.trim(),
-        'requiredRoles': _updatedRoles.map((role) => role.toMap()).toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      // Update in Firestore
-      await FirebaseFirestore.instance
-          .collection('collaboration_projects')
-          .doc(widget.collaboration.id)
-          .update(updatedData);
-
-      // Update collaborator IDs based on roles
-      final Set<String> allCollaborators = {};
-      for (final role in _updatedRoles) {
-        allCollaborators.addAll(role.assignedArtisanIds);
-      }
-
-      await FirebaseFirestore.instance
-          .collection('collaboration_projects')
-          .doc(widget.collaboration.id)
-          .update({
-        'collaboratorIds': allCollaborators.toList(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Project updated successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-        // Return to previous screen with success result
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating project: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
-
   Widget _buildRoleMemberCard(CollaborationRole role) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -616,7 +587,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     value: 'edit_budget',
                     child: Row(
                       children: [
-                        Icon(Icons.edit, size: 18),
+                        Icon(Icons.edit, size: 16),
                         SizedBox(width: 8),
                         Text('Edit Budget'),
                       ],
@@ -626,7 +597,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     value: 'manage_members',
                     child: Row(
                       children: [
-                        Icon(Icons.people, size: 18),
+                        Icon(Icons.people, size: 16),
                         SizedBox(width: 8),
                         Text('Manage Members'),
                       ],
@@ -636,7 +607,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                     value: 'remove_role',
                     child: Row(
                       children: [
-                        Icon(Icons.delete, size: 18, color: Colors.red),
+                        Icon(Icons.delete, size: 16, color: Colors.red),
                         SizedBox(width: 8),
                         Text('Remove Role',
                             style: TextStyle(color: Colors.red)),
@@ -663,40 +634,17 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Budget Allocated',
+                      'Budget',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
                         color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
                       '₹${role.allocatedBudget.toStringAsFixed(0)}',
                       style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Members',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${role.assignedArtisanIds.length}/${role.maxArtisans}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF2C1810),
                       ),
@@ -709,28 +657,42 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Status',
+                      'Domain',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
                         color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color:
-                            _getRoleStatusColor(role.status).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                    Text(
+                      role.domain,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2C1810),
                       ),
-                      child: Text(
-                        role.status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: _getRoleStatusColor(role.status),
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Capacity',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${role.assignedArtisanIds.length}/${role.maxArtisans}',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2C1810),
                       ),
                     ),
                   ],
@@ -756,41 +718,42 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                   final memberInfo = snapshot.data;
                   return Container(
                     margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.all(8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 16,
+                          radius: 12,
                           backgroundColor: const Color(0xFFD4AF37),
                           child: Text(
-                            memberInfo?['name']
-                                    ?.substring(0, 1)
-                                    .toUpperCase() ??
-                                'M',
+                            (memberInfo?['name'] ?? 'U')[0].toUpperCase(),
                             style: const TextStyle(
-                              color: Colors.white,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            memberInfo?['name'] ?? 'Loading...',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            memberInfo?['name'] ?? 'Unknown Member',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                         IconButton(
+                          icon: const Icon(Icons.remove_circle_outline,
+                              color: Colors.red, size: 16),
                           onPressed: () =>
                               _removeMemberFromRole(role, memberId),
-                          icon: const Icon(Icons.remove_circle_outline,
-                              color: Colors.red, size: 20),
-                          tooltip: 'Remove member',
+                          tooltip: 'Remove Member',
                         ),
                       ],
                     ),
@@ -804,16 +767,171 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     );
   }
 
-  void _showAddMemberDialog() {
+  void _addNewRole() {
+    _showRoleDialog();
+  }
+
+  void _showRoleDialog({CollaborationRole? role, int? index}) {
+    final titleController = TextEditingController(text: role?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: role?.description ?? '');
+    final budgetController =
+        TextEditingController(text: role?.allocatedBudget.toString() ?? '');
+    final maxArtisansController =
+        TextEditingController(text: role?.maxArtisans.toString() ?? '1');
+    String selectedDomain = role?.domain ?? _domains.first;
+    List<String> selectedSkills = List.from(role?.requiredSkills ?? []);
+
     showDialog(
       context: context,
-      builder: (context) => _AddMemberDialog(
-        existingRoles: _updatedRoles,
-        onRoleAdded: (role) {
-          setState(() {
-            _updatedRoles.add(role);
-          });
-        },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(role == null ? 'Add New Role' : 'Edit Role'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Role Title
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Role Title',
+                      hintText: 'e.g., Lead Designer, Quality Controller',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Role Description
+                  TextFormField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Describe responsibilities and expectations',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Domain
+                  DropdownButtonFormField<String>(
+                    value: selectedDomain,
+                    decoration: const InputDecoration(labelText: 'Domain'),
+                    items: _domains
+                        .map((domain) => DropdownMenuItem(
+                              value: domain,
+                              child: Text(domain),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          selectedDomain = value;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Budget and Max Artisans
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: budgetController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Budget',
+                            prefixText: '₹',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: maxArtisansController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Max Artisans',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Required Skills
+                  const Text('Required Skills:'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _availableSkills.map((skill) {
+                      final isSelected = selectedSkills.contains(skill);
+                      return FilterChip(
+                        label: Text(skill),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              selectedSkills.add(skill);
+                            } else {
+                              selectedSkills.remove(skill);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (titleController.text.trim().isNotEmpty &&
+                    descriptionController.text.trim().isNotEmpty &&
+                    budgetController.text.trim().isNotEmpty) {
+                  final newRole = CollaborationRole(
+                    id: role?.id ?? const Uuid().v4(),
+                    title: titleController.text.trim(),
+                    description: descriptionController.text.trim(),
+                    domain: selectedDomain,
+                    allocatedBudget:
+                        double.tryParse(budgetController.text) ?? 0,
+                    maxArtisans: int.tryParse(maxArtisansController.text) ?? 1,
+                    requiredSkills: selectedSkills,
+                    assignedArtisanIds: role?.assignedArtisanIds ?? [],
+                    status: role?.status ?? 'open',
+                    createdAt: role?.createdAt ?? DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
+
+                  this.setState(() {
+                    if (index != null) {
+                      _updatedRoles[index] = newRole;
+                    } else {
+                      _updatedRoles.add(newRole);
+                    }
+                  });
+
+                  Navigator.of(context).pop();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37),
+                foregroundColor: Colors.white,
+              ),
+              child: Text(role == null ? 'Add Role' : 'Update Role'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -894,6 +1012,37 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
               _updatedRoles[index] = updatedRole;
             }
           });
+
+          // Check if all roles are filled and auto-update status
+          bool allRolesFilled = _updatedRoles.isNotEmpty &&
+              _updatedRoles.every((role) {
+                return role.assignedArtisanIds.length >= role.maxArtisans;
+              });
+
+          if (_selectedStatus == 'open' && allRolesFilled) {
+            setState(() {
+              _selectedStatus = 'in_progress';
+            });
+
+            // Show notification to user about auto status change
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.auto_fix_high, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                          'All roles filled! Status automatically changed to "In Progress"'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
         },
       ),
     );
@@ -957,10 +1106,9 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
 
                   _updatedRoles[index] = _updatedRoles[index].copyWith(
                     assignedArtisanIds: updatedAssignedIds,
-                    status: updatedAssignedIds.length <
-                            _updatedRoles[index].maxArtisans
-                        ? 'open'
-                        : 'filled',
+                    status: updatedAssignedIds.length >= role.maxArtisans
+                        ? 'filled'
+                        : 'open',
                     updatedAt: DateTime.now(),
                   );
                 }
@@ -1018,16 +1166,189 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     }
   }
 
-  Color _getRoleStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return Colors.blue;
-      case 'filled':
-        return Colors.green;
-      case 'closed':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedDeadline == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a deadline'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // Check if all roles are filled and auto-update status
+      bool allRolesFilled = _updatedRoles.isNotEmpty &&
+          _updatedRoles.every((role) {
+            return role.assignedArtisanIds.length >= role.maxArtisans;
+          });
+
+      // Auto-update status logic
+      String finalStatus = _selectedStatus;
+      if (_selectedStatus == 'open' && allRolesFilled) {
+        finalStatus = 'in_progress';
+
+        // Show notification to user about auto status change
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.auto_fix_high, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                        'All roles filled! Status automatically changed to "In Progress"'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+
+      // Prepare updated data
+      final updatedData = {
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'totalBudget': double.parse(_budgetController.text.trim()),
+        'deadline': Timestamp.fromDate(_selectedDeadline!),
+        'status': finalStatus, // Use the potentially auto-updated status
+        'isUrgent': _isUrgent,
+        'allowPartialDelivery': _allowPartialDelivery,
+        'requireQualitySamples': _requireQualitySamples,
+        'additionalNotes': _notesController.text.trim(),
+        'requiredRoles': _updatedRoles.map((role) => role.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Update in Firestore
+      await FirebaseFirestore.instance
+          .collection('collaboration_projects')
+          .doc(widget.collaboration.id)
+          .update(updatedData);
+
+      // Update collaborator IDs based on roles
+      final Set<String> allCollaborators = {};
+      for (final role in _updatedRoles) {
+        allCollaborators.addAll(role.assignedArtisanIds);
+      }
+
+      await FirebaseFirestore.instance
+          .collection('collaboration_projects')
+          .doc(widget.collaboration.id)
+          .update({
+        'collaboratorIds': allCollaborators.toList(),
+      });
+
+      // Create notifications for status change if auto-updated
+      if (finalStatus != _selectedStatus && finalStatus == 'in_progress') {
+        await _notifyStatusChange(allCollaborators.toList(), finalStatus);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  finalStatus != _selectedStatus
+                      ? 'Project updated and status changed to In Progress!'
+                      : 'Project updated successfully!',
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Return to previous screen with success result
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating project: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  // Add method to notify team members about status changes
+  Future<void> _notifyStatusChange(
+      List<String> collaboratorIds, String newStatus) async {
+    try {
+      final notifications = <Future>[];
+
+      // Notify all collaborators about status change
+      for (final collaboratorId in collaboratorIds) {
+        if (collaboratorId != FirebaseAuth.instance.currentUser?.uid) {
+          notifications.add(
+            FirebaseFirestore.instance.collection('notifications').add({
+              'userId': collaboratorId,
+              'title': 'Project Status Updated',
+              'message':
+                  'The project "${widget.collaboration.title}" status has been changed to "${_getStatusDisplayName(newStatus)}" because all roles are now filled!',
+              'type': 'project_status_change',
+              'data': {
+                'projectId': widget.collaboration.id,
+                'projectTitle': widget.collaboration.title,
+                'newStatus': newStatus,
+              },
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+        }
+      }
+
+      // Notify the buyer if different from lead artisan
+      if (widget.collaboration.buyerId != null &&
+          widget.collaboration.buyerId !=
+              FirebaseAuth.instance.currentUser?.uid &&
+          !collaboratorIds.contains(widget.collaboration.buyerId)) {
+        notifications.add(
+          FirebaseFirestore.instance.collection('notifications').add({
+            'userId': widget.collaboration.buyerId,
+            'title': 'Project Status Updated',
+            'message':
+                'Your project "${widget.collaboration.title}" is now in progress! All roles have been filled.',
+            'type': 'project_status_change',
+            'data': {
+              'projectId': widget.collaboration.id,
+              'projectTitle': widget.collaboration.title,
+              'newStatus': newStatus,
+            },
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          }),
+        );
+      }
+
+      await Future.wait(notifications);
+    } catch (e) {
+      print('Error sending status change notifications: $e');
     }
   }
 
@@ -1076,23 +1397,20 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                 children: [
                   Text(
                     'This action will:',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.red.shade800,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade700,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Delete the entire collaboration project\n'
+                    '• Delete the project permanently\n'
                     '• Remove all team members\n'
                     '• Cancel all pending applications\n'
-                    '• Notify all participants\n'
-                    '• This action cannot be undone',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
+                    '• This cannot be undone',
+                    style: TextStyle(
+                      fontSize: 12,
                       color: Colors.red.shade700,
-                      height: 1.4,
                     ),
                   ),
                 ],
@@ -1273,228 +1591,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   }
 }
 
-// Add this as a separate widget at the end of the edit_project_screen.dart file:
-
-class _AddMemberDialog extends StatefulWidget {
-  final List<CollaborationRole> existingRoles;
-  final Function(CollaborationRole) onRoleAdded;
-
-  const _AddMemberDialog({
-    required this.existingRoles,
-    required this.onRoleAdded,
-  });
-
-  @override
-  State<_AddMemberDialog> createState() => _AddMemberDialogState();
-}
-
-class _AddMemberDialogState extends State<_AddMemberDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _budgetController = TextEditingController();
-  final _maxArtisansController = TextEditingController(text: '1');
-
-  String _selectedDomain = 'Design';
-  List<String> _selectedSkills = [];
-
-  final List<String> _domains = [
-    'Design',
-    'Manufacturing',
-    'Quality Control',
-    'Packaging',
-    'Marketing',
-    'Photography',
-    'Logistics',
-    'Research'
-  ];
-
-  final List<String> _availableSkills = [
-    'Hand Crafting',
-    'Machine Operation',
-    'Design',
-    'Quality Control',
-    'Packaging',
-    'Marketing',
-    'Photography',
-    'Customer Service',
-    'Logistics',
-    'Research',
-    'Traditional Techniques',
-    'Modern Tools'
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add New Role'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Role Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a role title';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Role Description',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a description';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _budgetController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Budget',
-                          prefixText: '₹',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Enter budget';
-                          }
-                          final budget = double.tryParse(value);
-                          if (budget == null || budget <= 0) {
-                            return 'Invalid budget';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _maxArtisansController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Max Members',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Enter max members';
-                          }
-                          final max = int.tryParse(value);
-                          if (max == null || max <= 0) {
-                            return 'Invalid number';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedDomain,
-                  decoration: const InputDecoration(
-                    labelText: 'Domain',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _domains
-                      .map((domain) => DropdownMenuItem(
-                            value: domain,
-                            child: Text(domain),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedDomain = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text('Required Skills:'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: _availableSkills.map((skill) {
-                    final isSelected = _selectedSkills.contains(skill);
-                    return FilterChip(
-                      label: Text(skill),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedSkills.add(skill);
-                          } else {
-                            _selectedSkills.remove(skill);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _addRole,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFD4AF37),
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Add Role'),
-        ),
-      ],
-    );
-  }
-
-  void _addRole() {
-    if (_formKey.currentState!.validate()) {
-      final role = CollaborationRole(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        domain: _selectedDomain,
-        allocatedBudget: double.parse(_budgetController.text.trim()),
-        maxArtisans: int.parse(_maxArtisansController.text.trim()),
-        requiredSkills: _selectedSkills,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      widget.onRoleAdded(role);
-      Navigator.of(context).pop();
-    }
-  }
-}
-
-// Add this widget at the end of edit_project_screen.dart:
+// Add this as a separate widget at the end of the file:
 
 class _ManageMembersDialog extends StatefulWidget {
   final CollaborationRole role;
@@ -1589,12 +1686,14 @@ class _ManageMembersDialogState extends State<_ManageMembersDialog> {
                         final artisan = _availableArtisans[index];
                         final isAssigned =
                             _assignedMembers.contains(artisan['id']);
-                        final searchTerm = _searchController.text.toLowerCase();
+                        final canAssign =
+                            _assignedMembers.length < widget.role.maxArtisans ||
+                                isAssigned;
 
-                        if (searchTerm.isNotEmpty &&
-                            !artisan['name']
-                                .toLowerCase()
-                                .contains(searchTerm)) {
+                        // Filter based on search
+                        if (_searchController.text.isNotEmpty &&
+                            !artisan['name'].toString().toLowerCase().contains(
+                                _searchController.text.toLowerCase())) {
                           return const SizedBox.shrink();
                         }
 
@@ -1602,30 +1701,28 @@ class _ManageMembersDialogState extends State<_ManageMembersDialog> {
                           leading: CircleAvatar(
                             backgroundColor: const Color(0xFFD4AF37),
                             child: Text(
-                              artisan['name'].substring(0, 1).toUpperCase(),
-                              style: const TextStyle(color: Colors.white),
+                              artisan['name'][0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           title: Text(artisan['name']),
                           subtitle: Text(artisan['specialty']),
-                          trailing: Switch(
+                          trailing: Checkbox(
                             value: isAssigned,
-                            onChanged: _assignedMembers.length >=
-                                        widget.role.maxArtisans &&
-                                    !isAssigned
-                                ? null
-                                : (value) {
+                            onChanged: canAssign
+                                ? (value) {
                                     setState(() {
-                                      if (value) {
-                                        if (_assignedMembers.length <
-                                            widget.role.maxArtisans) {
-                                          _assignedMembers.add(artisan['id']);
-                                        }
+                                      if (value == true) {
+                                        _assignedMembers.add(artisan['id']);
                                       } else {
                                         _assignedMembers.remove(artisan['id']);
                                       }
                                     });
-                                  },
+                                  }
+                                : null,
                           ),
                         );
                       },

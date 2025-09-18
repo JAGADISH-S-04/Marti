@@ -47,12 +47,18 @@ class CollaborationService {
         .where('status', isEqualTo: 'open')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CollaborationRequest.fromMap({
-                  ...doc.data(),
-                  'id': doc.id,
-                }))
-            .toList());
+        .map((snapshot) {
+      print('Firestore query returned ${snapshot.docs.length} documents');
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        print('Processing document ${doc.id}: ${data['title']}');
+
+        return CollaborationRequest.fromMap({
+          ...data,
+          'id': doc.id,
+        });
+      }).toList();
+    });
   }
 
   // Get collaboration requests where current user is lead artisan
@@ -159,6 +165,24 @@ class CollaborationService {
         updateData['rejectionReason'] = rejectionReason;
       }
 
+      // First, get the application data before updating
+      final applicationDoc = await _firestore
+          .collection('collaboration_projects')
+          .doc(collaborationId)
+          .collection('applications')
+          .doc(applicationId)
+          .get();
+
+      if (!applicationDoc.exists) {
+        throw Exception('Application not found');
+      }
+
+      final application = CollaborationApplication.fromMap({
+        ...applicationDoc.data()!,
+        'id': applicationDoc.id,
+      });
+
+      // Update the application status
       await _firestore
           .collection('collaboration_projects')
           .doc(collaborationId)
@@ -166,29 +190,16 @@ class CollaborationService {
           .doc(applicationId)
           .update(updateData);
 
-      // If accepted, add artisan to collaborators
+      // If accepted, add artisan to collaborators and update role
       if (status == 'accepted') {
-        final applicationDoc = await _firestore
-            .collection('collaboration_projects')
-            .doc(collaborationId)
-            .collection('applications')
-            .doc(applicationId)
-            .get();
-
-        if (applicationDoc.exists) {
-          final application = CollaborationApplication.fromMap({
-            ...applicationDoc.data()!,
-            'id': applicationDoc.id,
-          });
-
-          await _addCollaborator(collaborationId, application);
-        }
+        await _addCollaborator(collaborationId, application);
       }
 
       // Create notification for applicant
       await _createApplicationStatusNotification(
-          collaborationId, applicationId, status);
+          collaborationId, applicationId, status, application);
     } catch (e) {
+      print('Error updating application status: $e');
       throw Exception('Failed to update application status: $e');
     }
   }
@@ -196,46 +207,202 @@ class CollaborationService {
   // Add collaborator to project
   Future<void> _addCollaborator(
       String collaborationId, CollaborationApplication application) async {
-    await _firestore
-        .collection('collaboration_projects')
-        .doc(collaborationId)
-        .update({
-      'collaboratorIds': FieldValue.arrayUnion([application.artisanId]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Get the current project data
+      final projectDoc = await _firestore
+          .collection('collaboration_projects')
+          .doc(collaborationId)
+          .get();
 
-    // Update the role to add the artisan
-    final projectDoc = await _firestore
-        .collection('collaboration_projects')
-        .doc(collaborationId)
-        .get();
+      if (!projectDoc.exists) {
+        throw Exception('Project not found');
+      }
 
-    if (projectDoc.exists) {
       final projectData = projectDoc.data()!;
+      final currentCollaborators =
+          List<String>.from(projectData['collaboratorIds'] ?? []);
+
+      // Add to collaborators list if not already present
+      if (!currentCollaborators.contains(application.artisanId)) {
+        currentCollaborators.add(application.artisanId);
+      }
+
+      // Update the role to add the artisan
       final roles =
           List<Map<String, dynamic>>.from(projectData['requiredRoles'] ?? []);
+      bool roleUpdated = false;
 
       for (var role in roles) {
         if (role['id'] == application.roleId) {
           final assignedArtisans =
               List<String>.from(role['assignedArtisanIds'] ?? []);
+
+          // Add artisan if not already assigned
           if (!assignedArtisans.contains(application.artisanId)) {
             assignedArtisans.add(application.artisanId);
             role['assignedArtisanIds'] = assignedArtisans;
 
             // Update role status if filled
-            if (assignedArtisans.length >= (role['maxArtisans'] ?? 1)) {
+            final maxArtisans = role['maxArtisans'] ?? 1;
+            if (assignedArtisans.length >= maxArtisans) {
               role['status'] = 'filled';
             }
+
+            // Use a regular timestamp instead of server timestamp
+            role['updatedAt'] = Timestamp.fromDate(DateTime.now());
+            roleUpdated = true;
           }
           break;
         }
       }
 
+      if (!roleUpdated) {
+        throw Exception('Role not found for this application');
+      }
+
+      // Update the project with new collaborators and roles
       await _firestore
           .collection('collaboration_projects')
           .doc(collaborationId)
-          .update({'requiredRoles': roles});
+          .update({
+        'collaboratorIds': currentCollaborators,
+        'requiredRoles': roles,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Check if all roles are now filled and auto-update project status
+      bool allRolesFilled = roles.isNotEmpty &&
+          roles.every((role) {
+            final assignedCount = (role['assignedArtisanIds'] as List).length;
+            final maxArtisans = role['maxArtisans'] ?? 1;
+            return assignedCount >= maxArtisans;
+          });
+
+      // Auto-update project status if all roles are filled and current status is 'open'
+      if (allRolesFilled && projectData['status'] == 'open') {
+        await _firestore
+            .collection('collaboration_projects')
+            .doc(collaborationId)
+            .update({
+          'status': 'in_progress',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Notify all collaborators about the status change
+        await _notifyProjectStatusChange(
+            collaborationId, 'in_progress', 'All roles have been filled!');
+      }
+
+      print(
+          'Successfully added collaborator ${application.artisanId} to project $collaborationId');
+    } catch (e) {
+      print('Error adding collaborator: $e');
+      throw Exception('Failed to add collaborator: $e');
+    }
+  }
+
+  // Add method to notify about project status changes
+  Future<void> _notifyProjectStatusChange(
+      String collaborationId, String newStatus, String reason) async {
+    try {
+      final projectDoc = await _firestore
+          .collection('collaboration_projects')
+          .doc(collaborationId)
+          .get();
+
+      if (projectDoc.exists) {
+        final projectData = projectDoc.data()!;
+        final projectTitle = projectData['title'] ?? 'Collaboration Project';
+        final collaboratorIds =
+            List<String>.from(projectData['collaboratorIds'] ?? []);
+        final buyerId = projectData['buyerId'];
+        final leadArtisanId = projectData['leadArtisanId'];
+
+        final notifications = <Future>[];
+
+        // Notify all collaborators
+        for (final collaboratorId in collaboratorIds) {
+          notifications.add(
+            _firestore.collection('notifications').add({
+              'userId': collaboratorId,
+              'title': 'Project Status Updated',
+              'message':
+                  'The project "$projectTitle" status has been changed to "${_getStatusDisplayName(newStatus)}". $reason',
+              'type': 'project_status_change',
+              'data': {
+                'projectId': collaborationId,
+                'projectTitle': projectTitle,
+                'newStatus': newStatus,
+                'reason': reason,
+              },
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+        }
+
+        // Notify the buyer if different from collaborators
+        if (buyerId != null && !collaboratorIds.contains(buyerId)) {
+          notifications.add(
+            _firestore.collection('notifications').add({
+              'userId': buyerId,
+              'title': 'Project Status Updated',
+              'message':
+                  'Your project "$projectTitle" is now in progress! All roles have been filled and work can begin.',
+              'type': 'project_status_change',
+              'data': {
+                'projectId': collaborationId,
+                'projectTitle': projectTitle,
+                'newStatus': newStatus,
+                'reason': reason,
+              },
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+        }
+
+        // Notify the lead artisan if not in collaborators list
+        if (leadArtisanId != null && !collaboratorIds.contains(leadArtisanId)) {
+          notifications.add(
+            _firestore.collection('notifications').add({
+              'userId': leadArtisanId,
+              'title': 'Project Status Updated',
+              'message':
+                  'Your project "$projectTitle" is now in progress! All roles have been filled.',
+              'type': 'project_status_change',
+              'data': {
+                'projectId': collaborationId,
+                'projectTitle': projectTitle,
+                'newStatus': newStatus,
+                'reason': reason,
+              },
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+        }
+
+        await Future.wait(notifications);
+      }
+    } catch (e) {
+      print('Error sending project status change notifications: $e');
+    }
+  }
+
+  // Add helper method to get status display name
+  String _getStatusDisplayName(String status) {
+    switch (status) {
+      case 'open':
+        return 'Open';
+      case 'in_progress':
+        return 'In Progress';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
     }
   }
 
@@ -274,37 +441,45 @@ class CollaborationService {
 
   // Create notification for application status update
   Future<void> _createApplicationStatusNotification(
-      String collaborationId, String applicationId, String status) async {
+      String collaborationId,
+      String applicationId,
+      String status,
+      CollaborationApplication application) async {
     try {
-      final applicationDoc = await _firestore
+      // Get project details for better notification message
+      final projectDoc = await _firestore
           .collection('collaboration_projects')
           .doc(collaborationId)
-          .collection('applications')
-          .doc(applicationId)
           .get();
 
-      if (applicationDoc.exists) {
-        final application = CollaborationApplication.fromMap({
-          ...applicationDoc.data()!,
-          'id': applicationDoc.id,
-        });
-
-        await _firestore.collection('notifications').add({
-          'userId': application.artisanId,
-          'title': 'Application ${status.toUpperCase()}',
-          'message': status == 'accepted'
-              ? 'Congratulations! Your application was accepted.'
-              : 'Your application was not selected this time.',
-          'type': 'collaboration_status',
-          'data': {
-            'collaborationId': collaborationId,
-            'applicationId': applicationId,
-            'status': status,
-          },
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      String projectTitle = 'Collaboration Project';
+      if (projectDoc.exists) {
+        projectTitle = projectDoc.data()!['title'] ?? 'Collaboration Project';
       }
+
+      final message = status == 'accepted'
+          ? 'Congratulations! Your application for "$projectTitle" was accepted. Welcome to the team!'
+          : status == 'rejected'
+              ? 'Your application for "$projectTitle" was not selected this time. Keep applying to other projects!'
+              : 'Your application status has been updated to: ${status.toUpperCase()}';
+
+      await _firestore.collection('notifications').add({
+        'userId': application.artisanId,
+        'title': 'Application ${status.toUpperCase()}',
+        'message': message,
+        'type': 'collaboration_status',
+        'data': {
+          'collaborationId': collaborationId,
+          'applicationId': applicationId,
+          'status': status,
+          'projectTitle': projectTitle,
+          'roleId': application.roleId,
+        },
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print('Created notification for application status: $status');
     } catch (e) {
       print('Error creating status notification: $e');
     }

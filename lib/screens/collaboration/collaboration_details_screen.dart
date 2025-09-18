@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/collab_service.dart';
 import '../../models/collab_model.dart';
 import 'collaboration_application_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'edit_project_screen.dart';
+import 'project_management.dart';
 
 class CollaborationDetailsScreen extends StatefulWidget {
   final CollaborationRequest collaboration;
@@ -25,6 +28,13 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
   late TabController _tabController;
   bool _isLoading = false;
 
+  // Craftwork-themed colors
+  final Color craftBrown = const Color(0xFF8B4513);
+  final Color craftGold = const Color(0xFFD4AF37);
+  final Color craftBeige = const Color(0xFFF5F5DC);
+  final Color craftDarkBrown = const Color(0xFF5D2E0A);
+  final Color craftLightBrown = const Color(0xFFDEB887);
+
   @override
   void initState() {
     super.initState();
@@ -37,375 +47,437 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
     super.dispose();
   }
 
-  bool get _isLeader {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    return currentUser?.uid == widget.collaboration.leadArtisanId;
-  }
-
-  bool get _isParticipant {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    return widget.collaboration.collaboratorIds.contains(currentUser?.uid);
-  }
-
-  bool get _canApply {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    return currentUser != null &&
-        !_isLeader &&
-        !_isParticipant &&
-        widget.collaboration.status == 'open';
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Project Details',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
-        actions: [
-          if (_isLeader)
-            PopupMenuButton(
-              icon: const Icon(Icons.more_vert),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 18),
-                      SizedBox(width: 8),
-                      Text('Edit Project'),
-                    ],
+    return StreamBuilder<CollaborationRequest?>(
+      stream: _getCollaborationStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: craftBeige,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(craftGold),
                   ),
-                ),
-                const PopupMenuItem(
-                  value: 'status',
-                  child: Row(
-                    children: [
-                      Icon(Icons.update, size: 18),
-                      SizedBox(width: 8),
-                      Text('Update Status'),
-                    ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading project details...',
+                    style: GoogleFonts.inter(color: craftBrown),
                   ),
-                ),
-              ],
-              onSelected: (value) {
-                if (value == 'status') {
-                  _showStatusUpdateDialog();
-                }
-              },
+                ],
+              ),
             ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF2C1810),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFFD4AF37),
-          tabs: const [
-            Tab(text: 'Overview', icon: Icon(Icons.info_outline)),
-            Tab(text: 'Roles', icon: Icon(Icons.people_outline)),
-            Tab(text: 'Applications', icon: Icon(Icons.assignment_ind)),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOverviewTab(),
-          _buildRolesTab(),
-          _buildApplicationsTab(),
-        ],
-      ),
-      floatingActionButton: _canApply
-          ? FloatingActionButton.extended(
-              onPressed: _showRoleSelectionDialog,
-              backgroundColor: const Color(0xFFD4AF37),
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: const Text('Apply'),
-            )
-          : null,
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: craftBeige,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading project',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: craftDarkBrown,
+                    ),
+                  ),
+                  Text(
+                    snapshot.error.toString(),
+                    style: GoogleFonts.inter(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final collaboration = snapshot.data ?? widget.collaboration;
+        return _buildMainContent(collaboration);
+      },
     );
   }
 
-  Widget _buildOverviewTab() {
+  // Add stream to get real-time collaboration updates
+  Stream<CollaborationRequest?> _getCollaborationStream() {
+    return FirebaseFirestore.instance
+        .collection('collaboration_projects') // Changed from collaboration_requests
+        .doc(widget.collaboration.id)
+        .snapshots()
+        .map((doc) {
+      if (doc.exists) {
+        return CollaborationRequest.fromMap({
+          ...doc.data()!,
+          'id': doc.id,
+        });
+      }
+      return null;
+    });
+  }
+
+  Widget _buildMainContent(CollaborationRequest collaboration) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isLeader = currentUser?.uid == collaboration.leadArtisanId;
+    final isParticipant = collaboration.collaboratorIds.contains(currentUser?.uid);
+    final canApply = currentUser != null &&
+        !isLeader &&
+        !isParticipant &&
+        collaboration.status == 'open';
+
+    return Scaffold(
+      backgroundColor: craftBeige,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: craftBrown,
+            iconTheme: const IconThemeData(color: Colors.white),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [craftBrown, craftDarkBrown],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              title: Text(
+                'Craft Project',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              centerTitle: true,
+            ),
+            actions: [
+              // Add Edit Button for project leaders
+              if (isLeader)
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.edit, color: Colors.white),
+                  ),
+                  onPressed: () => _navigateToEditScreen(collaboration),
+                  tooltip: 'Edit Project',
+                ),
+              if (isLeader)
+                PopupMenuButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.more_vert, color: Colors.white),
+                  ),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'status',
+                      child: Row(
+                        children: [
+                          Icon(Icons.update, size: 18, color: craftBrown),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Update Status',
+                            style: GoogleFonts.inter(color: craftDarkBrown),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'status') {
+                      _showStatusUpdateDialog(collaboration);
+                    }
+                  },
+                ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: craftGold,
+              unselectedLabelColor: Colors.white70,
+              indicatorColor: craftGold,
+              labelStyle:
+                  GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+              tabs: const [
+                Tab(text: 'Overview'),
+                Tab(text: 'Roles'),
+                Tab(text: 'Applications'),
+              ],
+            ),
+          ),
+          SliverFillRemaining(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOverviewTab(collaboration, isLeader, isParticipant),
+                _buildRolesTab(collaboration, canApply),
+                _buildApplicationsTab(collaboration, isLeader),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewTab(CollaborationRequest collaboration, bool isLeader, bool isParticipant) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Project Header
+          // Project Header Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
+              gradient: LinearGradient(
+                colors: [Colors.white, craftBeige.withOpacity(0.3)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 0,
-                  blurRadius: 10,
+                  color: craftBrown.withOpacity(0.15),
+                  blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
               ],
+              border: Border.all(color: craftLightBrown.withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
-                        widget.collaboration.title,
+                        collaboration.title,
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2C1810),
+                          color: craftDarkBrown,
+                          height: 1.3,
                         ),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(widget.collaboration.status)
-                            .withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color:
-                                _getStatusColor(widget.collaboration.status)),
-                      ),
-                      child: Text(
-                        widget.collaboration.status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(widget.collaboration.status),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(width: 12),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  widget.collaboration.description,
+                  collaboration.description,
                   style: GoogleFonts.inter(
                     fontSize: 16,
-                    color: Colors.grey[700],
-                    height: 1.5,
+                    color: craftBrown.withOpacity(0.9),
+                    height: 1.6,
                   ),
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    if (_isLeader)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4AF37).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFD4AF37)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star,
-                                size: 14, color: Color(0xFFD4AF37)),
-                            SizedBox(width: 4),
-                            Text(
-                              'Project Leader',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFD4AF37),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else if (_isParticipant)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.group, size: 14, color: Colors.blue),
-                            SizedBox(width: 4),
-                            Text(
-                              'Collaborator',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
-                        ),
+                if (isLeader)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          craftGold.withOpacity(0.2),
+                          craftGold.withOpacity(0.1)
+                        ],
                       ),
-                    if (widget.collaboration.isUrgent) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: craftGold.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star_rounded, size: 20, color: craftGold),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Master Artisan & Project Leader',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: craftDarkBrown,
+                          ),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.priority_high,
-                                size: 12, color: Colors.red),
-                            SizedBox(width: 2),
-                            Text(
-                              'URGENT',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
+                        const SizedBox(width: 12),
+                      ],
+                    ),
+                  )
+                else if (isParticipant)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          craftBrown.withOpacity(0.2),
+                          craftBrown.withOpacity(0.1)
+                        ],
                       ),
-                    ],
-                  ],
-                ),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: craftBrown.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.handyman, size: 18, color: craftBrown),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Craft Team Member',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: craftBrown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // Project Stats
-          Row(
+          // Project Metrics Grid
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
             children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Total Budget',
-                  '₹${widget.collaboration.totalBudget.toStringAsFixed(0)}',
-                  Icons.account_balance_wallet,
-                  Colors.green,
-                ),
+              _buildCraftMetricCard(
+                'Total Budget',
+                '₹${collaboration.totalBudget.toStringAsFixed(0)}',
+                Icons.account_balance_wallet,
+                const Color(0xFF228B22),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  'Team Size',
-                  '${widget.collaboration.collaboratorIds.length + 1}',
-                  Icons.group,
-                  Colors.blue,
-                ),
+              _buildCraftMetricCard(
+                'Team Size',
+                '${collaboration.collaboratorIds.length + 1} Artisans',
+                Icons.groups,
+                craftBrown,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Roles Required',
-                  '${widget.collaboration.requiredRoles.length}',
-                  Icons.assignment_ind,
-                  Colors.purple,
-                ),
+              _buildCraftMetricCard(
+                'Craft Roles',
+                '${collaboration.requiredRoles.length} Specialties',
+                Icons.handyman,
+                const Color(0xFF8B008B),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  'Deadline',
-                  _formatDeadline(widget.collaboration.deadline),
-                  Icons.schedule,
-                  Colors.orange,
-                ),
+              _buildCraftMetricCard(
+                'Deadline',
+                _formatDeadline(collaboration.deadline),
+                Icons.schedule,
+                const Color(0xFFFF6347),
               ),
             ],
           ),
 
           const SizedBox(height: 20),
 
-          // Project Information
+          // Project Details Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 0,
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+                  color: craftBrown.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
+              border: Border.all(color: craftLightBrown.withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Project Information',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: craftGold.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child:
+                          Icon(Icons.info_rounded, color: craftBrown, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Craft Project Details',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: craftDarkBrown,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                _buildInfoRow('Category', widget.collaboration.category),
-                _buildInfoRow(
-                    'Created', _formatDate(widget.collaboration.createdAt)),
-                _buildInfoRow(
-                    'Updated', _formatDate(widget.collaboration.updatedAt)),
-                if (widget.collaboration.tags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                const SizedBox(height: 20),
+                _buildDetailRow('Category', collaboration.category),
+                _buildDetailRow('Created', _formatDate(collaboration.createdAt)),
+                _buildDetailRow('Last Updated', _formatDate(collaboration.updatedAt)),
+                if (collaboration.additionalNotes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
                   Text(
-                    'Tags:',
+                    'Additional Notes:',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+                      color: craftBrown,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: widget.collaboration.tags
-                        .map((tag) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD4AF37).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                tag,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF2C1810),
-                                ),
-                              ),
-                            ))
-                        .toList(),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: craftBeige.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border:
+                          Border.all(color: craftLightBrown.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      collaboration.additionalNotes,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: craftBrown,
+                        height: 1.5,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -416,62 +488,93 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
     );
   }
 
-  Widget _buildRolesTab() {
+  Widget _buildRolesTab(CollaborationRequest collaboration, bool canApply) {
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: widget.collaboration.requiredRoles.length,
+      padding: const EdgeInsets.all(16),
+      itemCount: collaboration.requiredRoles.length,
       itemBuilder: (context, index) {
-        final role = widget.collaboration.requiredRoles[index];
-        return _buildRoleCard(role);
+        final role = collaboration.requiredRoles[index];
+        return _buildCraftRoleCard(role, collaboration, canApply);
       },
     );
   }
 
-  Widget _buildApplicationsTab() {
-    if (!_isLeader) {
+  Widget _buildApplicationsTab(CollaborationRequest collaboration, bool isLeader) {
+    if (!isLeader) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.lock_outline,
-              size: 60,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Applications Restricted',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: craftGold.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: craftGold.withOpacity(0.3), width: 2),
+                ),
+                child: Icon(
+                  Icons.lock_outline,
+                  size: 48,
+                  color: craftBrown,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Only project leaders can view applications',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: Colors.grey[500],
+              const SizedBox(height: 20),
+              Text(
+                'Master Artisan Access Only',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: craftDarkBrown,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                'Only the project leader can view and manage collaboration applications',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: craftBrown.withOpacity(0.8),
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return StreamBuilder<List<CollaborationApplication>>(
-      stream: _collaborationService
-          .getCollaborationApplications(widget.collaboration.id),
+      stream: _collaborationService.getCollaborationApplications(collaboration.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(craftGold),
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Loading applications...',
+                  style: GoogleFonts.inter(color: craftBrown),
+                ),
+              ],
+            ),
+          );
         }
 
         if (snapshot.hasError) {
           return Center(
-            child: Text('Error loading applications: ${snapshot.error}'),
+            child: Text(
+              'Error loading applications: ${snapshot.error}',
+              style: GoogleFonts.inter(color: Colors.red),
+            ),
           );
         }
 
@@ -479,149 +582,97 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
 
         if (applications.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.assignment_outlined,
-                  size: 60,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No Applications Yet',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: craftBeige.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: craftLightBrown.withOpacity(0.5), width: 2),
+                    ),
+                    child: Icon(
+                      Icons.inbox_outlined,
+                      size: 48,
+                      color: craftBrown,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Applications from other artisans will appear here',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey[500],
+                  const SizedBox(height: 20),
+                  Text(
+                    'No Applications Yet',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: craftDarkBrown,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Applications from fellow artisans will appear here once they show interest in joining your craft project',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: craftBrown.withOpacity(0.8),
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           itemCount: applications.length,
           itemBuilder: (context, index) {
-            return _buildApplicationCard(applications[index]);
+            return _buildCraftApplicationCard(applications[index]);
           },
         );
       },
     );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const Spacer(),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleCard(CollaborationRole role) {
+  Widget _buildCraftRoleCard(CollaborationRole role, CollaborationRequest collaboration, bool canApply) {
     final isFilled = role.status == 'filled';
     final isOpen = role.status == 'open';
+    final assignedCount = role.assignedArtisanIds.length;
+    final maxCount = role.maxArtisans;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            isFilled
+                ? const Color(0xFF228B22).withOpacity(0.05)
+                : isOpen
+                    ? craftGold.withOpacity(0.05)
+                    : Colors.grey.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isFilled
-              ? Colors.green.withOpacity(0.3)
+              ? const Color(0xFF228B22).withOpacity(0.3)
               : isOpen
-                  ? Colors.blue.withOpacity(0.3)
+                  ? craftGold.withOpacity(0.5)
                   : Colors.grey.withOpacity(0.3),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
+            color: craftBrown.withOpacity(0.1),
             blurRadius: 10,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -630,46 +681,26 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
         children: [
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: craftGold.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.handyman, color: craftBrown, size: 20),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   role.title,
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: craftDarkBrown,
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isFilled
-                      ? Colors.green.withOpacity(0.2)
-                      : isOpen
-                          ? Colors.blue.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isFilled
-                        ? Colors.green
-                        : isOpen
-                            ? Colors.blue
-                            : Colors.grey,
-                  ),
-                ),
-                child: Text(
-                  role.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isFilled
-                        ? Colors.green
-                        : isOpen
-                            ? Colors.blue
-                            : Colors.grey,
-                  ),
-                ),
-              ),
+              _buildRoleStatusBadge(role.status),
             ],
           ),
           const SizedBox(height: 12),
@@ -677,95 +708,127 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
             role.description,
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.4,
+              color: craftBrown.withOpacity(0.8),
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Budget',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '₹${role.allocatedBudget.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: craftBeige.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: craftLightBrown.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildRoleMetric(
+                      'Budget', '₹${role.allocatedBudget.toStringAsFixed(0)}'),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Positions',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${role.assignedArtisanIds.length}/${role.maxArtisans}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C1810),
-                      ),
-                    ),
-                  ],
+                Container(
+                    height: 30,
+                    width: 1,
+                    color: craftLightBrown.withOpacity(0.5)),
+                Expanded(
+                  child: _buildRoleMetric('Artisans', '$assignedCount/$maxCount'),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Domain',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      role.domain,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2C1810),
-                      ),
-                    ),
-                  ],
+                Container(
+                    height: 30,
+                    width: 1,
+                    color: craftLightBrown.withOpacity(0.5)),
+                Expanded(
+                  child: _buildRoleMetric('Domain', role.domain),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          if (role.requiredSkills.isNotEmpty) ...[
+          
+          // Show assigned members if any
+          if (assignedCount > 0) ...[
             const SizedBox(height: 16),
-            Text(
-              'Required Skills:',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.people, 
+                           color: Colors.green.shade700, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Assigned Members ($assignedCount)',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...role.assignedArtisanIds.take(3).map((memberId) => 
+                    FutureBuilder<Map<String, dynamic>?>(
+                      future: _getMemberInfo(memberId),
+                      builder: (context, snapshot) {
+                        final memberInfo = snapshot.data;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.green.shade600,
+                                child: Text(
+                                  (memberInfo?['name'] ?? 'U')[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  memberInfo?['name'] ?? 'Loading...',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.green.shade800,
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.check_circle, 
+                                   color: Colors.green.shade600, size: 16),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (assignedCount > 3) 
+                    Text(
+                      '+ ${assignedCount - 3} more members',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.green.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+          ],
+
+          if (role.requiredSkills.isNotEmpty) ...[
+            const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -774,189 +837,539 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: craftLightBrown.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: craftLightBrown),
                         ),
                         child: Text(
                           skill,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
+                            color: craftBrown,
                           ),
                         ),
                       ))
                   .toList(),
             ),
           ],
-          if (_canApply && isOpen) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _applyForRole(role),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+          
+          // Check if user can apply for this role
+          StreamBuilder<List<CollaborationApplication>>(
+            stream: _collaborationService
+                .getCollaborationApplications(collaboration.id),
+            builder: (context, snapshot) {
+              final applications = snapshot.data ?? [];
+              final currentUser = FirebaseAuth.instance.currentUser;
+              
+              // Check if current user has already applied for this specific role
+              final hasAppliedForThisRole = applications.any((app) =>
+                  app.artisanId == currentUser?.uid && app.roleId == role.id);
+              
+              // Check if user's application is pending for this role
+              final pendingApplication = applications.firstWhere(
+                (app) => app.artisanId == currentUser?.uid && 
+                         app.roleId == role.id && 
+                         app.status == 'pending',
+                orElse: () => CollaborationApplication(
+                  id: '',
+                  collaborationRequestId: '',
+                  roleId: '',
+                  artisanId: '',
+                  artisanName: '',
+                  artisanEmail: '',
+                  proposal: '',
+                  proposedRate: 0,
+                  estimatedDays: 0,
+                  status: '',
+                  appliedAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
                 ),
-                child: const Text('Apply for this Role'),
-              ),
-            ),
-          ],
+              );
+              
+              final hasPendingApplication = pendingApplication.id.isNotEmpty;
+              
+              // Check if user's application was accepted for this role
+              final acceptedApplication = applications.firstWhere(
+                (app) => app.artisanId == currentUser?.uid && 
+                         app.roleId == role.id && 
+                         app.status == 'accepted',
+                orElse: () => CollaborationApplication(
+                  id: '',
+                  collaborationRequestId: '',
+                  roleId: '',
+                  artisanId: '',
+                  artisanName: '',
+                  artisanEmail: '',
+                  proposal: '',
+                  proposedRate: 0,
+                  estimatedDays: 0,
+                  status: '',
+                  appliedAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ),
+              );
+              
+              final hasAcceptedApplication = acceptedApplication.id.isNotEmpty;
+              
+              // Check if role is actually full (using real-time data)
+              final isRoleFull = assignedCount >= maxCount;
+              
+              if (canApply && !isRoleFull && !hasAppliedForThisRole) {
+                // Show apply button if user can apply and hasn't applied yet
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _applyForRole(role, collaboration),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: craftGold,
+                          foregroundColor: craftDarkBrown,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                        ),
+                        icon: const Icon(Icons.handyman, size: 18),
+                        label: Text(
+                          'Apply for this Craft Role',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              } else if (hasPendingApplication) {
+                // Show pending status if application is under review
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.hourglass_empty, 
+                               color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Application Under Review',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange.shade800,
+                                  ),
+                                ),
+                                Text(
+                                  'Your application is being reviewed by the project leader',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else if (hasAcceptedApplication) {
+                // Show accepted status if application was approved
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, 
+                               color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Application Accepted! 🎉',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade800,
+                                  ),
+                                ),
+                                Text(
+                                  'Congratulations! You are now part of this craft project',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else if (isRoleFull) {
+                // Show role filled status
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.people, 
+                               color: Colors.grey.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Role Filled',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  'This role has reached its maximum capacity',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else if (hasAppliedForThisRole) {
+                // Show generic message if application exists but status is neither pending nor accepted
+                final myApplication = applications.firstWhere(
+                  (app) => app.artisanId == currentUser?.uid && app.roleId == role.id,
+                );
+                
+                return Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.assignment_turned_in, 
+                               color: Colors.grey.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Already Applied',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  'You have already submitted an application for this role',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              
+              // If role is not open or user can't apply, don't show anything
+              return const SizedBox.shrink();
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildApplicationCard(CollaborationApplication application) {
+  // Helper methods
+  Widget _buildRoleStatusBadge(String status) {
+    Color color;
+    String label;
+    IconData icon;
+
+    switch (status.toLowerCase()) {
+      case 'filled':
+        color = Colors.green;
+        label = 'Filled';
+        icon = Icons.check_circle;
+        break;
+      case 'open':
+        color = craftGold;
+        label = 'Open';
+        icon = Icons.radio_button_unchecked;
+        break;
+      case 'closed':
+        color = Colors.grey;
+        label = 'Closed';
+        icon = Icons.cancel;
+        break;
+      default:
+        color = Colors.grey;
+        label = status;
+        icon = Icons.help_outline;
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-            color: _getApplicationStatusColor(application.status)
-                .withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoleMetric(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: craftDarkBrown,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: craftBrown.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCraftMetricCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  application.artisanName,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getApplicationStatusColor(application.status)
-                      .withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: _getApplicationStatusColor(application.status)),
-                ),
-                child: Text(
-                  application.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: _getApplicationStatusColor(application.status),
-                  ),
-                ),
-              ),
+              Icon(icon, color: color, size: 20),
+              const Spacer(),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: craftDarkBrown,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: craftBrown.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: craftBrown.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: craftDarkBrown,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCraftApplicationCard(CollaborationApplication application) {
+    // Implementation for application card
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: craftBrown.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            application.artisanName,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: craftDarkBrown,
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             application.proposal,
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.4,
+              color: craftBrown.withOpacity(0.8),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Proposed Rate',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '₹${application.proposedRate.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Rate: ₹${application.proposedRate.toStringAsFixed(0)}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF228B22),
                 ),
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Estimated Days',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${application.estimatedDays} days',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2C1810),
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 16),
+              Text(
+                'Timeline: ${application.estimatedDays} days',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: craftBrown,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Applied: ${_formatDate(application.appliedAt)}',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
-          ),
-          if (application.status == 'pending' && _isLeader) ...[
+          if (application.status == 'pending') ...[
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        _updateApplicationStatus(application.id, 'rejected'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                    child: const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
                   child: ElevatedButton(
-                    onPressed: () =>
-                        _updateApplicationStatus(application.id, 'accepted'),
+                    onPressed: () => _updateApplicationStatus(application.id, 'accepted'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Accept'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _updateApplicationStatus(application.id, 'rejected'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    child: const Text('Reject'),
                   ),
                 ),
               ],
@@ -967,206 +1380,147 @@ class _CollaborationDetailsScreenState extends State<CollaborationDetailsScreen>
     );
   }
 
-  void _showRoleSelectionDialog() {
-    final availableRoles = widget.collaboration.requiredRoles
-        .where((role) => role.status == 'open')
-        .toList();
+  // Add helper methods
+  Future<Map<String, dynamic>?> _getMemberInfo(String memberId) async {
+    try {
+      // Try retailers collection first
+      var doc = await FirebaseFirestore.instance
+          .collection('retailers')
+          .doc(memberId)
+          .get();
 
-    if (availableRoles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No open roles available for application'),
-        ),
-      );
-      return;
+      if (doc.exists) {
+        final data = doc.data()!;
+        return {
+          'name': data['fullName'] ?? data['name'] ?? 'Unknown Member',
+          'email': data['email'] ?? '',
+        };
+      }
+
+      // Try users collection
+      doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(memberId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        return {
+          'name': data['name'] ?? data['displayName'] ?? 'Unknown Member',
+          'email': data['email'] ?? '',
+        };
+      }
+
+      return {'name': 'Unknown Member', 'email': ''};
+    } catch (e) {
+      print('Error getting member info: $e');
+      return {'name': 'Unknown Member', 'email': ''};
     }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Role to Apply'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: availableRoles.length,
-            itemBuilder: (context, index) {
-              final role = availableRoles[index];
-              return ListTile(
-                title: Text(role.title),
-                subtitle: Text(
-                    '₹${role.allocatedBudget.toStringAsFixed(0)} • ${role.domain}'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _applyForRole(role);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
   }
 
-  void _applyForRole(CollaborationRole role) {
+  String _formatDate(DateTime date) {
+    return DateFormat('MMM dd, yyyy').format(date);
+  }
+
+  String _formatDeadline(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    
+    if (difference < 0) {
+      return 'Overdue';
+    } else if (difference == 0) {
+      return 'Due Today';
+    } else if (difference == 1) {
+      return 'Due Tomorrow';
+    } else if (difference <= 7) {
+      return 'Due in $difference days';
+    } else {
+      return DateFormat('MMM dd').format(date);
+    }
+  }
+
+  void _applyForRole(CollaborationRole role, CollaborationRequest collaboration) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CollaborationApplicationScreen(
-          collaboration: widget.collaboration,
+          collaboration: collaboration,
           role: role,
         ),
       ),
     );
   }
 
-  void _showStatusUpdateDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Project Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('In Progress'),
-              leading: const Icon(Icons.play_arrow, color: Colors.blue),
-              onTap: () {
-                Navigator.of(context).pop();
-                _updateProjectStatus('in_progress');
-              },
-            ),
-            ListTile(
-              title: const Text('Completed'),
-              leading: const Icon(Icons.check_circle, color: Colors.green),
-              onTap: () {
-                Navigator.of(context).pop();
-                _updateProjectStatus('completed');
-              },
-            ),
-            ListTile(
-              title: const Text('Cancelled'),
-              leading: const Icon(Icons.cancel, color: Colors.red),
-              onTap: () {
-                Navigator.of(context).pop();
-                _updateProjectStatus('cancelled');
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateProjectStatus(String status) async {
-    setState(() => _isLoading = true);
+  Future<void> _updateApplicationStatus(String applicationId, String status) async {
     try {
-      await _collaborationService.updateCollaborationStatus(
-          widget.collaboration.id, status);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Project status updated to ${status.replaceAll('_', ' ')}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _updateApplicationStatus(
-      String applicationId, String status) async {
-    setState(() => _isLoading = true);
-    try {
+      setState(() => _isLoading = true);
+      
       await _collaborationService.updateApplicationStatus(
         widget.collaboration.id,
         applicationId,
         status,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Application ${status.toLowerCase()}'),
-          backgroundColor: status == 'accepted' ? Colors.green : Colors.orange,
-        ),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Application $status successfully'),
+            backgroundColor: status == 'accepted' ? Colors.green : Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating application: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _navigateToEditScreen(CollaborationRequest collaboration) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProjectScreen(collaboration: collaboration),
+      ),
+    );
+
+    if (result == true) {
+      // Refresh handled by StreamBuilder
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating application: $e'),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text('Project updated successfully'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return Colors.green;
-      case 'in_progress':
-        return Colors.blue;
-      case 'completed':
-        return Colors.purple;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Color _getApplicationStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'accepted':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  String _formatDeadline(DateTime deadline) {
-    final now = DateTime.now();
-    final difference = deadline.difference(now).inDays;
-
-    if (difference < 0) {
-      return 'Overdue';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
-    } else if (difference < 7) {
-      return '$difference days';
-    } else {
-      return '${(difference / 7).floor()} weeks';
-    }
+  void _showStatusUpdateDialog(CollaborationRequest collaboration) {
+    // Implementation for status update dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Project Status'),
+        content: const Text('Status update functionality coming soon'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
