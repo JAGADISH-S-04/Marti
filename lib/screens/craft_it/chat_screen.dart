@@ -41,13 +41,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
   final ImagePicker _imagePicker = ImagePicker();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
+
   bool _isLoading = false;
   String? _currentUserType;
   String? _currentlyPlayingVoiceId;
   String _selectedLanguage = 'auto'; // Default to auto (original language)
   bool _showLanguageSelector = false;
-  
+
   // Translation cache to avoid re-translating
   final Map<String, Map<String, String>> _translationCache = {};
 
@@ -74,9 +74,11 @@ class _ChatScreenState extends State<ChatScreen> {
           .collection('users')
           .doc(user.uid)
           .get();
-      setState(() {
-        _currentUserType = userDoc.data()?['userType'] ?? 'customer';
-      });
+      if (mounted) {
+        setState(() {
+          _currentUserType = userDoc.data()?['userType'] ?? 'customer';
+        });
+      }
     }
   }
 
@@ -88,9 +90,10 @@ class _ChatScreenState extends State<ChatScreen> {
             .collection('users')
             .doc(user.uid)
             .get();
-        
-        if (userDoc.exists) {
-          final preferredLanguage = userDoc.data()?['preferredLanguage'] ?? 'auto';
+
+        if (userDoc.exists && mounted) {
+          final preferredLanguage =
+              userDoc.data()?['preferredLanguage'] ?? 'auto';
           setState(() {
             _selectedLanguage = preferredLanguage;
           });
@@ -108,7 +111,7 @@ class _ChatScreenState extends State<ChatScreen> {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .update({'preferredLanguage': languageCode});
+            .set({'preferredLanguage': languageCode}, SetOptions(merge: true));
       } catch (e) {
         print('Error saving language preference: $e');
       }
@@ -131,22 +134,23 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
-  Future<void> _sendVoiceMessage(File voiceFile, String? transcription, Duration duration) async {
+  Future<void> _sendVoiceMessage(
+      File voiceFile, String? transcription, Duration duration) async {
     try {
-      setState(() => _isLoading = true);
-      
-      // Get detected language from transcription if available
+      if (mounted) setState(() => _isLoading = true);
+
       String? detectedLanguage;
-      
+
       if (transcription != null && transcription.isNotEmpty) {
         try {
-          final languageDetection = await GeminiService.detectLanguage(transcription);
+          final languageDetection =
+              await GeminiService.detectLanguage(transcription);
           detectedLanguage = languageDetection['detectedLanguage'];
         } catch (e) {
           print('Failed to detect language: $e');
         }
       }
-      
+
       await _chatService.sendVoiceMessage(
         widget.chatRoomId,
         voiceFile,
@@ -154,7 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
         duration,
         detectedLanguage: detectedLanguage,
       );
-      
+
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
@@ -173,45 +177,32 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<String?> _translateText(String text, String targetLanguage) async {
-    // Don't translate if target is 'auto' - show original text
     if (targetLanguage == 'auto' || text.isEmpty) return text;
 
-    // Check cache first
     final cacheKey = '$text:$targetLanguage';
     if (_translationCache.containsKey(cacheKey)) {
-      final cachedResult = _translationCache[cacheKey]!;
-      return cachedResult['translatedText'];
+      return _translationCache[cacheKey]!['translatedText'];
     }
 
     try {
       final result = await GeminiService.translateText(text, targetLanguage);
-      
-      // Handle the response safely
-      String translatedText = text; // Default to original text
-      
+
+      String translatedText = text;
+
       if (result['translatedText'] != null) {
-        if (result['translatedText'] is String) {
-          translatedText = result['translatedText'] as String;
-        } else {
-          // If it's not a string, convert it
-          translatedText = result['translatedText'].toString();
-        }
+        translatedText = result['translatedText'].toString();
       }
-      
-      print('✅ Translation: "$text" -> "$translatedText"');
-      
-      // Cache the result with safe string conversion
+
       _translationCache[cacheKey] = {
         'translatedText': translatedText,
         'sourceLanguage': (result['sourceLanguage'] ?? 'unknown').toString(),
         'targetLanguage': targetLanguage,
-        'confidence': (result['confidence'] ?? 0).toString(),
       };
-      
+
       return translatedText;
     } catch (e) {
       print('❌ Translation error: $e');
-      return text; // Return original text if translation fails
+      return text;
     }
   }
 
@@ -219,20 +210,26 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       if (_currentlyPlayingVoiceId == messageId) {
         await _audioPlayer.stop();
-        setState(() {
-          _currentlyPlayingVoiceId = null;
-        });
-      } else {
-        await _audioPlayer.stop();
-        await _audioPlayer.play(UrlSource(voiceUrl));
-        setState(() {
-          _currentlyPlayingVoiceId = messageId;
-        });
-        
-        _audioPlayer.onPlayerComplete.listen((event) {
+        if (mounted) {
           setState(() {
             _currentlyPlayingVoiceId = null;
           });
+        }
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.play(UrlSource(voiceUrl));
+        if (mounted) {
+          setState(() {
+            _currentlyPlayingVoiceId = messageId;
+          });
+        }
+
+        _audioPlayer.onPlayerComplete.listen((event) {
+          if (mounted) {
+            setState(() {
+              _currentlyPlayingVoiceId = null;
+            });
+          }
         });
       }
     } catch (e) {
@@ -264,7 +261,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (image == null) return;
 
-      setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = true);
 
       try {
         final imageUrl = await _chatService.uploadChatImage(
@@ -322,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     if (result != null) {
-      setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = true);
 
       try {
         String? imageUrl;
@@ -341,14 +338,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
         _scrollToBottom();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send progress update: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send progress update: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -371,6 +372,17 @@ class _ChatScreenState extends State<ChatScreen> {
     String minutes = twoDigits(duration.inMinutes.remainder(60));
     String seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+
+  String _formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 0) {
+      return '${timestamp.day}/${timestamp.month}';
+    } else {
+      return '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   @override
@@ -401,7 +413,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          // Language selector toggle
           IconButton(
             onPressed: () {
               setState(() {
@@ -424,7 +435,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Language selector panel
           if (_showLanguageSelector)
             Container(
               width: double.infinity,
@@ -444,7 +454,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Select your preferred language. Messages will be automatically translated to your chosen language.',
+                          'Select your preferred language. Messages will be automatically translated for you.',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,
@@ -464,10 +474,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         _showLanguageSelector = false;
                       });
                       _saveUserLanguagePreference(languageCode);
-                      
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(languageCode == 'auto' 
+                          content: Text(languageCode == 'auto'
                               ? 'Language set to Auto (Original Language)'
                               : 'Language set to $languageName'),
                           duration: const Duration(seconds: 2),
@@ -478,8 +488,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-
-          // Messages List
           Expanded(
             child: StreamBuilder<List<ChatMessage>>(
               stream: _chatService.getMessages(widget.chatRoomId),
@@ -547,25 +555,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       primaryBrown: widget.primaryBrown,
                       lightBrown: widget.lightBrown,
                       isPlayingVoice: _currentlyPlayingVoiceId == message.id,
-                      onVoicePlay: () => _playVoiceMessage(message.voiceUrl!, message.id),
+                      onVoicePlay: () =>
+                          _playVoiceMessage(message.voiceUrl!, message.id),
                       formatDuration: _formatDuration,
                       targetLanguage: _selectedLanguage,
                       translateText: _translateText,
+                      formatTime: _formatTime,
                     );
                   },
                 );
               },
             ),
           ),
-
-          // Loading indicator
           if (_isLoading)
             Container(
               padding: const EdgeInsets.all(8),
               child: CircularProgressIndicator(color: widget.primaryBrown),
             ),
-
-          // Message Input
           Container(
             padding: EdgeInsets.all(screenSize.width * 0.04),
             decoration: BoxDecoration(
@@ -581,22 +587,17 @@ class _ChatScreenState extends State<ChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
-                  // Image button
                   IconButton(
                     onPressed: _sendImage,
                     icon: Icon(Icons.image, color: widget.primaryBrown),
                   ),
-                  
-                  // Voice message recorder with language support
                   ChatVoiceRecorder(
                     onVoiceRecorded: _sendVoiceMessage,
                     primaryColor: widget.primaryBrown,
                     accentColor: widget.lightBrown,
                     targetLanguage: _selectedLanguage,
                   ),
-                  
                   const SizedBox(width: 8),
-                  // Text input
                   Expanded(
                     child: TextField(
                       controller: _messageController,
@@ -617,10 +618,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-
                   const SizedBox(width: 8),
-
-                  // Send button
                   CircleAvatar(
                     backgroundColor: widget.primaryBrown,
                     child: IconButton(
@@ -638,7 +636,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// Enhanced Message Bubble with Translation Support
 class _MessageBubble extends StatefulWidget {
   final ChatMessage message;
   final bool isMe;
@@ -649,6 +646,7 @@ class _MessageBubble extends StatefulWidget {
   final String Function(Duration?) formatDuration;
   final String targetLanguage;
   final Future<String?> Function(String, String) translateText;
+  final String Function(DateTime) formatTime;
 
   const _MessageBubble({
     required this.message,
@@ -660,6 +658,7 @@ class _MessageBubble extends StatefulWidget {
     required this.formatDuration,
     required this.targetLanguage,
     required this.translateText,
+    required this.formatTime,
   });
 
   @override
@@ -674,7 +673,6 @@ class _MessageBubbleState extends State<_MessageBubble> {
   @override
   void initState() {
     super.initState();
-    // Only translate if target language is not 'auto'
     if (widget.targetLanguage != 'auto') {
       _translateMessages();
     }
@@ -687,57 +685,36 @@ class _MessageBubbleState extends State<_MessageBubble> {
       if (widget.targetLanguage != 'auto') {
         _translateMessages();
       } else {
-        setState(() {
-          _translatedMessage = null;
-          _translatedTranscription = null;
-        });
+        if (mounted) {
+          setState(() {
+            _translatedMessage = null;
+            _translatedTranscription = null;
+          });
+        }
       }
     }
   }
 
   Future<void> _translateMessages() async {
-    // Skip translation if target language is 'auto'
     if (widget.targetLanguage == 'auto') return;
 
-    setState(() {
-      _isTranslating = true;
-    });
+    if (mounted) setState(() => _isTranslating = true);
 
     try {
-      // Determine if we need to translate the message
-      bool needsTranslation = false;
-      
-      // For voice messages, check if detected language is different from target
-      if (widget.message.messageType == 'voice' && widget.message.detectedLanguage != null) {
-        needsTranslation = widget.message.detectedLanguage != widget.targetLanguage;
-      } else {
-        // For text messages, assume they need translation if target is not 'auto'
-        needsTranslation = true;
+      if (widget.message.message.isNotEmpty &&
+          widget.message.message != 'Shared an image' &&
+          widget.message.messageType != 'voice') {
+        _translatedMessage = await widget.translateText(
+            widget.message.message, widget.targetLanguage);
       }
 
-      if (needsTranslation) {
-        // Translate main message if it's not a default message
-        if (widget.message.message.isNotEmpty && 
-            widget.message.message != 'Shared an image' &&
-            widget.message.message != 'Voice message' &&
-            widget.message.messageType != 'voice') {
-          _translatedMessage = await widget.translateText(
-            widget.message.message, 
-            widget.targetLanguage
-          );
-        }
-
-        // Translate transcription if available
-        if (widget.message.transcription != null && 
-            widget.message.transcription!.isNotEmpty) {
-          _translatedTranscription = await widget.translateText(
-            widget.message.transcription!, 
-            widget.targetLanguage
-          );
-        }
+      if (widget.message.transcription != null &&
+          widget.message.transcription!.isNotEmpty) {
+        _translatedTranscription = await widget.translateText(
+            widget.message.transcription!, widget.targetLanguage);
       }
     } catch (e) {
-      print('Translation error: $e');
+      print('Translation error in bubble: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -750,22 +727,28 @@ class _MessageBubbleState extends State<_MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final displayMessage = _translatedMessage ?? widget.message.message;
-    final displayTranscription = _translatedTranscription ?? widget.message.transcription;
+    final displayTranscription =
+        _translatedTranscription ?? widget.message.transcription;
     final supportedLanguages = GeminiService.getSupportedLanguages();
-    final targetLanguageName = supportedLanguages[widget.targetLanguage] ?? widget.targetLanguage;
+    final targetLanguageName =
+        supportedLanguages[widget.targetLanguage] ?? widget.targetLanguage;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!widget.isMe) ...[
             CircleAvatar(
               radius: 16,
               backgroundColor: widget.lightBrown,
               child: Text(
-                widget.message.senderName.isNotEmpty ? widget.message.senderName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                widget.message.senderName.isNotEmpty
+                    ? widget.message.senderName[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 8),
@@ -776,8 +759,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
               decoration: BoxDecoration(
                 color: widget.isMe ? widget.primaryBrown : Colors.white,
                 borderRadius: BorderRadius.circular(16).copyWith(
-                  bottomLeft: widget.isMe ? const Radius.circular(16) : const Radius.circular(4),
-                  bottomRight: widget.isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  bottomLeft: widget.isMe
+                      ? const Radius.circular(16)
+                      : const Radius.circular(4),
+                  bottomRight: widget.isMe
+                      ? const Radius.circular(4)
+                      : const Radius.circular(16),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -790,13 +777,15 @@ class _MessageBubbleState extends State<_MessageBubble> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Translation indicator - only show if actually translated
-                  if (widget.targetLanguage != 'auto' && (_translatedMessage != null || _translatedTranscription != null))
+                  if (widget.targetLanguage != 'auto' &&
+                      (_translatedMessage != null ||
+                          _translatedTranscription != null))
                     Container(
                       margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: widget.isMe 
+                        color: widget.isMe
                             ? Colors.white.withOpacity(0.2)
                             : Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -804,96 +793,33 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.translate, 
-                            size: 10, 
-                            color: widget.isMe ? Colors.white70 : Colors.blue.shade600
-                          ),
+                          Icon(Icons.translate,
+                              size: 10,
+                              color: widget.isMe
+                                  ? Colors.white70
+                                  : Colors.blue.shade600),
                           const SizedBox(width: 2),
                           Text(
                             'Translated to $targetLanguageName',
                             style: TextStyle(
                               fontSize: 8,
-                              color: widget.isMe ? Colors.white70 : Colors.blue.shade600,
+                              color: widget.isMe
+                                  ? Colors.white70
+                                  : Colors.blue.shade600,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                  // Original language indicator for voice messages (only if translating)
-                  if (widget.targetLanguage != 'auto' &&
-                      widget.message.messageType == 'voice' && 
-                      widget.message.detectedLanguage != null && 
-                      widget.message.detectedLanguage != widget.targetLanguage)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: widget.isMe 
-                            ? Colors.white.withOpacity(0.1)
-                            : Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.language, 
-                            size: 10, 
-                            color: widget.isMe ? Colors.white70 : Colors.green.shade600
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            'Originally in ${supportedLanguages[widget.message.detectedLanguage] ?? widget.message.detectedLanguage}',
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: widget.isMe ? Colors.white70 : Colors.green.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Progress update header
-                  if (widget.message.messageType == 'progress_update')
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.update,
-                            size: 14,
-                            color: widget.isMe ? Colors.white : Colors.orange.shade800,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Progress Update',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: widget.isMe ? Colors.white : Colors.orange.shade800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
-                  // Voice message
-                  if (widget.message.messageType == 'voice' && widget.message.voiceUrl != null) ...[
+                  if (widget.message.messageType == 'voice' &&
+                      widget.message.voiceUrl != null) ...[
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: widget.isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+                        color: widget.isMe
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -902,8 +828,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           IconButton(
                             onPressed: widget.onVoicePlay,
                             icon: Icon(
-                              widget.isPlayingVoice ? Icons.pause : Icons.play_arrow,
-                              color: widget.isMe ? Colors.white : widget.primaryBrown,
+                              widget.isPlayingVoice
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: widget.isMe
+                                  ? Colors.white
+                                  : widget.primaryBrown,
                             ),
                           ),
                           Column(
@@ -914,13 +844,18 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                   Icon(
                                     Icons.graphic_eq,
                                     size: 16,
-                                    color: widget.isMe ? Colors.white70 : Colors.grey,
+                                    color: widget.isMe
+                                        ? Colors.white70
+                                        : Colors.grey,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    widget.formatDuration(widget.message.voiceDuration),
+                                    widget.formatDuration(
+                                        widget.message.voiceDuration),
                                     style: TextStyle(
-                                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                      color: widget.isMe
+                                          ? Colors.white70
+                                          : Colors.grey.shade600,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -930,7 +865,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                 Text(
                                   'Playing...',
                                   style: TextStyle(
-                                    color: widget.isMe ? Colors.white70 : widget.primaryBrown,
+                                    color: widget.isMe
+                                        ? Colors.white70
+                                        : widget.primaryBrown,
                                     fontSize: 10,
                                     fontStyle: FontStyle.italic,
                                   ),
@@ -940,14 +877,15 @@ class _MessageBubbleState extends State<_MessageBubble> {
                         ],
                       ),
                     ),
-                    
-                    // Show transcription if available
-                    if (displayTranscription != null && displayTranscription.isNotEmpty) ...[
+                    if (displayTranscription != null &&
+                        displayTranscription.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: widget.isMe ? Colors.white.withOpacity(0.1) : Colors.grey.shade50,
+                          color: widget.isMe
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Column(
@@ -956,7 +894,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                             Text(
                               'Transcription:',
                               style: TextStyle(
-                                color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                color: widget.isMe
+                                    ? Colors.white70
+                                    : Colors.grey.shade600,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -970,8 +910,11 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                     height: 12,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 1,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        widget.isMe ? Colors.white70 : widget.primaryBrown,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                        widget.isMe
+                                            ? Colors.white70
+                                            : widget.primaryBrown,
                                       ),
                                     ),
                                   ),
@@ -979,7 +922,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                   Text(
                                     'Translating...',
                                     style: TextStyle(
-                                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                      color: widget.isMe
+                                          ? Colors.white70
+                                          : Colors.grey.shade600,
                                       fontSize: 10,
                                       fontStyle: FontStyle.italic,
                                     ),
@@ -990,7 +935,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                               Text(
                                 displayTranscription,
                                 style: TextStyle(
-                                  color: widget.isMe ? Colors.white : Colors.black87,
+                                  color: widget.isMe
+                                      ? Colors.white
+                                      : Colors.black87,
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -1000,8 +947,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       ),
                     ],
                   ],
-                  // Image
-                  if (widget.message.imageUrl != null && widget.message.messageType != 'voice') ...[
+                  if (widget.message.imageUrl != null &&
+                      widget.message.messageType != 'voice') ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
@@ -1017,7 +964,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                             child: Center(
                               child: CircularProgressIndicator(
                                 color: widget.primaryBrown,
-                                value: loadingProgress.expectedTotalBytes != null
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
                                     : null,
@@ -1035,12 +983,12 @@ class _MessageBubbleState extends State<_MessageBubble> {
                         },
                       ),
                     ),
-                    if (displayMessage.isNotEmpty && displayMessage != 'Shared an image') 
+                    if (displayMessage.isNotEmpty &&
+                        displayMessage != 'Shared an image')
                       const SizedBox(height: 8),
-                  ],                  
-                  // Message text (only show if not empty and not default image message)
-                  if (displayMessage.isNotEmpty && 
-                      displayMessage != 'Shared an image' && 
+                  ],
+                  if (displayMessage.isNotEmpty &&
+                      displayMessage != 'Shared an image' &&
                       widget.message.messageType != 'voice')
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1054,7 +1002,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 1,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    widget.isMe ? Colors.white70 : widget.primaryBrown,
+                                    widget.isMe
+                                        ? Colors.white70
+                                        : widget.primaryBrown,
                                   ),
                                 ),
                               ),
@@ -1062,7 +1012,9 @@ class _MessageBubbleState extends State<_MessageBubble> {
                               Text(
                                 'Translating...',
                                 style: TextStyle(
-                                  color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                                  color: widget.isMe
+                                      ? Colors.white70
+                                      : Colors.grey.shade600,
                                   fontSize: 10,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -1073,35 +1025,37 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           Text(
                             displayMessage,
                             style: TextStyle(
-                              color: widget.isMe ? Colors.white : Colors.black87,
+                              color:
+                                  widget.isMe ? Colors.white : Colors.black87,
                               fontSize: 14,
                             ),
                           ),
                       ],
                     ),
-
                   const SizedBox(height: 4),
-
-                  // Timestamp
                   Text(
-                    _formatTime(widget.message.timestamp),
+                    widget.formatTime(widget.message.timestamp),
                     style: TextStyle(
-                      color: widget.isMe ? Colors.white70 : Colors.grey.shade600,
+                      color:
+                          widget.isMe ? Colors.white70 : Colors.grey.shade600,
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-          ),          
+          ),
           if (widget.isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
               backgroundColor: widget.primaryBrown,
               child: Text(
-                widget.message.senderName.isNotEmpty ? widget.message.senderName[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                widget.message.senderName.isNotEmpty
+                    ? widget.message.senderName[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -1109,24 +1063,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
       ),
     );
   }
-
-  String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inDays > 0) {
-      return '${timestamp.day}/${timestamp.month}';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'now';
-    }
-  }
 }
 
-// Progress Update Dialog
 class _ProgressUpdateDialog extends StatefulWidget {
   final TextEditingController controller;
   final Color primaryBrown;
@@ -1180,9 +1118,11 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
           ElevatedButton.icon(
             onPressed: () async {
               final image = await widget.onImagePicked();
-              setState(() {
-                _selectedImage = image;
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedImage = image;
+                });
+              }
             },
             icon: const Icon(Icons.camera_alt),
             label: Text(_selectedImage == null ? 'Add Photo' : 'Change Photo'),

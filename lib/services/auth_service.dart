@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
@@ -6,6 +7,7 @@ class AuthService {
   static final AuthService instance = AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Stream of auth state
   Stream<User?> get authState => _auth.authStateChanges();
@@ -86,6 +88,25 @@ Future<void> signOutFromAll() async {
   } catch (e) {
     print("Error signing out: $e");
     throw Exception("Failed to sign out: $e");
+  }
+}
+
+Future<String?> getUserRole() async {
+  final user = _auth.currentUser;
+  if (user == null) return null;
+
+  try {
+    // Check if the user is a retailer (artisan)
+    var doc = await _firestore.collection('retailers').doc(user.uid).get();
+    if (doc.exists) {
+      return 'artisan';
+    }
+
+    // Otherwise, assume the user is a buyer
+    return 'buyer';
+  } catch (e) {
+    print('Error getting user role: $e');
+    return null;
   }
 }
 

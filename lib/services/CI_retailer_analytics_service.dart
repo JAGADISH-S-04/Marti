@@ -290,27 +290,59 @@ class RetailerAnalyticsService {
     try {
       // Create a more focused prompt
       final prompt = '''
-Analyze this artisan's actual work history and provide specialization insights.
+**Analyze Artisan Profile for Project Recommendations**
 
-RETAILER DATA:
-- Products in store: ${(retailerProfile['products'] as List).length}
-- Categories worked in: ${json.encode(retailerProfile['categoryExperience'])}
-- Success rate: ${retailerProfile['successRate']}%
-- Average price: ₹${retailerProfile['averagePrice']}
-- Projects completed: ${retailerProfile['completedProjects']}
+**Objective:** Evaluate the provided artisan data to determine their core strengths and ideal project type. Your analysis will directly influence which projects are recommended to them.
 
-Based on ACTUAL data only, return JSON:
+**Artisan Data:**
+*   **Product Portfolio:** ${json.encode(retailerProfile['products'])}
+*   **Category Experience:** ${json.encode(retailerProfile['categoryExperience'])}
+*   **Material Expertise:** ${json.encode(retailerProfile['materialExperience'])}
+*   **Price History:** ${json.encode(retailerProfile['priceHistory'])}
+*   **Quotation Success Rate:** ${retailerProfile['successRate']?.toStringAsFixed(2)}%
+*   **Completed Projects:** ${retailerProfile['completedProjects']}
+*   **Average Price Point:** ₹${retailerProfile['averagePrice']?.toStringAsFixed(2)}
+
+**Your Task:**
+Based *only* on the data above, generate a JSON object that precisely defines the artisan's specialization.
+
+**JSON Output Format:**
+```json
 {
-  "primaryCategories": ["top 2 categories from data"],
-  "priceSegment": "budget/mid-range/premium",
-  "complexityLevel": "beginner/intermediate/advanced",
-  "recommendationWeights": {
-    "categoryMatch": 35,
-    "priceCompatibility": 25,
-    "deliveryFeasibility": 20,
-    "materialMatch": 20
+  "primarySpecialization": ["Top 2-3 most experienced categories"],
+  "secondarySpecialization": ["Next 2-3 categories with some experience"],
+  "materialStrengths": ["Top 3-5 materials based on frequency"],
+  "priceSegment": "enum('budget', 'mid-range', 'premium', 'luxury')",
+  "idealProjectComplexity": "enum('simple', 'moderate', 'complex', 'highly-complex')",
+  "estimatedCapacity": "enum('low', 'medium', 'high')",
+  "recommendationStrategy": {
+    "focus": "enum('best-match', 'growth-opportunity', 'high-value')",
+    "weights": {
+      "categoryMatch": 40,
+      "pricePointAlignment": 25,
+      "materialSynergy": 20,
+      "timelineFeasibility": 10,
+      "competitionLevel": 5
+    }
   }
-}''';
+}
+```
+
+**Instructions for Analysis:**
+1.  **Specialization:** Identify `primarySpecialization` from categories with the highest count in `categoryExperience`. `secondarySpecialization` are the next tier.
+2.  **Materials:** List the most frequently used materials in `materialStrengths`.
+3.  **Price Segment:**
+    *   `budget`: Average price < ₹3,000
+    *   `mid-range`: ₹3,000 - ₹10,000
+    *   `premium`: ₹10,000 - ₹25,000
+    *   `luxury`: > ₹25,000
+4.  **Complexity:** Assess `idealProjectComplexity` based on the diversity of categories, materials, and price range. Higher diversity and price suggest higher complexity.
+5.  **Capacity:** Estimate `estimatedCapacity` based on `completedProjects` and `totalQuotations`. More activity suggests higher capacity.
+6.  **Strategy:** Set `recommendationStrategy.focus` to 'best-match' to prioritize jobs the artisan is most qualified for. The weights are pre-defined.
+
+Generate only the JSON object.
+''';
+
 
       final response = await _model!.generateContent([Content.text(prompt)])
           .timeout(const Duration(seconds: 15));
@@ -409,83 +441,99 @@ Based on ACTUAL data only, return JSON:
     required Map<String, dynamic> specialties,
   }) async {
     
-    // Rule-based scoring system
     List<Map<String, dynamic>> scoredRequests = [];
     
-    final categoryExperience = retailerProfile['categoryExperience'] as Map<String, dynamic>? ?? {};
-    final priceRange = retailerProfile['priceRange'] as Map<String, dynamic>? ?? {'min': 0, 'max': 100000};
-    final averagePrice = retailerProfile['averagePrice'] as double? ?? 0.0;
+    final weights = specialties['recommendationStrategy']?['weights'] ?? specialties['recommendationWeights'] ?? {
+      'categoryMatch': 40,
+      'pricePointAlignment': 25,
+      'materialSynergy': 20,
+      'timelineFeasibility': 10,
+      'competitionLevel': 5,
+    };
+
+    final primarySpecialization = (specialties['primarySpecialization'] as List? ?? []).cast<String>();
+    final secondarySpecialization = (specialties['secondarySpecialization'] as List? ?? []).cast<String>();
+    final materialStrengths = (specialties['materialStrengths'] as List? ?? []).cast<String>();
+    final avgPrice = retailerProfile['averagePrice'] as double? ?? 0.0;
     final successRate = retailerProfile['successRate'] as double? ?? 0.0;
-    
+
     for (var request in availableRequests) {
       try {
         double score = 0.0;
         List<String> matchReasons = [];
-        
-        // Category matching (35% weight)
+
+        // Category Matching (40% weight)
         final requestCategory = request['category']?.toString() ?? 'Other';
-        final categoryScore = (categoryExperience[requestCategory] as int? ?? 0).toDouble();
-        if (categoryScore > 0) {
-          score += 35.0 * (categoryScore / 10.0).clamp(0.0, 1.0); // Normalize to 0-1
-          matchReasons.add('Has experience in $requestCategory');
+        if (primarySpecialization.contains(requestCategory)) {
+          score += weights['categoryMatch'] * 1.0;
+          matchReasons.add('Perfect category match: $requestCategory');
+        } else if (secondarySpecialization.contains(requestCategory)) {
+          score += weights['categoryMatch'] * 0.6;
+          matchReasons.add('Good category fit: $requestCategory');
         }
-        
-        // Price compatibility (25% weight)
+
+        // Price Point Alignment (25% weight)
         final requestBudget = _safeToDouble(request['budget']) ?? 0.0;
-        if (requestBudget > 0) {
-          final priceMin = _safeToDouble(priceRange['min']) ?? 0.0;
-          final priceMax = _safeToDouble(priceRange['max']) ?? 100000.0;
-          
-          if (requestBudget >= priceMin && requestBudget <= priceMax) {
-            score += 25.0;
-            matchReasons.add('Budget matches your price range');
-          } else if (averagePrice > 0) {
-            final priceDiff = (requestBudget - averagePrice).abs() / averagePrice;
-            if (priceDiff < 0.5) { // Within 50% of average
-              score += 15.0;
-              matchReasons.add('Budget is close to your average');
-            }
+        if (requestBudget > 0 && avgPrice > 0) {
+          final priceDiff = (requestBudget - avgPrice).abs() / avgPrice;
+          if (priceDiff < 0.3) { // Within 30% of average price
+            score += weights['pricePointAlignment'] * 1.0;
+            matchReasons.add('Budget aligns with your average price');
+          } else if (priceDiff < 0.6) { // Within 60%
+            score += weights['pricePointAlignment'] * 0.5;
+            matchReasons.add('Budget is reasonably close to your average');
           }
         }
-        
-        // Competition analysis (20% weight)
-        final quotationsCount = (request['quotations'] as List?)?.length ?? 0;
-        if (quotationsCount < 3) {
-          score += 20.0;
-          matchReasons.add('Low competition');
-        } else if (quotationsCount < 6) {
-          score += 10.0;
-          matchReasons.add('Moderate competition');
+
+        // Material Synergy (20% weight)
+        final requestMaterials = request['materials'] as List? ?? [];
+        if (requestMaterials.isNotEmpty && materialStrengths.isNotEmpty) {
+          final intersection = requestMaterials.where((m) => materialStrengths.contains(m.toString().toLowerCase())).length;
+          if (intersection > 0) {
+            double materialScore = (intersection / requestMaterials.length).clamp(0.0, 1.0);
+            score += weights['materialSynergy'] * materialScore;
+            matchReasons.add('You have experience with required materials');
+          }
         }
-        
-        // Success probability bonus (20% weight)
-        if (successRate > 50) {
-          score += 20.0 * (successRate / 100.0);
-          matchReasons.add('Good success rate match');
-        }
-        
-        // Deadline feasibility
+
+        // Timeline Feasibility (10% weight)
         final deadline = request['deadline'];
         if (deadline is Timestamp) {
           final daysUntilDeadline = deadline.toDate().difference(DateTime.now()).inDays;
-          if (daysUntilDeadline > 7) {
-            score += 5.0;
+          if (daysUntilDeadline > 14) {
+            score += weights['timelineFeasibility'] * 1.0;
+            matchReasons.add('Generous timeline');
+          } else if (daysUntilDeadline > 7) {
+            score += weights['timelineFeasibility'] * 0.6;
             matchReasons.add('Adequate timeline');
           }
         }
+
+        // Competition Level (5% weight)
+        final quotationsCount = (request['quotations'] as List?)?.length ?? 0;
+        if (quotationsCount < 3) {
+          score += weights['competitionLevel'] * 1.0;
+          matchReasons.add('Low competition');
+        } else if (quotationsCount < 6) {
+          score += weights['competitionLevel'] * 0.5;
+          matchReasons.add('Moderate competition');
+        }
         
-        // Only include requests with decent scores
-        if (score > 20.0) {
-          // Create AI recommendation format for consistency
+        // Request Freshness Boost (Bonus up to 5 points)
+        final createdAt = request['createdAt'];
+        if (createdAt is Timestamp) {
+          final daysOld = DateTime.now().difference(createdAt.toDate()).inDays;
+          if (daysOld < 3) {
+            score += 5.0; // Newest requests get a significant boost
+            matchReasons.add('New request');
+          }
+        }
+
+        if (score > 30.0) { // Adjusted threshold
           final aiRecommendation = {
             'requestId': request['id'] ?? '',
-            'recommendationScore': score,
+            'recommendationScore': score.clamp(0.0, 100.0),
             'matchReasons': matchReasons,
-            'categoryMatchScore': categoryScore,
-            'priceCompatibilityScore': requestBudget > 0 ? 
-                (requestBudget >= (priceRange['min'] ?? 0) && requestBudget <= (priceRange['max'] ?? 100000) ? 100.0 : 50.0) : 0.0,
-            'competitionScore': quotationsCount < 3 ? 100.0 : (quotationsCount < 6 ? 50.0 : 25.0),
-            'successProbability': successRate,
             'recommendationTags': _generateTags(score, matchReasons),
             'estimatedWinChance': _calculateWinChance(score, successRate, quotationsCount),
           };
@@ -511,7 +559,7 @@ Based on ACTUAL data only, return JSON:
     });
     
     if (kDebugMode) {
-      print('RetailerAnalyticsService: Scored ${scoredRequests.length} requests using rule-based system');
+      print('RetailerAnalyticsService: Scored ${scoredRequests.length} requests using enhanced rule-based system');
     }
     
     return scoredRequests;
@@ -707,23 +755,62 @@ Based on ACTUAL data only, return JSON:
   /// Enhanced default specialties
   static Map<String, dynamic> _getDefaultSpecialties(Map<String, dynamic> profile) {
     final categoryExp = profile['categoryExperience'] as Map<String, dynamic>? ?? {};
-    final priceRange = profile['priceRange'] as Map<String, dynamic>? ?? {'min': 0, 'max': 10000};
-    final avgPrice = profile['averagePrice'] as double? ?? 5000;
+    final materialExp = profile['materialExperience'] as Map<String, dynamic>? ?? {};
+    final avgPrice = profile['averagePrice'] as double? ?? 0.0;
+    final completedProjects = profile['completedProjects'] as int? ?? 0;
+    final totalQuotations = profile['totalQuotations'] as int? ?? 0;
 
-    final topCategories = categoryExp.entries
-        .toList()
-        ..sort((a, b) => (b.value as int).compareTo(a.value as int));
+    final sortedCategories = categoryExp.entries.toList()
+      ..sort((a, b) => (b.value as int).compareTo(a.value as int));
+    
+    final sortedMaterials = materialExp.entries.toList()
+      ..sort((a, b) => (b.value as int).compareTo(a.value as int));
+
+    String priceSegment;
+    if (avgPrice < 3000) {
+      priceSegment = 'budget';
+    } else if (avgPrice < 10000) {
+      priceSegment = 'mid-range';
+    } else if (avgPrice < 25000) {
+      priceSegment = 'premium';
+    } else {
+      priceSegment = 'luxury';
+    }
+
+    String complexity;
+    if (sortedCategories.length > 5 || (profile['products'] as List).length > 15) {
+      complexity = 'complex';
+    } else if (sortedCategories.length > 2 || (profile['products'] as List).length > 5) {
+      complexity = 'moderate';
+    } else {
+      complexity = 'simple';
+    }
+    
+    String capacity;
+    if (completedProjects > 10 || totalQuotations > 20) {
+      capacity = 'high';
+    } else if (completedProjects > 3 || totalQuotations > 5) {
+      capacity = 'medium';
+    } else {
+      capacity = 'low';
+    }
 
     return {
-      'primaryCategories': topCategories.take(2).map((e) => e.key).toList(),
-      'priceSegment': avgPrice < 3000 ? 'budget' : avgPrice < 8000 ? 'mid-range' : 'premium',
-      'complexityLevel': (profile['products'] as List).length > 10 ? 'advanced' : 'intermediate',
-      'recommendationWeights': {
-        'categoryMatch': 35,
-        'priceCompatibility': 25,
-        'deliveryFeasibility': 20,
-        'materialMatch': 15,
-        'competitionScore': 5,
+      'primarySpecialization': sortedCategories.take(2).map((e) => e.key).toList(),
+      'secondarySpecialization': sortedCategories.skip(2).take(2).map((e) => e.key).toList(),
+      'materialStrengths': sortedMaterials.take(3).map((e) => e.key).toList(),
+      'priceSegment': priceSegment,
+      'idealProjectComplexity': complexity,
+      'estimatedCapacity': capacity,
+      'recommendationStrategy': {
+        'focus': 'best-match',
+        'weights': {
+          'categoryMatch': 40,
+          'pricePointAlignment': 25,
+          'materialSynergy': 20,
+          'timelineFeasibility': 10,
+          'competitionLevel': 5,
+        }
       }
     };
   }
