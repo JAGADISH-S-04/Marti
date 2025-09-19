@@ -1,11 +1,8 @@
-// ignore_for_file: unused_field
-
+// ignore_for_file: unused_field, unused_local_variable
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
 import 'package:arti/models/product.dart';
-import 'package:arti/widgets/notification_app_bar_icon.dart';
-import 'package:arti/notifications/models/notification_type.dart';
 import 'package:arti/widgets/review_widgets.dart';
 import 'package:arti/screens/product_reviews_management_screen.dart';
 import 'package:flutter/material.dart';
@@ -13,17 +10,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-// Removed fl_chart and intl imports as Revenue Analytics graph and backend are deleted
 import 'add_product_screen.dart';
-import '../ref/test_store_creation.dart';
 import 'enhanced_product_listing_page.dart';
 import 'login_screen.dart';
 import 'craft_it/seller_view.dart';
 import 'edit_artisan_story_screen.dart';
 import 'product_migration_page.dart';
-import 'workshop_dashboard_screen.dart';
 import '../services/order_service.dart';
 import 'collaboration/seller_collaboration_screen.dart';
+import 'profile_screen.dart';
+
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -1165,520 +1161,6 @@ class _SellerScreenState extends State<SellerScreen> {
     }
   }
 
-  @override
-  // Replace the build method in _SellerScreenState class
-
-  // Replace the entire build method content with this simplified version:
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.primary.withOpacity(0.8),
-              Theme.of(context).scaffoldBackgroundColor,
-            ],
-            stops: const [0.0, 0.3, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top bar with notification and logout buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20.0, vertical: 12.0),
-                child: Row(
-                  children: [
-                    // Notification icon
-                    const NotificationAppBarIcon(
-                      iconColor: Colors.white,
-                      forceUserRole: UserRole.seller,
-                    ),
-                    const SizedBox(width: 8),
-                    // Logout button
-                    IconButton(
-                      icon: const Icon(Icons.logout,
-                          color: Colors.white, size: 28),
-                      tooltip: 'Logout',
-                      onPressed: () => _logout(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Scrollable Content Area
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                      const SizedBox(height: 20),
-                      Text(
-                        'Quick Actions',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Action Buttons Row 1 - My Store and Collaboration
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'My Store',
-                              Icons.storefront,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const MyStoreScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'Collaboration', // Regular styling like other buttons
-                              Icons.group_work,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SellerCollaborationScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Action Buttons Row 2
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'Requests',
-                              Icons.assignment,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SellerRequestsScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'Artisan Legacy',
-                              Icons.auto_stories,
-                              () {
-                                _showArtisanLegacyDialog(context);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Action Buttons Row 3
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
-                              context,
-                              'Product Listing',
-                              Icons.auto_awesome,
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const EnhancedProductListingPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Action Buttons Row 4 - Living Workshop
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildActionButton(
-                          context,
-                          'Living Workshop',
-                          Icons.vrpano,
-                          () {
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid == null) return;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => WorkshopDashboardScreen(
-                                  artisanId: uid,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Dynamic Store Button (Test Store / Edit Store)
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildActionButton(
-                          context,
-                          _storeData == null ? 'Test Store' : 'Edit Store',
-                          _storeData == null ? Icons.science : Icons.edit,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const TestStoreCreationScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
- 
-                      const SizedBox(height: 30),
-
-                      // Stats Cards Section
-                      Text(
-                        'Overview & Analytics',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Stats Row 1
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Total Products',
-                              '0',
-                              Icons.inventory,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Total Sales',
-                              '₹0',
-                              Icons.attach_money,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Stats Row 2
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Orders',
-                              '0',
-                              Icons.shopping_bag,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SellerOrdersPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Collaborations', // Regular stats card
-                              '0',
-                              Icons.group_work,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SellerCollaborationScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Stats Row 3 - Additional metrics
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Store Views',
-                              '0',
-                              Icons.visibility,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatsCard(
-                              context,
-                              'Reviews',
-                              '0',
-                              Icons.star_rate,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // Recent Activity Section
-                      Text(
-                        'Recent Activity',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Activity placeholder
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondary
-                                .withOpacity(0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.timeline,
-                              size: 48,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No Recent Activity',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Your recent orders, collaborations, and updates will appear here',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Help & Support Section
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.1),
-                              Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withOpacity(0.05),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.2),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.help_outline,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Need Help?',
-                                  style: GoogleFonts.playfairDisplay(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Get support for your store, products, collaborations, and more.',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content:
-                                              Text('Help Center coming soon!'),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.support_agent,
-                                        size: 18),
-                                    label: const Text('Support'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor:
-                                          Theme.of(context).colorScheme.primary,
-                                      side: BorderSide(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content:
-                                              Text('Tutorials coming soon!'),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.school, size: 18),
-                                    label: const Text('Tutorials'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor:
-                                          Theme.of(context).colorScheme.primary,
-                                      side: BorderSide(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Bottom padding to ensure FAB doesn't overlap content
-                      const SizedBox(height: 100),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      // Simplified Floating Action Button
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: "main_action",
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddProductScreen(),
-            ),
-          );
-        },
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
-      ),
-    );
-  }
-
-  // Replace the incomplete _showArtisanLegacyDialog method with this complete version:
-
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -1799,134 +1281,557 @@ class _SellerScreenState extends State<SellerScreen> {
     }
   }
 
-  // Replace the _buildActionButton method to remove highlighting logic:
+  @override
+  Widget build(BuildContext context) {
+    String artisanName = _storeData?['artisanFullName'] ??
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Artisan';
 
-  Widget _buildActionButton(
-    BuildContext context,
-    String title,
-    IconData icon,
-    VoidCallback onPressed,
-  ) {
-    return SizedBox(
-      height: 85,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              Colors.white, // Consistent background for all buttons
-          foregroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 8, // Consistent elevation
-          shadowColor: Colors.black.withOpacity(0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-              width: 1, // Consistent border width
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F9F7),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9F9F7),
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(
+              Icons.menu,
+              color: Color(0xFF2C1810),
             ),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          padding: const EdgeInsets.all(12),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
+        
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
+            onPressed: () {
+              // Handle search action
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
+            onPressed: () {
+              // Handle notifications action
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+              // Handle profile action
+            },
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
-            ),
-            const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600, // Consistent font weight
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: Icon(
+                      Icons.person,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _storeData != null ? _storeData!['storeName'] : 'Artisan',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    FirebaseAuth.instance.currentUser?.email ?? 'N/A',
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.storefront_outlined),
+              title: const Text('My Store'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MyStoreScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_box_outlined),
+              title: const Text('Add Product'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AddProductScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('Artisan Legacy'),
+              onTap: () {
+                Navigator.pop(context);
+                _showArtisanLegacyDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('Product Listing'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const EnhancedProductListingPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.group_work_outlined),
+              title: const Text('Collaborations'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SellerCollaborationScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment_outlined),
+              title: const Text('Requests'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SellerRequestsScreen()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout'),
+              onTap: () {
+                Navigator.pop(context);
+                _logout(context);
+              },
             ),
           ],
         ),
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome Back, $artisanName',
+                    style: GoogleFonts.roboto(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2C1810),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Here's what's happening with your Artisans business today",
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildAnalyticsSection(context),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Quick Actions',
+                    style: GoogleFonts.roboto(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2C1810),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildQuickActionsGrid(context),
+                ],
+              ),
+            ),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
-  Widget _buildStatsCard(
-    BuildContext context,
-    String title,
-    String value,
-    IconData icon, {
-    VoidCallback? onTap,
-  }) {
-    Widget cardContent = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+  Widget _buildAnalyticsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Analytics',
+          style: GoogleFonts.roboto(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF2C1810),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            spreadRadius: 1,
-            offset: const Offset(0, 2),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                spreadRadius: 2,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildAnalyticsCard(
+                context,
+                title: 'Sales',
+                value: '\$230',
+                icon: Icons.attach_money,
+                color: const Color(0xFF5A7F7C),
+                growth: true,
+              ),
+              const SizedBox(height: 12),
+              _buildAnalyticsCard(
+                context,
+                title: 'Orders',
+                value: '15',
+                icon: Icons.shopping_cart,
+                color: const Color(0xFF8B6914),
+                growth: true,
+              ),
+              const SizedBox(height: 12),
+              _buildAnalyticsCard(
+                context,
+                title: 'Store Views',
+                value: '1,200',
+                icon: Icons.visibility,
+                color: const Color(0xFF6B4D8D),
+                growth: false,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool growth,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF2C1810),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2C1810),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                growth ? Icons.arrow_upward : Icons.arrow_downward,
+                color: growth ? Colors.green : Colors.red,
+                size: 18,
+              ),
+            ],
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    );
+  }
+
+  Widget _buildQuickActionsGrid(BuildContext context) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: 1.2,
+      children: [
+        _buildQuickActionButton(
+          context,
+          title: 'Collaboration',
+          description: 'Connect with other Artisans',
+          icon: Icons.group_work,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const SellerCollaborationScreen()),
+            );
+          },
+        ),
+        _buildQuickActionButton(
+          context,
+          title: 'Requests',
+          description: 'View custom orders',
+          icon: Icons.assignment_turned_in,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const SellerRequestsScreen()),
+            );
+          },
+        ),
+        _buildQuickActionButton(
+          context,
+          title: 'My Store',
+          description: 'Manage your Storefront',
+          icon: Icons.storefront,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyStoreScreen()),
+            );
+          },
+        ),
+        _buildQuickActionButton(
+          context,
+          title: 'Product Listing',
+          description: 'Add new products',
+          icon: Icons.auto_awesome,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const EnhancedProductListingPage()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionButton(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              spreadRadius: 2,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: Theme.of(context).colorScheme.secondary,
-                size: 20,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C1810).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: const Color(0xFF2C1810),
+                ),
               ),
+              const SizedBox(height: 8),
               Text(
-                value,
-                style: TextStyle(
-                  fontSize: 18,
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: const Color(0xFF2C1810),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: Colors.grey[600],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
-
-    // If onTap is provided, wrap with GestureDetector for clickability
-    if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: cardContent,
-      );
-    }
-
-    return cardContent;
   }
+}
+
+Widget _buildBottomNavigationBar(BuildContext context) {
+  return Container(
+    height: 70,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 10,
+          spreadRadius: 1,
+          offset: const Offset(0, -5),
+        ),
+      ],
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+      ),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildNavItem(
+          icon: Icons.home,
+          label: 'Home',
+          isSelected: true,
+          onTap: () {
+            // Navigator to Home
+          },
+        ),
+        _buildNavItem(
+          icon: Icons.chat_bubble_outline,
+          label: 'Messages',
+          isSelected: false,
+          onTap: () {
+            
+            // Navigator to Messages
+          },
+        ),
+        _buildNavItem(
+          icon: Icons.insert_chart_outlined,
+          label: 'Analytics',
+          isSelected: false,
+          onTap: () {
+            // Navigator to Analytics
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildNavItem({
+  required IconData icon,
+  required String label,
+  required bool isSelected,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          icon,
+          color: isSelected ? const Color(0xFF2C1810) : Colors.grey,
+          size: 28,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? const Color(0xFF2C1810) : Colors.grey,
+          ),
+        ),
+      ],
+    ),
+  );
 }

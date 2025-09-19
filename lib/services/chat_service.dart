@@ -207,6 +207,8 @@ Stream<List<ChatMessage>> getCollaborationMessages(String chatRoomId) {
 
   // Send message with voice support
   Future<void> sendMessage(String chatRoomId, String message, {
+    File? voiceFile,
+    Duration? duration,
   String? imageUrl, 
   String? voiceUrl,
   String? transcription,
