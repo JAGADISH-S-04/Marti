@@ -33,84 +33,91 @@ class _SellerAnalyticsScreenState extends State<SellerAnalyticsScreen> {
   }
 
   Future<void> _loadChartData() async {
-  setState(() {
-    _isLoadingCharts = true;
-  });
+    setState(() {
+      _isLoadingCharts = true;
+    });
 
-  try {
-    // Try to get real data first
-    List<Map<String, dynamic>> revenueData = 
-        await _analyticsService.getRevenueChartData(days: _selectedDays);
-    
-    // Check if we have meaningful chart data (more than just zeros)
-    bool hasRealData = revenueData.any((point) => point['y'] > 0);
-    
-    if (!hasRealData && revenueData.isNotEmpty) {
-      print('📊 No meaningful revenue trend, using test data for demonstration');
-      // Mix real structure with test values for demonstration
-      revenueData = await _analyticsService.getRevenueChartData(days: _selectedDays);
-    } else if (revenueData.isEmpty) {
-      print('📊 No chart data available, using test data');
-      revenueData = await _analyticsService.getRevenueChartData(days: _selectedDays);
-    }
-    
-    final statusData = await _analyticsService.getOrderStatusChartData();
+    try {
+      // Try to get real data first
+      List<Map<String, dynamic>> revenueData =
+          await _analyticsService.getRevenueChartData(days: _selectedDays);
 
-    if (mounted) {
-      setState(() {
-        _revenueChartData = revenueData;
-        _statusChartData = statusData;
-        _isLoadingCharts = false;
-      });
-    }
-  } catch (e) {
-    print('Error loading chart data: $e');
-    if (mounted) {
-      setState(() {
-        _isLoadingCharts = false;
-      });
+      // Check if we have meaningful chart data (more than just zeros)
+      bool hasRealData = revenueData.any((point) => point['y'] > 0);
+
+      if (!hasRealData && revenueData.isNotEmpty) {
+        print(
+            '📊 No meaningful revenue trend, using test data for demonstration');
+        // Mix real structure with test values for demonstration
+        revenueData =
+            await _analyticsService.getRevenueChartData(days: _selectedDays);
+      } else if (revenueData.isEmpty) {
+        print('📊 No chart data available, using test data');
+        revenueData =
+            await _analyticsService.getRevenueChartData(days: _selectedDays);
+      }
+
+      final statusData = await _analyticsService.getOrderStatusChartData();
+
+      if (mounted) {
+        setState(() {
+          _revenueChartData = revenueData;
+          _statusChartData = statusData;
+          _isLoadingCharts = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading chart data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingCharts = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return MainSellerScaffold(
       currentIndex: 2, // Analytics tab index
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await _loadAnalytics();
-          await _loadChartData();
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Analytics Dashboard',
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
+      showAppBar: false, // Hide the top bar with translate, search, etc.
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _loadAnalytics();
+            await _loadChartData();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(
+                16.0), // Back to normal padding since SafeArea handles status bar
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Analytics Dashboard',
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2C1810),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Comprehensive overview of your business performance.',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: Colors.grey[600],
+                const SizedBox(height: 8),
+                Text(
+                  'Comprehensive overview of your business performance.',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              _buildAnalyticsContent(),
-            ],
-          ),
-        ),
-      ),
-    );
+                const SizedBox(height: 24),
+                _buildAnalyticsContent(),
+              ],
+            ), // Column
+          ), // SingleChildScrollView
+        ), // RefreshIndicator
+      ), // SafeArea
+    ); // MainSellerScaffold
   }
 
   Widget _buildAnalyticsContent() {

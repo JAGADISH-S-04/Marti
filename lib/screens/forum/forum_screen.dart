@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/forum_models.dart';
 import '../../services/forum_service.dart';
+import '../../navigation/Sellerside_navbar.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
 
@@ -65,67 +66,120 @@ class _ForumScreenState extends State<ForumScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        iconTheme: IconThemeData(color: primaryTextColor),
-        title: Text(
-          'Artisan Forum',
-          style: GoogleFonts.inter(
-            color: primaryTextColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: accentColor,
-          labelColor: primaryTextColor,
-          unselectedLabelColor: primaryTextColor.withOpacity(0.6),
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500),
-          tabs: const [
-            Tab(text: 'All Posts', icon: Icon(Icons.forum, size: 20)),
-            Tab(text: 'Trending', icon: Icon(Icons.trending_up, size: 20)),
-            Tab(text: 'My Posts', icon: Icon(Icons.person, size: 20)),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          _buildSearchAndFilters(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+    return MainSellerScaffold(
+      currentIndex: 1, // Forum tab index
+      showAppBar: false, // Hide the top bar with translate, search, etc.
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
               children: [
-                _buildAllPostsTab(),
-                _buildTrendingPostsTab(),
-                _buildMyPostsTab(),
+                // Custom header to replace AppBar
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16,
+                      0), // Back to normal padding since SafeArea handles status bar
+                  color: backgroundColor,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Artisan Forum',
+                        style: GoogleFonts.inter(
+                          color: primaryTextColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Tab Bar
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          indicatorColor: accentColor,
+                          labelColor: primaryTextColor,
+                          unselectedLabelColor:
+                              primaryTextColor.withOpacity(0.6),
+                          labelStyle:
+                              GoogleFonts.inter(fontWeight: FontWeight.w500),
+                          tabs: const [
+                            Tab(
+                                text: 'All Posts',
+                                icon: Icon(Icons.forum, size: 20)),
+                            Tab(
+                                text: 'Trending',
+                                icon: Icon(Icons.trending_up, size: 20)),
+                            Tab(
+                                text: 'My Posts',
+                                icon: Icon(Icons.person, size: 20)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildSearchAndFilters(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildAllPostsTab(),
+                      _buildTrendingPostsTab(),
+                      _buildMyPostsTab(),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: Container(
-        margin: EdgeInsets.only(
-          bottom: MediaQuery.of(context).size.width > 600 ? 16 : 8,
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const CreateForumPostScreen(),
+            // Floating Action Button positioned manually
+            Positioned(
+              bottom: 10, // Closer to the bottom navigation bar
+              right: 20,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const CreateForumPostScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: accentColor,
+                  foregroundColor: cardColor,
+                  elevation:
+                      0, // Remove default elevation since we have custom shadow
+                  icon: const Icon(Icons.add, size: 22),
+                  label: Text(
+                    'Ask Question',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
               ),
-            );
-          },
-          backgroundColor: accentColor,
-          foregroundColor: cardColor,
-          icon: const Icon(Icons.add),
-          label: Text(
-            'Ask Question',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-          ),
+            ),
+          ],
         ),
       ),
     );
