@@ -239,6 +239,18 @@
   "@sales": {
     "description": "Analytics item for sales"
   },
+  "monthlyOrders": "Monthly Orders",
+  "@monthlyOrders": {
+    "description": "Analytics item for monthly orders"
+  },
+  "totalOrders": "Total Orders",
+  "@totalOrders": {
+    "description": "Analytics item for total orders"
+  },
+  "totalRevenue": "Total Revenue",
+  "@totalRevenue": {
+    "description": "Analytics item for total revenue"
+  },
   "translatePage": "Translate Page",
   "@translatePage": {
     "description": "Tooltip for translate button"

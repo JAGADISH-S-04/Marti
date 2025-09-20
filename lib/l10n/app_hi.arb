@@ -238,6 +238,18 @@
   "@sales": {
     "description": "Analytics item for sales"
   },
+  "monthlyOrders": "मासिक ऑर्डर",
+  "@monthlyOrders": {
+    "description": "Analytics item for monthly orders"
+  },
+  "totalOrders": "कुल ऑर्डर",
+  "@totalOrders": {
+    "description": "Analytics item for total orders"
+  },
+  "totalRevenue": "कुल राजस्व",
+  "@totalRevenue": {
+    "description": "Analytics item for total revenue"
+  },
   "translatePage": "पृष्ठ अनुवाद करें",
   "@translatePage": {
     "description": "Tooltip for translate button"
