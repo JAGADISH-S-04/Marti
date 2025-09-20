@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -119,6 +120,38 @@ class _EnhancedProductListingPageState
   static const Color primaryBrown = Color(0xFF2C1810);
   static const Color accentGold = Color(0xFFD4AF37);
 
+  // Map canonical category keys to localized labels for display
+  String _localizedCategoryLabel(BuildContext context, String category) {
+    switch (category) {
+      case 'Pottery':
+        return AppLocalizations.of(context)!.pottery;
+      case 'Jewelry':
+        return AppLocalizations.of(context)!.jewelry;
+      case 'Textiles':
+        return AppLocalizations.of(context)!.textiles;
+      case 'Woodwork':
+        return AppLocalizations.of(context)!.woodwork;
+      case 'Metalwork':
+        return AppLocalizations.of(context)!.metalwork;
+      case 'Leather Goods':
+        return AppLocalizations.of(context)!.leatherGoods;
+      case 'Glass Art':
+        return AppLocalizations.of(context)!.glassArt;
+      case 'Stone Carving':
+        return AppLocalizations.of(context)!.stoneCarving;
+      case 'Basketry':
+        return AppLocalizations.of(context)!.basketry;
+      case 'Ceramics':
+        return AppLocalizations.of(context)!.ceramics;
+      case 'Sculpture':
+        return AppLocalizations.of(context)!.sculpture;
+      case 'Other':
+        return AppLocalizations.of(context)!.other;
+      default:
+        return category;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -218,7 +251,7 @@ class _EnhancedProductListingPageState
       if (images.isNotEmpty) {
         // Limit to maximum 10 images
         if (images.length > 10) {
-          _showSnackBar('Maximum 10 images allowed. Selected first 10 images.',
+          _showSnackBar(AppLocalizations.of(context)!.maxImagesAllowed(10),
               isError: true);
           images.removeRange(10, images.length);
         }
@@ -231,7 +264,7 @@ class _EnhancedProductListingPageState
 
             // Check if file exists
             if (!await file.exists()) {
-              _showSnackBar('Image ${i + 1} could not be found.',
+              _showSnackBar(AppLocalizations.of(context)!.imageNotFound(i + 1),
                   isError: true);
               continue;
             }
@@ -239,7 +272,7 @@ class _EnhancedProductListingPageState
             // Check file size (max 10MB)
             final fileSize = await file.length();
             if (fileSize > 10 * 1024 * 1024) {
-              _showSnackBar('Image ${i + 1} is too large (max 10MB).',
+              _showSnackBar(AppLocalizations.of(context)!.imageTooLarge(i + 1),
                   isError: true);
               continue;
             }
@@ -250,19 +283,19 @@ class _EnhancedProductListingPageState
                 !extension.endsWith('.jpeg') &&
                 !extension.endsWith('.png') &&
                 !extension.endsWith('.webp')) {
-              _showSnackBar('Image ${i + 1} has unsupported format.',
+              _showSnackBar(AppLocalizations.of(context)!.imageUnsupportedFormat(i + 1),
                   isError: true);
               continue;
             }
 
             validImages.add(file);
           } catch (e) {
-            _showSnackBar('Error processing image ${i + 1}: $e', isError: true);
+            _showSnackBar(AppLocalizations.of(context)!.errorProcessingImage(i + 1, e.toString()), isError: true);
           }
         }
 
         if (validImages.isEmpty) {
-          _showSnackBar('No valid images selected.', isError: true);
+          _showSnackBar(AppLocalizations.of(context)!.noValidImagesSelected, isError: true);
           return;
         }
 
@@ -276,7 +309,7 @@ class _EnhancedProductListingPageState
           _aiAnalysis.clear();
         });
 
-        _showSnackBar('${validImages.length} images selected successfully!');
+        _showSnackBar(AppLocalizations.of(context)!.imagesSelectedSuccessfully(validImages.length));
 
         // Auto-analyze if we have enough images
         if (_selectedImages.length >= 2) {
@@ -284,7 +317,7 @@ class _EnhancedProductListingPageState
         }
       }
     } catch (e) {
-      _showSnackBar('Error selecting images: $e', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.errorSelectingImages(e.toString()), isError: true);
     }
   }
 
@@ -322,7 +355,7 @@ class _EnhancedProductListingPageState
   // Analyze media with Gemini AI
   Future<void> _analyzeWithAI() async {
     if ((_selectedImages.isEmpty && _selectedVideo == null)) {
-      _showSnackBar('Please select images or video first', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.pleaseSelectImagesOrVideo, isError: true);
       return;
     }
 
@@ -363,8 +396,7 @@ class _EnhancedProductListingPageState
         _hasAnalyzed = true;
       });
 
-      _showSnackBar(
-          '✨ AI Analysis Complete! Product details filled automatically.');
+      _showSnackBar(AppLocalizations.of(context)!.aiAnalysisComplete);
 
       // Generate additional AI enhancements
       _generateTitleVariations();
@@ -376,7 +408,7 @@ class _EnhancedProductListingPageState
       // Handle specific error types
       if (errorMessage.contains('different products')) {
         _showSnackBar(
-          '❌ Different Products Detected! Please upload images of the SAME product only.',
+          AppLocalizations.of(context)!.differentProductsDetectedSnack,
           isError: true,
         );
 
@@ -384,16 +416,16 @@ class _EnhancedProductListingPageState
         _showProductConsistencyDialog();
       } else if (errorMessage.contains('Unable to parse AI response')) {
         _showSnackBar(
-          '🤖 AI Analysis Failed. Please try again with clearer, well-lit images.',
+          AppLocalizations.of(context)!.aiAnalysisFailedTryClearer,
           isError: true,
         );
       } else if (errorMessage.contains('Invalid JSON format')) {
         _showSnackBar(
-          '⚙️ Technical Error. Please try again or contact support if the issue persists.',
+          AppLocalizations.of(context)!.technicalErrorTryAgain,
           isError: true,
         );
       } else {
-        _showSnackBar('Error analyzing product: $errorMessage', isError: true);
+        _showSnackBar(AppLocalizations.of(context)!.errorAnalyzingProduct(errorMessage), isError: true);
       }
     } finally {
       setState(() {
@@ -504,7 +536,7 @@ class _EnhancedProductListingPageState
       );
       
       print('✅ Buyer display image uploaded: $uploadedUrl');
-      _showSnackBar('✅ Image uploaded successfully!');
+      _showSnackBar(AppLocalizations.of(context)!.imageUploadedSuccessfully);
       
       // Store the uploaded URL for later use
       setState(() {
@@ -517,7 +549,7 @@ class _EnhancedProductListingPageState
       
     } catch (e) {
       print('❌ Error uploading buyer display image: $e');
-      _showSnackBar('❌ Error uploading image: $e', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.errorUploadingImage(e.toString()), isError: true);
       
       setDialogState(() {
         _isUploadingBuyerImage = false;
@@ -529,7 +561,7 @@ class _EnhancedProductListingPageState
   // Apply text-based prompt editing to image
   Future<void> _applyTextPromptEditing(String prompt, StateSetter setDialogState) async {
     if (prompt.trim().isEmpty) {
-      _showSnackBar('Please enter a description of how you want to edit the image', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.enterEditDescription, isError: true);
       return;
     }
 
@@ -539,7 +571,7 @@ class _EnhancedProductListingPageState
         (_aiAnalysis['buyerDisplayImageUrl'] as String?);
 
     if (sourceImageFile == null && (sourceImageUrl == null || sourceImageUrl.isEmpty)) {
-      _showSnackBar('Please select or upload an image first', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.selectOrUploadImageFirst, isError: true);
       return;
     }
 
@@ -582,7 +614,7 @@ class _EnhancedProductListingPageState
 
     } catch (e) {
       print('❌ Error applying text-based editing: $e');
-      _showSnackBar('❌ Error editing image: ${e.toString()}', isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.errorEditingImage(e.toString()), isError: true);
     } finally {
       setDialogState(() {
         _isApplyingPromptEdit = false;
@@ -626,7 +658,7 @@ class _EnhancedProductListingPageState
     } catch (e) {
       print('❌ Error in Gemini text editing: $e');
       // Fallback: return original image if editing fails
-      _showSnackBar('⚠️ Text-based editing is temporarily unavailable. Using original image.', isError: false);
+      _showSnackBar(AppLocalizations.of(context)!.textEditingUnavailable, isError: false);
       return sourceImageBytes;
     }
   }
@@ -672,7 +704,7 @@ class _EnhancedProductListingPageState
         _aiAnalysis['lastEditingPrompt'] = prompt;
       });
 
-      _showSnackBar('✨ Image edited and uploaded successfully!');
+      _showSnackBar(AppLocalizations.of(context)!.imageEditedSuccessfully);
       _promptEditingController.clear(); // Clear the prompt input
 
     } catch (e) {
@@ -730,12 +762,15 @@ class _EnhancedProductListingPageState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Select Buyer Display Image',
+                      AppLocalizations.of(context)!.selectBuyerDisplayImage,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primaryBrown,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
                     ),
                   ),
                 ],
@@ -750,20 +785,24 @@ class _EnhancedProductListingPageState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Choose an image that will be displayed to buyers on the marketplace:',
+                        AppLocalizations.of(context)!.chooseImageForMarketplace,
                         style: GoogleFonts.inter(fontSize: 14),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 16),
 
                       // Show uploaded product images for selection
                       if (_selectedImages.isNotEmpty) ...[
                         Text(
-                          'Select from uploaded images:',
+                          AppLocalizations.of(context)!.selectFromUploadedImages,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: primaryBrown,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
@@ -839,12 +878,14 @@ class _EnhancedProductListingPageState
                       // Display current selected image if any
                       if (_buyerDisplayImage != null) ...[
                         Text(
-                          'Selected buyer display image:',
+                          AppLocalizations.of(context)!.selectedBuyerDisplayImage,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: primaryBrown,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
                         Container(
@@ -869,12 +910,14 @@ class _EnhancedProductListingPageState
                       if ((_uploadedBuyerDisplayImageUrl != null && _uploadedBuyerDisplayImageUrl!.isNotEmpty) || 
                           ((_aiAnalysis['buyerDisplayImageUrl'] is String) && (_aiAnalysis['buyerDisplayImageUrl'] as String).isNotEmpty)) ...[
                         Text(
-                          'AI generated buyer display image:',
+                          AppLocalizations.of(context)!.aiGeneratedBuyerDisplayImage,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: primaryBrown,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
                         GestureDetector(
@@ -951,12 +994,14 @@ class _EnhancedProductListingPageState
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Save',
+                                            AppLocalizations.of(context)!.save,
                                             style: GoogleFonts.inter(
                                               fontSize: 12,
                                               color: Colors.white,
                                               fontWeight: FontWeight.w600,
                                             ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),
@@ -976,13 +1021,15 @@ class _EnhancedProductListingPageState
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        'Tap to select this AI-enhanced image',
+                                        AppLocalizations.of(context)!.tapToSelectThisAiImage,
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           color: Colors.white,
                                           fontWeight: FontWeight.w500,
                                         ),
                                         textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
@@ -1000,13 +1047,13 @@ class _EnhancedProductListingPageState
                                 _buyerDisplayImage = null; // Clear file selection
                                 _aiAnalysis['useAIGeneratedImage'] = true;
                               });
-                              _showSnackBar('✨ AI-enhanced image selected for your product!');
+                              _showSnackBar(AppLocalizations.of(context)!.aiImageSelectedForProduct);
                             },
                             icon: const Icon(Icons.auto_awesome),
                             label: Text(
                               _aiAnalysis['useAIGeneratedImage'] == true 
-                                  ? '✓ AI Image Selected' 
-                                  : 'Use AI-Enhanced Image',
+                                  ? AppLocalizations.of(context)!.aiImageSelectedCheck 
+                                  : AppLocalizations.of(context)!.useAiEnhancedImage,
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             style: ElevatedButton.styleFrom(
@@ -1062,10 +1109,10 @@ class _EnhancedProductListingPageState
                               : const Icon(Icons.upload),
                           label: Text(
                             _isUploadingBuyerImage 
-                                ? 'Uploading...'
+                                ? AppLocalizations.of(context)!.uploadingEllipsis
                                 : (_selectedImages.isEmpty
-                                    ? 'Upload Display Image'
-                                    : 'Upload Different Image'),
+                                    ? AppLocalizations.of(context)!.uploadDisplayImage
+                                    : AppLocalizations.of(context)!.uploadDifferentImage),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -1113,23 +1160,30 @@ class _EnhancedProductListingPageState
                               children: [
                                 Icon(Icons.edit, color: Colors.orange.shade700, size: 20),
                                 const SizedBox(width: 8),
-                                Text(
-                                  '✨ Text-Based Image Editing',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.orange.shade700,
+                                Expanded(
+                                  child: Text(
+                                    AppLocalizations.of(context)!.textBasedImageEditing,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: false,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Describe how you want to modify your image using natural language:',
+                              AppLocalizations.of(context)!.describeHowToModifyImage,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 color: Colors.orange.shade600,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 12),
 
@@ -1137,7 +1191,7 @@ class _EnhancedProductListingPageState
                             TextField(
                               controller: _promptEditingController,
                               decoration: InputDecoration(
-                                hintText: 'e.g., "Make the background brighter and more professional" or "Add better lighting to showcase the product"',
+                                hintText: AppLocalizations.of(context)!.promptHintExamples,
                                 hintStyle: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade500,
@@ -1165,11 +1219,11 @@ class _EnhancedProductListingPageState
                               spacing: 8,
                               runSpacing: 6,
                               children: [
-                                _buildPromptChip('Professional lighting', setDialogState),
-                                _buildPromptChip('Brighter background', setDialogState),
-                                _buildPromptChip('More vibrant colors', setDialogState),
-                                _buildPromptChip('Remove distractions', setDialogState),
-                                _buildPromptChip('Studio quality', setDialogState),
+                _buildPromptChip(AppLocalizations.of(context)!.promptChipProfessionalLighting, setDialogState),
+                _buildPromptChip(AppLocalizations.of(context)!.promptChipBrighterBackground, setDialogState),
+                _buildPromptChip(AppLocalizations.of(context)!.promptChipMoreVibrantColors, setDialogState),
+                _buildPromptChip(AppLocalizations.of(context)!.promptChipRemoveDistractions, setDialogState),
+                _buildPromptChip(AppLocalizations.of(context)!.promptChipStudioQuality, setDialogState),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -1189,9 +1243,9 @@ class _EnhancedProductListingPageState
                                       )
                                     : const Icon(Icons.auto_fix_high),
                                 label: Text(
-                                  _isApplyingPromptEdit 
-                                      ? 'Applying Changes...'
-                                      : 'Apply Text-Based Editing',
+                  _isApplyingPromptEdit 
+                    ? AppLocalizations.of(context)!.applyingChanges
+                    : AppLocalizations.of(context)!.applyTextBasedEditing,
                                   style: const TextStyle(fontWeight: FontWeight.w600),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -1213,12 +1267,14 @@ class _EnhancedProductListingPageState
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    'Be specific about what you want to change. AI works best with clear, descriptive instructions.',
+                                    AppLocalizations.of(context)!.tipBeSpecificForAI,
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.orange.shade600,
                                       fontStyle: FontStyle.italic,
                                     ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -1242,12 +1298,14 @@ class _EnhancedProductListingPageState
                             Expanded(
                               child: Text(
                                 _selectedImages.isNotEmpty
-                                    ? 'Select one of your uploaded images or upload a different one. If you skip, the first uploaded image will be used.'
-                                    : 'This image will be the main display image for buyers. You can skip this if you want to use your uploaded images.',
+                                    ? AppLocalizations.of(context)!.infoSelectUploadedOrDifferentIfSkipFirst
+                                    : AppLocalizations.of(context)!.infoThisWillBeMainDisplay,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.blue.shade700,
                                 ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -1264,8 +1322,10 @@ class _EnhancedProductListingPageState
                     _submitProduct(); // Allow skipping buyer image
                   },
                   child: Text(
-                    'Skip & Continue',
+                    AppLocalizations.of(context)!.skipAndContinue,
                     style: TextStyle(color: _isUploadingBuyerImage ? Colors.grey.shade400 : Colors.grey.shade600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 ElevatedButton(
@@ -1277,9 +1337,11 @@ class _EnhancedProductListingPageState
                     backgroundColor: primaryBrown,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text(
-                    'List Product',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  child: Text(
+                    AppLocalizations.of(context)!.listProduct,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1492,7 +1554,7 @@ class _EnhancedProductListingPageState
         print('🔄 Using first uploaded image as buyer display fallback: $buyerDisplayImageUrl');
       }
 
-      _showSnackBar(isEditMode ? 'Updating product...' : 'Creating product listing...');
+      _showSnackBar(isEditMode ? AppLocalizations.of(context)!.updatingProduct : AppLocalizations.of(context)!.creatingProduct);
 
       // Validate required fields before creating product
       if (buyerDisplayImageUrl.isEmpty) {
@@ -1556,10 +1618,10 @@ class _EnhancedProductListingPageState
       // Create or update the product
       if (isEditMode) {
         await _productService.updateProduct(product);
-        _showSnackBar('🎉 Product "${product.name}" updated successfully!');
+        _showSnackBar(AppLocalizations.of(context)!.productUpdatedSuccessfully2(product.name));
       } else {
         await _productService.createProduct(product);
-        _showSnackBar('🎉 Product "${product.name}" listed successfully!');
+        _showSnackBar(AppLocalizations.of(context)!.productCreatedSuccessfully(product.name));
       }
 
       // Show success dialog with product details
@@ -1642,20 +1704,28 @@ class _EnhancedProductListingPageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Product Details:',
-                        style: TextStyle(
+                      Text(
+                        '${AppLocalizations.of(context)!.productDetails}:',
+                        style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const SizedBox(height: 8),
                       Text('📦 Name: ${product.name}',
-                          style: const TextStyle(fontSize: 13)),
-                      Text('🏷️ Category: ${product.category}',
-                          style: const TextStyle(fontSize: 13)),
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+            Text('🏷️ ${AppLocalizations.of(context)!.category}: ${_localizedCategoryLabel(context, product.category)}',
+              style: const TextStyle(fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
                       Text('💰 Price: \$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 13)),
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       Text('📊 Stock: ${product.stockQuantity}',
-                          style: const TextStyle(fontSize: 13)),
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       Text('🏪 Artisan: ${product.artisanName}',
                           style: const TextStyle(fontSize: 13)),
                     ],
@@ -1829,7 +1899,11 @@ class _EnhancedProductListingPageState
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         backgroundColor: isError ? Colors.red : accentGold,
         duration: const Duration(seconds: 4),
       ),
@@ -1876,21 +1950,21 @@ class _EnhancedProductListingPageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '✅ Upload Guidelines:',
-                        style: TextStyle(
+            Text(
+            '✅ Upload Guidelines:',
+            style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.green.shade700),
                       ),
                       const SizedBox(height: 8),
-                      _buildDialogPoint(
-                          '✓', 'Multiple images of the SAME product'),
-                      _buildDialogPoint(
-                          '✓', 'Different angles or views of one item'),
-                      _buildDialogPoint(
-                          '✓', 'Close-up details of the same product'),
-                      _buildDialogPoint(
-                          '✓', 'Same item with different lighting'),
+            _buildDialogPoint(
+              '✓', 'Multiple images of the SAME product'),
+            _buildDialogPoint(
+              '✓', 'Different angles or views of one item'),
+            _buildDialogPoint(
+              '✓', 'Close-up details of the same product'),
+            _buildDialogPoint(
+              '✓', 'Same item with different lighting'),
                     ],
                   ),
                 ),
@@ -1915,11 +1989,11 @@ class _EnhancedProductListingPageState
                             color: Colors.red.shade700),
                       ),
                       const SizedBox(height: 8),
-                      _buildDialogPoint(
-                          '✗', 'Don\'t mix images of different products'),
-                      _buildDialogPoint(
-                          '✗', 'Don\'t include comparison images'),
-                      _buildDialogPoint('✗', 'Don\'t mix product categories'),
+            _buildDialogPoint(
+              '✗', 'Don\'t mix images of different products'),
+            _buildDialogPoint(
+              '✗', 'Don\'t include comparison images'),
+            _buildDialogPoint('✗', 'Don\'t mix product categories'),
                     ],
                   ),
                 ),
@@ -1955,8 +2029,8 @@ class _EnhancedProductListingPageState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child:
-                  Text('Got it', style: TextStyle(color: Colors.grey.shade600)),
+        child:
+          Text('Got it', style: TextStyle(color: Colors.grey.shade600)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -2033,13 +2107,15 @@ class _EnhancedProductListingPageState
       appBar: AppBar(
         title: Text(
           widget.product != null 
-            ? 'Edit Product' 
-            : 'AI-Powered Product Listing',
+            ? AppLocalizations.of(context)!.editProductListing
+            : AppLocalizations.of(context)!.addProductListing,
           style: GoogleFonts.playfairDisplay(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         backgroundColor: primaryBrown,
         elevation: 0,
@@ -2128,12 +2204,14 @@ class _EnhancedProductListingPageState
               const Icon(Icons.camera_alt, color: primaryBrown),
               const SizedBox(width: 8),
               Text(
-                'Product Media',
+                AppLocalizations.of(context)!.products,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: primaryBrown,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const Spacer(),
               if (_isAnalyzing)
@@ -2149,11 +2227,13 @@ class _EnhancedProductListingPageState
           ),
           const SizedBox(height: 10),
           Text(
-            'Upload high-quality images or video. AI will analyze them automatically!',
+            AppLocalizations.of(context)!.aiAnalysisComplete,
             style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.grey[600],
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 20),
 
@@ -2164,7 +2244,11 @@ class _EnhancedProductListingPageState
                 child: ElevatedButton.icon(
                   onPressed: _pickImages,
                   icon: const Icon(Icons.photo_library),
-                  label: const Text('Upload Images'),
+                  label: Text(
+                    AppLocalizations.of(context)!.selectImages,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         _useVideo ? Colors.grey[300] : primaryBrown,
@@ -2182,7 +2266,11 @@ class _EnhancedProductListingPageState
                 child: ElevatedButton.icon(
                   onPressed: _pickVideo,
                   icon: const Icon(Icons.videocam),
-                  label: const Text('Upload Video'),
+                  label: Text(
+                    AppLocalizations.of(context)!.selectVideo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         _useVideo ? primaryBrown : Colors.grey[300],
@@ -2222,7 +2310,7 @@ class _EnhancedProductListingPageState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Optional: Add images or video to enable AI analysis features',
+                      AppLocalizations.of(context)!.optionalAddMediaForAI,
                       style: TextStyle(color: Colors.blue[800], fontSize: 12),
                     ),
                   ),
@@ -2243,7 +2331,7 @@ class _EnhancedProductListingPageState
         _aiAnalysis.clear();
       }
     });
-    _showSnackBar('Image removed');
+    _showSnackBar(AppLocalizations.of(context)!.imageRemoved);
   }
 
   Widget _buildImagePreview() {
@@ -2258,9 +2346,11 @@ class _EnhancedProductListingPageState
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isEditMode 
-                ? '$totalImages Photos (${existingImages.length} existing, ${_selectedImages.length} new)'
-                : '${_selectedImages.length} Photos Selected',
+              isEditMode
+                  ? AppLocalizations.of(context)!
+                      .photosSummaryEdit(totalImages, existingImages.length, _selectedImages.length)
+                  : AppLocalizations.of(context)!
+                      .photosSelected(_selectedImages.length),
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 color: primaryBrown,
@@ -2276,7 +2366,7 @@ class _EnhancedProductListingPageState
                   });
                 },
                 icon: const Icon(Icons.clear_all, size: 16),
-                label: const Text('Clear New'),
+                label: Text(AppLocalizations.of(context)!.clearNew),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[600],
                 ),
@@ -2350,8 +2440,8 @@ class _EnhancedProductListingPageState
                             color: Colors.blue,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Current',
+                          child: Text(
+                            AppLocalizations.of(context)!.current,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 8,
@@ -2401,7 +2491,11 @@ class _EnhancedProductListingPageState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          hasNewVideo ? 'New Video Selected' : (hasExistingVideo ? 'Current Video' : 'Video Selected'),
+          hasNewVideo
+              ? AppLocalizations.of(context)!.newVideoSelected
+              : (hasExistingVideo
+                  ? AppLocalizations.of(context)!.currentVideo
+                  : AppLocalizations.of(context)!.videoSelected),
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: primaryBrown,
@@ -2424,7 +2518,7 @@ class _EnhancedProductListingPageState
                       if (_isAnalyzing)
                         Container(
                           color: Colors.black54,
-                          child: const Center(
+                          child: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -2433,8 +2527,12 @@ class _EnhancedProductListingPageState
                                       Colors.white),
                                 ),
                                 SizedBox(height: 10),
-                                Text('Analyzing video...',
-                                    style: TextStyle(color: Colors.white)),
+                                Text(
+                                  AppLocalizations.of(context)!.analyzingVideo,
+                                  style: const TextStyle(color: Colors.white),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ],
                             ),
                           ),
@@ -2449,15 +2547,19 @@ class _EnhancedProductListingPageState
                               color: Colors.green,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check,
+                                const Icon(Icons.check,
                                     color: Colors.white, size: 16),
-                                SizedBox(width: 4),
-                                Text('Analyzed',
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 12)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  AppLocalizations.of(context)!.analyzed,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ],
                             ),
                           ),
@@ -2490,15 +2592,15 @@ class _EnhancedProductListingPageState
                         children: [
                           Container(
                             color: Colors.grey[200],
-                            child: const Center(
+                            child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.video_library, size: 50, color: Colors.grey),
-                                  SizedBox(height: 8),
+                                  const Icon(Icons.video_library, size: 50, color: Colors.grey),
+                                  const SizedBox(height: 8),
                                   Text(
-                                    'Current Video',
-                                    style: TextStyle(color: Colors.grey),
+                                    AppLocalizations.of(context)!.currentVideo,
+                                    style: const TextStyle(color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -2513,9 +2615,9 @@ class _EnhancedProductListingPageState
                                 color: Colors.blue,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
-                                'Existing Video',
-                                style: TextStyle(
+                              child: Text(
+                                AppLocalizations.of(context)!.existingVideo,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -2553,7 +2655,7 @@ class _EnhancedProductListingPageState
               const Icon(Icons.auto_awesome, color: accentGold),
               const SizedBox(width: 8),
               Text(
-                'AI Product Analysis',
+                AppLocalizations.of(context)!.aiProductAnalysis,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -2564,7 +2666,7 @@ class _EnhancedProductListingPageState
           ),
           const SizedBox(height: 10),
           Text(
-            'Optional: Upload media and let our AI automatically fill product details with high accuracy.',
+            AppLocalizations.of(context)!.aiUploadMediaHint,
             style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.grey[600],
@@ -2585,7 +2687,11 @@ class _EnhancedProductListingPageState
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.psychology),
-                label: Text(_isAnalyzing ? 'Analyzing...' : 'Analyze with AI'),
+                label: Text(
+                  _isAnalyzing ? AppLocalizations.of(context)!.aiAnalysisComplete : AppLocalizations.of(context)!.analyzeWithAI,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentGold,
                   foregroundColor: Colors.white,
@@ -2611,11 +2717,13 @@ class _EnhancedProductListingPageState
                       color: Colors.grey[600], size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Upload media to enable AI analysis',
+                    AppLocalizations.of(context)!.pleaseSelectImagesOrVideo,
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -2670,7 +2778,7 @@ class _EnhancedProductListingPageState
               const Icon(Icons.auto_fix_high, color: primaryBrown),
               const SizedBox(width: 8),
               Text(
-                'AI Enhancements',
+                AppLocalizations.of(context)!.aiEnhancements,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -2688,7 +2796,7 @@ class _EnhancedProductListingPageState
                 const Icon(Icons.title, color: primaryBrown, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Title Options:',
+                  AppLocalizations.of(context)!.titleOptions,
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     color: primaryBrown,
@@ -2705,7 +2813,7 @@ class _EnhancedProductListingPageState
                     border: Border.all(color: accentGold.withOpacity(0.3)),
                   ),
                   child: Text(
-                    '${_titleVariations.length} options',
+                    AppLocalizations.of(context)!.optionsCount(_titleVariations.length),
                     style: const TextStyle(
                       fontSize: 10,
                       color: primaryBrown,
@@ -2779,9 +2887,9 @@ class _EnhancedProductListingPageState
                           ),
                           elevation: 2,
                         ),
-                        child: const Text(
-                          'Use This',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)!.useThis,
+                          style: const TextStyle(
                               fontSize: 11, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -2800,7 +2908,7 @@ class _EnhancedProductListingPageState
                 const Icon(Icons.auto_awesome, color: primaryBrown, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Description Options:',
+                  AppLocalizations.of(context)!.descriptionOptions,
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     color: primaryBrown,
@@ -2837,7 +2945,7 @@ class _EnhancedProductListingPageState
                             color: Colors.purple.shade600, size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          'Option 1: Luxury & Elegance',
+                          AppLocalizations.of(context)!.optionLuxuryTitle,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.purple.shade700,
@@ -2853,7 +2961,8 @@ class _EnhancedProductListingPageState
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${_descriptionOptions[0].split(' ').length} words',
+                            AppLocalizations.of(context)!
+                                .wordsCount(_descriptionOptions[0].split(' ').length),
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.purple.shade700,
@@ -2881,7 +2990,7 @@ class _EnhancedProductListingPageState
                             _descriptionController.text =
                                 _descriptionOptions[0];
                           });
-                          _showSnackBar('✨ Luxury description applied!');
+                          _showSnackBar(AppLocalizations.of(context)!.luxuryDescriptionApplied);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.purple.shade600,
@@ -2894,9 +3003,9 @@ class _EnhancedProductListingPageState
                           ),
                           elevation: 2,
                         ),
-                        child: const Text(
-                          'Use This',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)!.useThis,
+                          style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -2925,7 +3034,7 @@ class _EnhancedProductListingPageState
                             color: Colors.teal.shade600, size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          'Option 2: Personal & Emotional',
+                          AppLocalizations.of(context)!.optionPersonalTitle,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.teal.shade700,
@@ -2941,7 +3050,8 @@ class _EnhancedProductListingPageState
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${_descriptionOptions[1].split(' ').length} words',
+                            AppLocalizations.of(context)!
+                                .wordsCount(_descriptionOptions[1].split(' ').length),
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.teal.shade700,
@@ -2969,7 +3079,7 @@ class _EnhancedProductListingPageState
                             _descriptionController.text =
                                 _descriptionOptions[1];
                           });
-                          _showSnackBar('✨ Personal description applied!');
+                          _showSnackBar(AppLocalizations.of(context)!.personalDescriptionApplied);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal.shade600,
@@ -2982,9 +3092,9 @@ class _EnhancedProductListingPageState
                           ),
                           elevation: 2,
                         ),
-                        child: const Text(
-                          'Use This',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)!.useThis,
+                          style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -3001,7 +3111,7 @@ class _EnhancedProductListingPageState
             Row(
               children: [
                 Text(
-                  'AI Price Analysis:',
+                  AppLocalizations.of(context)!.aiPriceAnalysis,
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     color: primaryBrown,
@@ -3029,7 +3139,8 @@ class _EnhancedProductListingPageState
                 children: [
                   if (_pricingAnalysis['marketPosition'] != null)
                     Text(
-                      'Market Position: ${_pricingAnalysis['marketPosition']}',
+                      AppLocalizations.of(context)!
+                          .marketPositionLabel('${_pricingAnalysis['marketPosition']}'),
                       style: GoogleFonts.inter(
                           fontSize: 12, fontWeight: FontWeight.w500),
                     ),
@@ -3073,7 +3184,7 @@ class _EnhancedProductListingPageState
               const Icon(Icons.inventory, color: primaryBrown),
               const SizedBox(width: 8),
               Text(
-                'Product Details',
+                AppLocalizations.of(context)!.productDetails,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -3087,8 +3198,8 @@ class _EnhancedProductListingPageState
           // Product Name
           _buildTextField(
             controller: _nameController,
-            label: 'Product Name',
-            hint: 'Enter your product name',
+            label: AppLocalizations.of(context)!.productName,
+            hint: AppLocalizations.of(context)!.enterProductName,
             validator: ValidationBuilder().minLength(3).maxLength(100).build(),
           ),
 
@@ -3107,8 +3218,8 @@ class _EnhancedProductListingPageState
           // Materials
           _buildTextField(
             controller: _materialsController,
-            label: 'Materials',
-            hint: 'e.g., Clay, Wood, Silk (comma-separated)',
+            label: AppLocalizations.of(context)!.materials,
+            hint: AppLocalizations.of(context)!.enterMaterials,
             validator: ValidationBuilder().minLength(3).build(),
           ),
 
@@ -3117,8 +3228,8 @@ class _EnhancedProductListingPageState
           // Dimensions
           _buildTextField(
             controller: _dimensionsController,
-            label: 'Dimensions',
-            hint: 'e.g., 15cm x 10cm x 8cm',
+            label: AppLocalizations.of(context)!.dimensions,
+            hint: AppLocalizations.of(context)!.enterDimensions,
           ),
 
           const SizedBox(height: 20),
@@ -3126,8 +3237,8 @@ class _EnhancedProductListingPageState
           // Crafting Time
           _buildTextField(
             controller: _craftingTimeController,
-            label: 'Crafting Time',
-            hint: 'e.g., 2-3 weeks, 5 days',
+            label: AppLocalizations.of(context)!.craftingTime,
+            hint: AppLocalizations.of(context)!.enterCraftingTime,
           ),
 
           const SizedBox(height: 20),
@@ -3135,8 +3246,8 @@ class _EnhancedProductListingPageState
           // Care Instructions
           _buildTextField(
             controller: _careInstructionsController,
-            label: 'Care Instructions',
-            hint: 'How to maintain and care for this product',
+            label: AppLocalizations.of(context)!.careInstructions,
+            hint: AppLocalizations.of(context)!.enterCareInstructions,
             maxLines: 3,
           ),
 
@@ -3145,16 +3256,16 @@ class _EnhancedProductListingPageState
           // Stock
           _buildTextField(
             controller: _stockController,
-            label: 'Stock Quantity',
-            hint: 'Available quantity',
+            label: AppLocalizations.of(context)!.stockQuantity,
+            hint: AppLocalizations.of(context)!.enterStockQuantity,
             keyboardType: TextInputType.number,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter stock quantity';
+                return AppLocalizations.of(context)!.stockRequired;
               }
               final intValue = int.tryParse(value);
               if (intValue == null || intValue < 1) {
-                return 'Stock quantity must be at least 1';
+                return AppLocalizations.of(context)!.stockMinOne;
               }
               return null;
             },
@@ -3187,28 +3298,30 @@ class _EnhancedProductListingPageState
               const Icon(Icons.attach_money, color: primaryBrown),
               const SizedBox(width: 8),
               Text(
-                'Pricing',
+                AppLocalizations.of(context)!.price,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: primaryBrown,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
           const SizedBox(height: 20),
           _buildTextField(
             controller: _priceController,
-            label: 'Price (USD)',
-            hint: 'Enter price in dollars',
+            label: AppLocalizations.of(context)!.price,
+            hint: AppLocalizations.of(context)!.enterPrice,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter price';
+                return AppLocalizations.of(context)!.priceRequired;
               }
               final doubleValue = double.tryParse(value);
               if (doubleValue == null || doubleValue < 1) {
-                return 'Price must be at least \$1';
+                return AppLocalizations.of(context)!.enterValidPrice;
               }
               return null;
             },
@@ -3228,8 +3341,13 @@ class _EnhancedProductListingPageState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Suggested range: \$${_pricingAnalysis['priceRange']['min']} - \$${_pricingAnalysis['priceRange']['max']}',
+                      AppLocalizations.of(context)!.suggestedRange(
+                        '\$${_pricingAnalysis['priceRange']['min']}',
+                        '\$${_pricingAnalysis['priceRange']['max']}',
+                      ),
                       style: TextStyle(color: Colors.blue[800], fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -3258,6 +3376,8 @@ class _EnhancedProductListingPageState
             fontWeight: FontWeight.w600,
             color: primaryBrown,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -3293,7 +3413,7 @@ class _EnhancedProductListingPageState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Description',
+          AppLocalizations.of(context)!.description,
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: primaryBrown,
@@ -3305,8 +3425,7 @@ class _EnhancedProductListingPageState
           maxLines: 4,
           validator: ValidationBuilder().minLength(50).maxLength(800).build(),
           decoration: InputDecoration(
-            hintText:
-                'Describe your product in detail, or record your story below!',
+            hintText: AppLocalizations.of(context)!.describeProductOrRecord,
             hintStyle: TextStyle(color: Colors.grey[400]),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -3339,8 +3458,8 @@ class _EnhancedProductListingPageState
             accentColor: accentGold,
             showAsButton: true,
             buttonText: widget.product != null
-                ? 'Add Audio Story'
-                : 'Record Your Story',
+                ? AppLocalizations.of(context)!.addAudioStory
+                : AppLocalizations.of(context)!.recordYourStory,
             buttonIcon: Icons.mic,
             onAudioDataChanged: (audioFile, transcription, translations) {
               setState(() {
@@ -3359,11 +3478,13 @@ class _EnhancedProductListingPageState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Category',
+          AppLocalizations.of(context)!.category,
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: primaryBrown,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
@@ -3387,7 +3508,9 @@ class _EnhancedProductListingPageState
           items: _categories.map((category) {
             return DropdownMenuItem(
               value: category,
-              child: Text(category),
+              child: Text(_localizedCategoryLabel(context, category),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1),
             );
           }).toList(),
           onChanged: (value) {
@@ -3401,7 +3524,8 @@ class _EnhancedProductListingPageState
   }
 
   Widget _buildAudioStoryReadyBox() {
-    final String displayText = _audioStoryTranscription ?? 'Audio Story Ready';
+    final String displayText =
+        _audioStoryTranscription ?? AppLocalizations.of(context)!.audioStoryReady;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -3419,7 +3543,7 @@ class _EnhancedProductListingPageState
               Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Audio Story Ready',
+                AppLocalizations.of(context)!.audioStoryReady,
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w600,
                   color: Colors.green.shade700,
@@ -3435,7 +3559,7 @@ class _EnhancedProductListingPageState
                   TextButton.icon(
                     onPressed: _showAudioStoryPreview,
                     icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Preview'),
+                    label: Text(AppLocalizations.of(context)!.preview),
                     style: TextButton.styleFrom(
                       foregroundColor: accentGold,
                       padding: const EdgeInsets.symmetric(
@@ -3459,7 +3583,7 @@ class _EnhancedProductListingPageState
                   TextButton.icon(
                     onPressed: _deleteAudioStory,
                     icon: const Icon(Icons.delete, size: 18),
-                    label: const Text('Delete'),
+                    label: Text(AppLocalizations.of(context)!.delete),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.red.shade600,
                       padding: const EdgeInsets.symmetric(
@@ -3521,7 +3645,7 @@ class _EnhancedProductListingPageState
                         const Icon(Icons.audiotrack, color: Colors.white),
                         const SizedBox(width: 12),
                         Text(
-                          'Audio Story Preview',
+                          AppLocalizations.of(context)!.preview,
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -3558,7 +3682,7 @@ class _EnhancedProductListingPageState
       // Show preview for new audio data with audio player and editable transcription
       _showAdvancedAudioPreview();
     } else {
-      _showSnackBar('No audio story available for preview', isError: true);
+  _showSnackBar(AppLocalizations.of(context)!.noAudioStoryToPreview, isError: true);
     }
   }
 
@@ -3598,7 +3722,7 @@ class _EnhancedProductListingPageState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Audio Story Preview',
+                          AppLocalizations.of(context)!.preview,
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -3663,7 +3787,8 @@ class _EnhancedProductListingPageState
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'New Audio Recording',
+                            // Keep short; falls back to English if not localized elsewhere
+                            AppLocalizations.of(context)!.audioStoryReady,
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
                               color: Colors.green.shade700,
@@ -3764,7 +3889,7 @@ class _EnhancedProductListingPageState
                             borderSide: const BorderSide(color: accentGold, width: 2),
                           ),
                           contentPadding: const EdgeInsets.all(12),
-                          hintText: 'Edit your transcription...',
+                          hintText: AppLocalizations.of(context)!.enterDescription,
                         ),
                         onFieldSubmitted: (value) {
                           setState(() {
@@ -3908,7 +4033,7 @@ class _EnhancedProductListingPageState
                         const Icon(Icons.edit, color: Colors.white),
                         const SizedBox(width: 12),
                         Text(
-                          'Edit Audio Story',
+                          AppLocalizations.of(context)!.editAudioStory,
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -3940,7 +4065,7 @@ class _EnhancedProductListingPageState
                                 updatedProduct.audioStoryTranslations ?? {};
                           });
                           Navigator.of(context).pop();
-                          _showSnackBar('Audio story updated successfully!');
+                          _showSnackBar(AppLocalizations.of(context)!.audioStoryReady);
                         },
                       ),
                     ),
@@ -3980,7 +4105,7 @@ class _EnhancedProductListingPageState
                         const Icon(Icons.edit, color: Colors.white),
                         const SizedBox(width: 12),
                         Text(
-                          'Edit Audio Story',
+                          AppLocalizations.of(context)!.editAudioStory,
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -4009,7 +4134,7 @@ class _EnhancedProductListingPageState
         },
       );
     } else {
-      _showSnackBar('No audio story available to edit', isError: true);
+  _showSnackBar(AppLocalizations.of(context)!.noAudioStoryToEdit, isError: true);
     }
   }
 
@@ -4037,7 +4162,7 @@ class _EnhancedProductListingPageState
                     Icon(Icons.audiotrack, color: Colors.green.shade600),
                     const SizedBox(width: 8),
                     Text(
-                      'Audio Recording Ready',
+                      AppLocalizations.of(context)!.audioRecordingReady,
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600,
                         color: Colors.green.shade700,
@@ -4051,7 +4176,7 @@ class _EnhancedProductListingPageState
 
             // Transcription editor
             Text(
-              'Edit Transcription:',
+              AppLocalizations.of(context)!.editTranscription,
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 color: primaryBrown,
@@ -4093,7 +4218,7 @@ class _EnhancedProductListingPageState
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(AppLocalizations.of(context)!.cancel),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -4103,13 +4228,13 @@ class _EnhancedProductListingPageState
                           transcriptionController.text.trim();
                     });
                     Navigator.of(context).pop();
-                    _showSnackBar('Audio story transcription updated!');
+                    _showSnackBar(AppLocalizations.of(context)!.audioStoryReady);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBrown,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Save Changes'),
+                  child: Text(AppLocalizations.of(context)!.saveChanges),
                 ),
               ],
             ),
@@ -4132,16 +4257,16 @@ class _EnhancedProductListingPageState
             children: [
               Icon(Icons.warning, color: Colors.red.shade600),
               const SizedBox(width: 12),
-              const Text('Delete Audio Story'),
+              Text(AppLocalizations.of(context)!.deleteAudioStory),
             ],
           ),
-          content: const Text(
-            'Are you sure you want to delete this audio story? This action cannot be undone.',
+          content: Text(
+            AppLocalizations.of(context)!.areYouSureDeleteAudioStory,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -4163,7 +4288,7 @@ class _EnhancedProductListingPageState
   // Perform actual audio story deletion
   Future<void> _performDeleteAudioStory() async {
     try {
-      _showSnackBar('Deleting audio story...');
+  _showSnackBar(AppLocalizations.of(context)!.deletingAudioStory);
 
       if (widget.product != null) {
         // Update product to remove audio story
@@ -4201,7 +4326,7 @@ class _EnhancedProductListingPageState
           _audioStoryTranslations.clear();
         });
 
-        _showSnackBar('Audio story deleted successfully!');
+        _showSnackBar(AppLocalizations.of(context)!.audioStoryDeletedSuccessfully);
       } else {
         // Just clear local state for new products
         setState(() {
@@ -4213,7 +4338,7 @@ class _EnhancedProductListingPageState
         _showSnackBar('Audio story removed!');
       }
     } catch (e) {
-      _showSnackBar('Error deleting audio story: $e', isError: true);
+  _showSnackBar(AppLocalizations.of(context)!.errorDeletingProduct(e.toString()), isError: true);
     }
   }
 
@@ -4392,9 +4517,11 @@ class _EnhancedProductListingPageState
                   const SizedBox(width: 12),
                   Text(
                     _isUploadingBuyerImage 
-                        ? 'Uploading Image...'
-                        : (widget.product != null ? 'Updating Product...' : 'Creating Product...'),
-                    style: GoogleFonts.inter(fontSize: 16)
+                        ? AppLocalizations.of(context)!.imageUploadedSuccessfully
+                        : (widget.product != null ? AppLocalizations.of(context)!.updatingProduct : AppLocalizations.of(context)!.creatingProduct),
+                    style: GoogleFonts.inter(fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               )
@@ -4405,12 +4532,14 @@ class _EnhancedProductListingPageState
                   const SizedBox(width: 8),
                   Text(
                     widget.product != null 
-                      ? 'Update Product'
-                      : 'List Product with AI Power',
+                      ? AppLocalizations.of(context)!.updateProduct
+                      : AppLocalizations.of(context)!.createProduct,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -4434,13 +4563,13 @@ class _EnhancedProductListingPageState
             debugPrint('Error displaying AI-generated image: $error');
             return Container(
               color: Colors.grey.shade200,
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.error_outline, size: 48, color: Colors.grey),
                     SizedBox(height: 8),
-                    Text('Failed to load AI image', style: TextStyle(color: Colors.grey)),
+                    Text(AppLocalizations.of(context)!.failedToLoadAiImage, style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -4456,13 +4585,13 @@ class _EnhancedProductListingPageState
             debugPrint('Error loading network image: $error');
             return Container(
               color: Colors.grey.shade200,
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.error_outline, size: 48, color: Colors.grey),
                     SizedBox(height: 8),
-                    Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                    Text(AppLocalizations.of(context)!.failedToLoadImage, style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -4474,13 +4603,13 @@ class _EnhancedProductListingPageState
       debugPrint('Error processing AI-generated image URL: $e');
       return Container(
         color: Colors.grey.shade200,
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.error_outline, size: 48, color: Colors.grey),
               SizedBox(height: 8),
-              Text('Invalid image format', style: TextStyle(color: Colors.grey)),
+              Text(AppLocalizations.of(context)!.invalidImageFormat, style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),
@@ -4493,9 +4622,9 @@ class _EnhancedProductListingPageState
     try {
       // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
-            children: [
+            children: const [
               SizedBox(
                 width: 16,
                 height: 16,
@@ -4505,7 +4634,7 @@ class _EnhancedProductListingPageState
               Text('💾 Downloading AI-generated image...'),
             ],
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -4531,12 +4660,12 @@ class _EnhancedProductListingPageState
       }
 
       // Show success message
-      _showSnackBar('✅ AI-generated image saved to gallery successfully!');
+  _showSnackBar('✅ AI-generated image saved to gallery successfully!');
       print('✅ AI image download completed successfully');
 
     } catch (e) {
       print('❌ Error downloading AI image: $e');
-      String errorMessage = 'Failed to download image';
+  String errorMessage = 'Failed to download image';
       
       if (e.toString().contains('permission')) {
         errorMessage = 'Gallery access permission denied. Please grant permission in app settings.';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../models/forum_models.dart';
 import '../../services/forum_service.dart';
 import '../../navigation/Sellerside_navbar.dart';
@@ -45,8 +46,8 @@ class _ForumScreenState extends State<ForumScreen>
         if (mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Forum access is restricted to sellers only.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.forumAccessRestricted),
               backgroundColor: Colors.red,
             ),
           );
@@ -83,7 +84,7 @@ class _ForumScreenState extends State<ForumScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Artisan Forum',
+                        AppLocalizations.of(context)!.artisanForum,
                         style: GoogleFonts.inter(
                           color: primaryTextColor,
                           fontWeight: FontWeight.w600,
@@ -112,16 +113,16 @@ class _ForumScreenState extends State<ForumScreen>
                               primaryTextColor.withOpacity(0.6),
                           labelStyle:
                               GoogleFonts.inter(fontWeight: FontWeight.w500),
-                          tabs: const [
+                          tabs: [
                             Tab(
-                                text: 'All Posts',
-                                icon: Icon(Icons.forum, size: 20)),
+                                text: AppLocalizations.of(context)!.allPosts,
+                                icon: const Icon(Icons.forum, size: 20)),
                             Tab(
-                                text: 'Trending',
-                                icon: Icon(Icons.trending_up, size: 20)),
+                                text: AppLocalizations.of(context)!.trending,
+                                icon: const Icon(Icons.trending_up, size: 20)),
                             Tab(
-                                text: 'My Posts',
-                                icon: Icon(Icons.person, size: 20)),
+                                text: AppLocalizations.of(context)!.myPosts,
+                                icon: const Icon(Icons.person, size: 20)),
                           ],
                         ),
                       ),
@@ -170,7 +171,7 @@ class _ForumScreenState extends State<ForumScreen>
                       0, // Remove default elevation since we have custom shadow
                   icon: const Icon(Icons.add, size: 22),
                   label: Text(
-                    'Ask Question',
+                    AppLocalizations.of(context)!.askQuestion,
                     style: GoogleFonts.inter(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
@@ -204,7 +205,7 @@ class _ForumScreenState extends State<ForumScreen>
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search posts, tags, or keywords...',
+              hintText: AppLocalizations.of(context)!.searchPostsHint,
               prefixIcon: Icon(Icons.search, color: primaryTextColor),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
@@ -244,17 +245,47 @@ class _ForumScreenState extends State<ForumScreen>
                 child: DropdownButtonFormField<PostCategory>(
                   value: _selectedCategory,
                   decoration: InputDecoration(
-                    labelText: 'Category',
+                    labelText: AppLocalizations.of(context)!.category,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
+                  isExpanded: true,
+                  selectedItemBuilder: (context) {
+                    // Ensure the selected value text truncates with ellipsis to avoid overflow
+                    final items = [
+                      null,
+                      ...PostCategory.values,
+                    ];
+                    return items.map<Widget>((item) {
+                      if (item == null) {
+                        return Text(
+                          'All Categories',
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      }
+                      final category = item;
+                      return Row(
+                        children: [
+                          Text(category.icon),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              category.displayName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList();
+                  },
                   items: [
-                    const DropdownMenuItem<PostCategory>(
+                    DropdownMenuItem<PostCategory>(
                       value: null,
-                      child: Text('All Categories'),
+                      child: Text(AppLocalizations.of(context)!.allCategories),
                     ),
                     ...PostCategory.values.map((category) {
                       return DropdownMenuItem<PostCategory>(
@@ -263,7 +294,13 @@ class _ForumScreenState extends State<ForumScreen>
                           children: [
                             Text(category.icon),
                             const SizedBox(width: 8),
-                            Text(category.displayName),
+                            Flexible(
+                              child: Text(
+                                category.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -280,16 +317,21 @@ class _ForumScreenState extends State<ForumScreen>
               const SizedBox(width: 12),
 
               // Resolved filter
-              FilterChip(
-                label: const Text('Unresolved only'),
-                selected: _showOnlyUnresolved,
-                onSelected: (selected) {
-                  setState(() {
-                    _showOnlyUnresolved = selected;
-                  });
-                },
-                selectedColor: accentColor.withOpacity(0.2),
-                checkmarkColor: accentColor,
+              Flexible(
+                child: FilterChip(
+                  label: Text(
+                    AppLocalizations.of(context)!.unresolvedOnly,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  selected: _showOnlyUnresolved,
+                  onSelected: (selected) {
+                    setState(() {
+                      _showOnlyUnresolved = selected;
+                    });
+                  },
+                  selectedColor: accentColor.withOpacity(0.2),
+                  checkmarkColor: accentColor,
+                ),
               ),
             ],
           ),
@@ -317,10 +359,10 @@ class _ForumScreenState extends State<ForumScreen>
               children: [
                 Icon(Icons.error, size: 64, color: Colors.red[300]),
                 const SizedBox(height: 16),
-                Text('Error loading posts: ${snapshot.error}'),
+                Text(AppLocalizations.of(context)!.errorLoadingPosts(snapshot.error.toString())),
                 ElevatedButton(
                   onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
+                  child: Text(AppLocalizations.of(context)!.retry),
                 ),
               ],
             ),
@@ -337,12 +379,12 @@ class _ForumScreenState extends State<ForumScreen>
                 Icon(Icons.forum, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'No posts found',
+                  AppLocalizations.of(context)!.noPostsFound,
                   style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Be the first to ask a question!',
+                  AppLocalizations.of(context)!.beFirstToAsk,
                   style: TextStyle(color: Colors.grey[500]),
                 ),
               ],
@@ -371,15 +413,15 @@ class _ForumScreenState extends State<ForumScreen>
 
         if (snapshot.hasError) {
           return Center(
-            child: Text('Error loading trending posts: ${snapshot.error}'),
+            child: Text(AppLocalizations.of(context)!.errorLoadingTrending(snapshot.error.toString())),
           );
         }
 
         final posts = snapshot.data ?? [];
 
         if (posts.isEmpty) {
-          return const Center(
-            child: Text('No trending posts this week'),
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noTrendingPosts),
           );
         }
 
@@ -397,8 +439,8 @@ class _ForumScreenState extends State<ForumScreen>
   Widget _buildMyPostsTab() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      return const Center(
-        child: Text('Please log in to view your posts'),
+      return Center(
+        child: Text(AppLocalizations.of(context)!.pleaseLogIn),
       );
     }
 
@@ -411,15 +453,15 @@ class _ForumScreenState extends State<ForumScreen>
 
         if (snapshot.hasError) {
           return Center(
-            child: Text('Error loading your posts: ${snapshot.error}'),
+            child: Text(AppLocalizations.of(context)!.errorLoadingMyPosts(snapshot.error.toString())),
           );
         }
 
         final posts = snapshot.data ?? [];
 
         if (posts.isEmpty) {
-          return const Center(
-            child: Text('You haven\'t posted any questions yet'),
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noPostsYet),
           );
         }
 
@@ -526,7 +568,7 @@ class _ForumScreenState extends State<ForumScreen>
                               size: 12, color: Colors.orange[700]),
                           const SizedBox(width: 2),
                           Text(
-                            'Trending',
+                            AppLocalizations.of(context)!.trending,
                             style: TextStyle(
                                 fontSize: 10, color: Colors.orange[700]),
                           ),
@@ -549,7 +591,7 @@ class _ForumScreenState extends State<ForumScreen>
                               size: 12, color: Colors.green[700]),
                           const SizedBox(width: 2),
                           Text(
-                            'Resolved',
+                            AppLocalizations.of(context)!.resolved,
                             style: TextStyle(
                                 fontSize: 10, color: Colors.green[700]),
                           ),
@@ -593,7 +635,7 @@ class _ForumScreenState extends State<ForumScreen>
                     Icon(Icons.mic, size: 16, color: accentColor),
                     const SizedBox(width: 4),
                     Text(
-                      'Voice message included',
+                      AppLocalizations.of(context)!.voiceMessageIncluded,
                       style: TextStyle(
                         fontSize: 12,
                         color: accentColor,
