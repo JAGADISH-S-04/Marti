@@ -7,11 +7,9 @@ import 'package:arti/widgets/l10n_language_selector.dart';
 import 'package:provider/provider.dart';
 import 'package:arti/screens/seller_analytics_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
-import 'package:arti/screens/profile_screen.dart';
+import 'package:arti/screens/seller_profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
 import 'package:arti/screens/forum/forum_screen.dart';
-
-import 'package:arti/screens/faq/retailer_faq_screen.dart';
 
 class MainSellerScaffold extends StatefulWidget {
   /// The main content of the screen.
@@ -108,7 +106,8 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SellerProfileScreen()),
               );
             },
           ),
@@ -120,10 +119,10 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
       // --- Screen Content Goes Here ---
       body: widget.body,
 
-    // --- Reusable Bottom Navigation Bar ---
-    bottomNavigationBar: _buildBottomNavigationBar(context),
-  );
-}
+      // --- Reusable Bottom Navigation Bar ---
+      bottomNavigationBar: _buildBottomNavigationBar(context),
+    );
+  }
 
   // --- Bottom Navigation Bar Builder ---
   Widget _buildBottomNavigationBar(BuildContext context) {
@@ -166,8 +165,7 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const ForumScreen()),
+                MaterialPageRoute(builder: (context) => const ForumScreen()),
               );
             },
           ),
