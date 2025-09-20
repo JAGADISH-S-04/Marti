@@ -20,7 +20,8 @@ import 'edit_artisan_story_screen.dart';
 import '../services/order_service.dart';
 import 'collaboration/seller_collaboration_screen.dart';
 import 'package:arti/navigation/Sellerside_navbar.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
+import 'package:arti/services/analytics_service.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -309,23 +310,24 @@ class _MyStoreScreenState extends State<MyStoreScreen>
 
   // View product reviews
   Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
-  try {
-    // Convert Map to Product object
-    final product = _mapToProduct(productData);
+    try {
+      // Convert Map to Product object
+      final product = _mapToProduct(productData);
 
-    // Navigate to the Product Reviews Management screen
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductReviewsManagementScreen(
-          product: product,
+      // Navigate to the Product Reviews Management screen
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductReviewsManagementScreen(
+            product: product,
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    print('Error navigating to product reviews: $e');
+      );
+    } catch (e) {
+      print('Error navigating to product reviews: $e');
+    }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return MainSellerScaffold(
@@ -447,7 +449,6 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           ),
           
           const SizedBox(height: 24),
-          
           _buildStoreInfoCard(),
           const SizedBox(height: 20),
           _buildActionButtons(),
@@ -507,7 +508,6 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           ),
 
           // --- CHANGE 3: Add Edit Button ---
-          
         ],
       ),
     );
@@ -664,8 +664,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   }
 
   Widget _buildNewProductCard(Map<String, dynamic> product) {
-    final bool isLowStock =
-        (product['stockQuantity'] ?? 0) <= 10 && (product['stockQuantity'] ?? 0) > 0;
+    final bool isLowStock = (product['stockQuantity'] ?? 0) <= 10 &&
+        (product['stockQuantity'] ?? 0) > 0;
     final formattedPrice =
         NumberFormat.decimalPattern('en_IN').format(product['price'] ?? 0);
 
@@ -874,7 +874,6 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   }
 }
 
-
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
 
@@ -887,12 +886,37 @@ class _SellerScreenState extends State<SellerScreen> {
   Map<String, dynamic>? _storeData;
   bool _isAdmin = false; // Track admin status
 
+  final AnalyticsService _analyticsService = AnalyticsService();
+  Map<String, dynamic> _analyticsData = {};
+  bool _isLoadingAnalytics = true;
+
   @override
   void initState() {
     super.initState();
     _saveCurrentScreen();
     _loadStoreData();
-    _checkAdminStatus(); // Check admin status on init
+    _checkAdminStatus();
+    _loadAnalyticsData(); // Add this line
+  }
+
+  // Add this new method to load analytics data
+  Future<void> _loadAnalyticsData() async {
+    try {
+      final analyticsData = await _analyticsService.getComprehensiveAnalytics();
+      if (mounted) {
+        setState(() {
+          _analyticsData = analyticsData;
+          _isLoadingAnalytics = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading analytics data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAnalytics = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadStoreData() async {
@@ -1003,7 +1027,7 @@ class _SellerScreenState extends State<SellerScreen> {
       }
     }
   }
-          
+
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -1030,8 +1054,8 @@ class _SellerScreenState extends State<SellerScreen> {
       }
 
       final products = snapshot.docs
-          .map((doc) =>
-              Product.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+          .map((doc) => Product.fromMap(
+              {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
           .toList();
 
       showDialog(
@@ -1168,7 +1192,8 @@ class _SellerScreenState extends State<SellerScreen> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const MyStoreScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const MyStoreScreen()),
                 );
               },
             ),
@@ -1179,7 +1204,8 @@ class _SellerScreenState extends State<SellerScreen> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const AddProductScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const AddProductScreen()),
                 );
               },
             ),
@@ -1299,13 +1325,46 @@ class _SellerScreenState extends State<SellerScreen> {
               ),
             ],
           ),
-          child: Column(
+          child: _isLoadingAnalytics
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : Column(
             children: [
-              _buildAnalyticsCard(context, title: AppLocalizations.of(context)!.sales, value: '₹--'),
+              _buildAnalyticsCard(
+                context, 
+                title: AppLocalizations.of(context)!.sales, 
+                value: '₹${_analyticsData['monthlyRevenue']?.toStringAsFixed(0) ?? '0'}',
+                icon: Icons.currency_rupee,
+                color: const Color(0xFF4CAF50),
+              ),
               const SizedBox(height: 12),
-              _buildAnalyticsCard(context, title: AppLocalizations.of(context)!.orders, value: '--'),
+              _buildAnalyticsCard(
+                context, 
+                title: AppLocalizations.of(context)!.monthlyOrders,
+                value: '${_analyticsData['monthlyOrders'] ?? 0}',
+                icon: Icons.shopping_cart,
+                color: const Color(0xFF2196F3),
+              ),
               const SizedBox(height: 12),
-              _buildAnalyticsCard(context, title: AppLocalizations.of(context)!.storeViews, value: '--'),
+              _buildAnalyticsCard(
+                context, 
+                title: AppLocalizations.of(context)!.totalOrders,
+                value: '${_analyticsData['totalOrders'] ?? 0}',
+                icon: Icons.assignment,
+                color: const Color(0xFFFF9800),
+              ),
+              const SizedBox(height: 12),
+              _buildAnalyticsCard(
+                context,
+                title: AppLocalizations.of(context)!.totalRevenue,
+                value: '₹${_analyticsData['totalRevenue']?.toStringAsFixed(0) ?? '0'}',
+                icon: Icons.account_balance_wallet,
+                color: const Color(0xFF9C27B0),
+              ),
             ],
           ),
         ),
@@ -1317,15 +1376,17 @@ class _SellerScreenState extends State<SellerScreen> {
     BuildContext context, {
     required String title,
     required String value,
+    required IconData icon,
+    required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C1810).withOpacity(0.05),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Flexible(
             flex: 2,
@@ -1356,6 +1417,22 @@ class _SellerScreenState extends State<SellerScreen> {
               textAlign: TextAlign.end,
             ),
           ),
+          if (title.contains('Monthly'))
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'This Month',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1388,8 +1465,10 @@ class _SellerScreenState extends State<SellerScreen> {
           description: AppLocalizations.of(context)!.viewCustomOrders,
           icon: Icons.assignment_turned_in,
           onPressed: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const SellerRequestsScreen()));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const SellerRequestsScreen()));
           },
         ),
         _buildQuickActionButton(

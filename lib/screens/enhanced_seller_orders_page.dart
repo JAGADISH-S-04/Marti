@@ -1050,36 +1050,39 @@ class _SellerOrdersPageState extends State<SellerOrdersPage>
   }
 
   Future<void> _updateOrderStatus(Order order, OrderStatus newStatus) async {
-    try {
-      await _orderService.updateOrderStatus(order.id, newStatus);
-      
-      // Track activity
-      await UserProfileService.trackUserActivity('order_status_updated', {
-        'orderId': order.id,
-        'oldStatus': order.status.toString(),
-        'newStatus': newStatus.toString(),
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Order status updated to ${_getStatusText(newStatus)}'),
-          backgroundColor: successGreen,
-        ),
-      );
-      
-      // Refresh statistics
-      _loadOrderStatistics();
-    } catch (e) {
-      print('❌ Error updating order status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to update order status'),
-          backgroundColor: errorRed,
-        ),
-      );
-    }
+  try {
+    // Convert enum to string (remove the OrderStatus. prefix)
+    String statusString = newStatus.toString().split('.').last;
+    
+    await _orderService.updateOrderStatus(order.id, statusString);
+    
+    // Track activity
+    await UserProfileService.trackUserActivity('order_status_updated', {
+      'orderId': order.id,
+      'oldStatus': order.status.toString(),
+      'newStatus': statusString,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Order status updated to ${_getStatusText(newStatus)}'),
+        backgroundColor: successGreen,
+      ),
+    );
+    
+    // Refresh statistics
+    _loadOrderStatistics();
+  } catch (e) {
+    print('❌ Error updating order status: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Failed to update order status'),
+        backgroundColor: errorRed,
+      ),
+    );
   }
+}
 
   void _contactCustomer(Order order) {
     // Implementation for contacting customer

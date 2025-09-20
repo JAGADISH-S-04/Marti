@@ -5,11 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:arti/services/locale_service.dart';
 import 'package:arti/widgets/l10n_language_selector.dart';
 import 'package:provider/provider.dart';
-
-// Import the screens you want to navigate to
+import 'package:arti/screens/seller_analytics_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
+import 'package:arti/screens/forum/forum_screen.dart';
 
 import 'package:arti/screens/faq/retailer_faq_screen.dart';
 
@@ -120,10 +120,10 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
       // --- Screen Content Goes Here ---
       body: widget.body,
 
-      // --- Reusable Bottom Navigation Bar ---
-      bottomNavigationBar: _buildBottomNavigationBar(context),
-    );
-  }
+    // --- Reusable Bottom Navigation Bar ---
+    bottomNavigationBar: _buildBottomNavigationBar(context),
+  );
+}
 
   // --- Bottom Navigation Bar Builder ---
   Widget _buildBottomNavigationBar(BuildContext context) {
@@ -160,23 +160,29 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.help_outline,
-            label: 'FAQ',
+            icon: Icons.forum,
+            label: 'Forum',
             index: 1,
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const RetailerFAQScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const ForumScreen()),
               );
             },
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.insert_chart_outlined,
+            icon: Icons.analytics,
             label: 'Analytics',
             index: 2,
             onTap: () {
-              // TODO: Navigate to Analytics Screen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SellerAnalyticsScreen(),
+                ),
+              );
             },
           ),
         ],

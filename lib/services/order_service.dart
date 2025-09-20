@@ -326,50 +326,63 @@ class OrderService {
   }
 
   // Update order status (seller action)
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('User must be authenticated');
+  // Add this method to your OrderService class
+
+Future<bool> canUserAccessOrder(String orderId) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final orderDoc = await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .get();
+
+    if (!orderDoc.exists) return false;
+
+    final data = orderDoc.data() as Map<String, dynamic>;
+    
+    // Check if user is buyer
+    if (data['buyerId'] == user.uid) return true;
+    
+    // Check if user is artisan in any item
+    final items = data['items'] as List<dynamic>? ?? [];
+    for (var item in items) {
+      final itemMap = item as Map<String, dynamic>;
+      if (itemMap['artisanId'] == user.uid) return true;
     }
-
-    try {
-      final order = await getOrderById(orderId);
-      if (order == null) {
-        throw Exception('Order not found');
-      }
-
-      // Verify user is authorized to update this order
-      if (!order.items.any((item) => item.artisanId == user.uid)) {
-        throw Exception('Unauthorized to update this order');
-      }
-
-      final now = DateTime.now();
-      final updatedStatusHistory =
-          Map<String, String>.from(order.statusHistory ?? {});
-      updatedStatusHistory[newStatus.toString().split('.').last] =
-          now.toIso8601String();
-
-      final updateData = {
-        'status': newStatus.toString().split('.').last,
-        'updatedAt': Timestamp.fromDate(now),
-        'statusHistory': updatedStatusHistory,
-      };
-
-      if (newStatus == OrderStatus.delivered) {
-        updateData['actualDeliveryDate'] = Timestamp.fromDate(now);
-      }
-
-      await _ordersCollection.doc(orderId).update(updateData);
-
-      // Create notification for buyer
-      await _createOrderStatusNotification(order, newStatus);
-
-      print('✅ Order status updated: $orderId -> $newStatus');
-    } catch (e) {
-      print('❌ Error updating order status: $e');
-      throw Exception('Failed to update order status: $e');
-    }
+    
+    return false;
+  } catch (e) {
+    print('Error checking order access: $e');
+    return false;
   }
+}
+
+// Update your order status method to include validation
+Future<void> updateOrderStatus(String orderId, String newStatus) async {
+  try {
+    // First check if user can access this order
+    final canAccess = await canUserAccessOrder(orderId);
+    if (!canAccess) {
+      throw Exception('You do not have permission to update this order');
+    }
+
+    // Proceed with update
+    await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .update({
+      'status': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    print('✅ Order status updated successfully');
+  } catch (e) {
+    print('❌ Error updating order status: $e');
+    throw Exception('Failed to update order status: $e');
+  }
+}
 
   // Get order statistics for seller dashboard
   Future<Map<String, dynamic>> getSellerOrderStatistics() async {
