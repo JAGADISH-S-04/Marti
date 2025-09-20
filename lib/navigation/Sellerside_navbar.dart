@@ -8,17 +8,18 @@ import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
 
+import 'package:arti/screens/faq/retailer_faq_screen.dart';
+
 class MainSellerScaffold extends StatelessWidget {
   /// The main content of the screen.
   final Widget body;
 
   /// The index of the currently selected item in the bottom navigation bar.
   /// 0 = Home, 1 = Messages, 2 = Analytics
-  final int ? currentIndex;
+  final int? currentIndex;
 
   /// An optional drawer widget for the screen.
   final Widget? drawer;
-  
 
   const MainSellerScaffold({
     Key? key,
@@ -26,7 +27,6 @@ class MainSellerScaffold extends StatelessWidget {
     this.currentIndex, // Default to Home
     this.drawer,
   }) : super(key: key);
-
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +37,23 @@ class MainSellerScaffold extends StatelessWidget {
         backgroundColor: const Color(0xFFF9F9F7),
         elevation: 0,
         // This ensures the drawer icon is the correct color
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)), 
+        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
         centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
-            onPressed: () { 
+            onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SellerSearchScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const SellerSearchScreen()),
               );
-             },
+            },
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
-            onPressed: () { /* Handle notifications */ },
+            icon:
+                const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
+            onPressed: () {/* Handle notifications */},
           ),
           IconButton(
             icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
@@ -66,7 +68,7 @@ class MainSellerScaffold extends StatelessWidget {
       ),
       // --- Use the drawer passed from the parent screen ---
       drawer: drawer,
-      
+
       // --- Screen Content Goes Here ---
       body: body,
 
@@ -106,16 +108,18 @@ class MainSellerScaffold extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => const SellerScreen()),
               );
-              
             },
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.chat_bubble_outline,
-            label: 'Messages',
+            icon: Icons.help_outline,
+            label: 'FAQ',
             index: 1,
             onTap: () {
-              // TODO: Navigate to Messages Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RetailerFAQScreen()),
+              );
             },
           ),
           _buildNavItem(

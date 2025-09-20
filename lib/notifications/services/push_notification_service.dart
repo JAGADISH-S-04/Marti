@@ -1,7 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../models/notification_type.dart';
 import '../utils/notification_navigation.dart';
 
@@ -108,7 +107,7 @@ class PushNotificationService {
     print('Body: ${message.notification?.body}');
     print('Data: ${message.data}');
 
-    // TODO: Show in-app notification or update UI
+
   }
 
   /// Handle when user taps notification while app is in background

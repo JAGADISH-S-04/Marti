@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../models/notification_type.dart';
 import '../screens/notification_screen.dart';
 
 /// Helper class for handling navigation from push notifications
@@ -15,7 +14,6 @@ class NotificationNavigation {
 
     final data = message.data;
     final notificationType = data['type'];
-    final notificationId = data['notificationId'];
     final relatedId = data['relatedId']; // Order ID, Product ID, etc.
 
     print('Navigating to notification: $notificationType');
@@ -70,7 +68,6 @@ class NotificationNavigation {
   /// Navigate to order details screen
   static void _navigateToOrderDetails(BuildContext context, String? orderId) {
     if (orderId != null) {
-      // TODO: Navigate to order details screen
       // Navigator.of(context).pushNamed('/order-details', arguments: orderId);
       print('Navigate to order details: $orderId');
     }
@@ -81,7 +78,6 @@ class NotificationNavigation {
   static void _navigateToCraftItDetails(
       BuildContext context, String? quotationId) {
     if (quotationId != null) {
-      // TODO: Navigate to craft it quotation details
       // Navigator.of(context).pushNamed('/craft-it-details', arguments: quotationId);
       print('Navigate to craft it details: $quotationId');
     }
@@ -92,7 +88,6 @@ class NotificationNavigation {
   static void _navigateToPaymentDetails(
       BuildContext context, String? paymentId) {
     if (paymentId != null) {
-      // TODO: Navigate to payment details screen
       // Navigator.of(context).pushNamed('/payment-details', arguments: paymentId);
       print('Navigate to payment details: $paymentId');
     }
@@ -112,7 +107,7 @@ class NotificationNavigation {
   /// Navigate to chat details screen
   static void _navigateToChatDetails(BuildContext context, String? chatId) {
     if (chatId != null) {
-      // TODO: Navigate to chat screen
+      
       // Navigator.of(context).pushNamed('/chat', arguments: chatId);
       print('Navigate to chat: $chatId');
     }
@@ -157,7 +152,6 @@ class NotificationNavigation {
       case 'order_confirmed':
       case 'order_shipped':
       case 'order_delivered':
-        // TODO: Return route to order details
         return MaterialPageRoute(
           builder: (context) => const NotificationScreen(),
           settings: settings,
@@ -166,7 +160,7 @@ class NotificationNavigation {
       case 'quotation_submitted':
       case 'quotation_accepted':
       case 'quotation_rejected':
-        // TODO: Return route to craft it details
+    
         return MaterialPageRoute(
           builder: (context) => const NotificationScreen(),
           settings: settings,
@@ -177,7 +171,7 @@ class NotificationNavigation {
         if (relatedId != null) {
           return MaterialPageRoute(
             builder: (context) =>
-                const NotificationScreen(), // TODO: ProductDetailScreen
+                const NotificationScreen(), 
             settings: settings,
           );
         }

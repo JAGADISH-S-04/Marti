@@ -235,22 +235,23 @@ class _MyStoreScreenState extends State<MyStoreScreen>
 
   // View product reviews
   Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
-    try {
-      // Convert Map to Product object
-      final product = _mapToProduct(productData);
+  try {
+    // Convert Map to Product object
+    final product = _mapToProduct(productData);
 
-      // Navigate to the Product Reviews Management screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductReviewsManagementScreen(
-            product: product,
-          ),
+    // Navigate to the Product Reviews Management screen
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductReviewsManagementScreen(
+          product: product,
         ),
-      );
-    }
+      ),
+    );
+  } catch (e) {
+    print('Error navigating to product reviews: $e');
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return MainSellerScaffold(
@@ -797,7 +798,7 @@ class _SellerScreenState extends State<SellerScreen> {
       }
     }
   }
-              
+          
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {

@@ -44,7 +44,7 @@ class UserRoleDetector {
       final userDoc = await _firestore.collection('users').doc(userId).get();
 
       if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>?;
+        final userData = userDoc.data();
         final userType = userData?['userType'] ?? 'customer';
         final isRetailer = userData?['isRetailer'] ?? false;
 
