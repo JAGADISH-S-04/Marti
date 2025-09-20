@@ -123,17 +123,46 @@ service cloud.firestore {
     }
     
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
-    // ...existing code...
     match /orders/{orderId} {
-      // Allow creation if user is authenticated (for testing)
-      allow create: if request.auth != null;
-      
-      // Only order participants can read/update/delete orders
-      allow read, update, delete: if request.auth != null && 
-        (request.auth.uid == resource.data.buyerId || 
-         request.auth.uid == resource.data.sellerId ||
-         request.auth.uid == resource.data.artisanId);
-    }
+  // Allow creation if user is authenticated
+  allow create: if request.auth != null;
+  
+  // Allow read if user is buyer OR any artisan in the items array
+  allow read: if request.auth != null && (
+    request.auth.uid == resource.data.buyerId ||
+    userIsArtisanInOrderItems(request.auth.uid, resource.data.items)
+  );
+  
+  // Allow update if user is buyer OR any artisan in the items array
+  allow update: if request.auth != null && (
+    request.auth.uid == resource.data.buyerId ||
+    userIsArtisanInOrderItems(request.auth.uid, resource.data.items)
+  );
+  
+  // Allow delete only by buyer
+  allow delete: if request.auth != null && 
+    request.auth.uid == resource.data.buyerId;
+}
+// CORRECTED Helper function to check if user is an artisan in any order item
+function userIsArtisanInOrderItems(userId, items) {
+  return items != null && 
+         items is list && 
+         items.size() > 0 &&
+         existsIn(items, userId);
+}
+
+// Helper function to check if userId exists as artisanId in any item
+function existsIn(items, userId) {
+  return items.hasAny([userId]) || 
+         checkItemsForArtisan(items, userId, 0);
+}
+
+// Recursive function to check items array
+function checkItemsForArtisan(items, userId, index) {
+  return index < items.size() && 
+         (items[index].artisanId == userId || 
+          checkItemsForArtisan(items, userId, index + 1));
+}
     
     // Quotations - For craft requests and custom orders
     match /quotations/{quotationId} {
