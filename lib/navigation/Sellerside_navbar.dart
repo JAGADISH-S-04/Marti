@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:arti/services/locale_service.dart';
+import 'package:arti/widgets/l10n_language_selector.dart';
+import 'package:provider/provider.dart';
 import 'package:arti/screens/seller_analytics_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
@@ -10,7 +13,7 @@ import 'package:arti/screens/forum/forum_screen.dart';
 
 import 'package:arti/screens/faq/retailer_faq_screen.dart';
 
-class MainSellerScaffold extends StatelessWidget {
+class MainSellerScaffold extends StatefulWidget {
   /// The main content of the screen.
   final Widget body;
 
@@ -29,55 +32,93 @@ class MainSellerScaffold extends StatelessWidget {
   }) : super(key: key);
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: const Color(0xFFF9F9F7),
-    // --- Reusable AppBar ---
-    appBar: AppBar(
-      backgroundColor: const Color(0xFFF9F9F7),
-      elevation: 0,
-      automaticallyImplyLeading: false, // This removes the back button
-      // This ensures the drawer icon is the correct color
-      iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
-      centerTitle: false,
-      leading: drawer != null ? Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF2C1810)),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
-      ) : null, // Only show drawer icon if drawer is provided
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const SellerSearchScreen()),
-            );
-          },
-        ),
-        IconButton(
-          icon:
-              const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
-          onPressed: () {/* Handle notifications */},
-        ),
-        IconButton(
-          icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileScreen()),
-            );
-          },
-        ),
-      ],
-    ),
-    // --- Use the drawer passed from the parent screen ---
-    drawer: drawer,
+  State<MainSellerScaffold> createState() => _MainSellerScaffoldState();
+}
 
-    // --- Screen Content Goes Here ---
-    body: body,
+class _MainSellerScaffoldState extends State<MainSellerScaffold> {
+  LocaleService? _localeService;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize after first frame to ensure context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _localeService = Provider.of<LocaleService>(context, listen: false);
+      _localeService!.addListener(_onLanguageChanged);
+    });
+  }
+
+  @override
+  void dispose() {
+    _localeService?.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild to update translate icon
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F9F7),
+      // --- Reusable AppBar ---
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9F9F7),
+        elevation: 0,
+        // This ensures the drawer icon is the correct color
+        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+        centerTitle: false,
+        actions: [
+          Consumer<LocaleService>(
+            builder: (context, localeService, child) {
+              return IconButton(
+                tooltip: 'Translate',
+                icon: Icon(
+                  localeService.currentLocale.languageCode == 'en'
+                      ? Icons.translate
+                      : Icons.g_translate,
+                  color: const Color(0xFF2C1810),
+                ),
+                onPressed: () => _showLanguageSelector(context),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const SellerSearchScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon:
+                const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
+            onPressed: () {/* Handle notifications */},
+          ),
+          IconButton(
+            icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+      // --- Use the drawer passed from the parent screen ---
+      drawer: widget.drawer,
+
+      // --- Screen Content Goes Here ---
+      body: widget.body,
 
     // --- Reusable Bottom Navigation Bar ---
     bottomNavigationBar: _buildBottomNavigationBar(context),
@@ -119,8 +160,8 @@ Widget build(BuildContext context) {
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.help_outline,
-            label: 'FAQ',
+            icon: Icons.forum,
+            label: 'Forum',
             index: 1,
             onTap: () {
               Navigator.push(
@@ -132,8 +173,8 @@ Widget build(BuildContext context) {
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.forum,
-            label: 'Forum',
+            icon: Icons.analytics,
+            label: 'Analytics',
             index: 2,
             onTap: () {
               Navigator.pushReplacement(
@@ -149,6 +190,45 @@ Widget build(BuildContext context) {
     );
   }
 
+  void _showLanguageSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.info_outline, size: 16, color: Colors.brown),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Select your preferred language. Text on this page will be translated for you.',
+                      style: TextStyle(fontSize: 12, color: Colors.brown),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const L10nLanguageSelector(
+                primaryColor: Color(0xFF2C1810),
+                accentColor: Color(0xFFD4AF37),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildNavItem({
     required BuildContext context,
     required IconData icon,
@@ -156,7 +236,7 @@ Widget build(BuildContext context) {
     required int index,
     required VoidCallback onTap,
   }) {
-    final isSelected = currentIndex == index;
+    final isSelected = widget.currentIndex == index;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),

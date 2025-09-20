@@ -1,0 +1,367 @@
+{
+  "@@locale": "hi",
+  "appTitle": "अर्ति",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "welcomeBack": "वापसी पर स्वागत है, {userName}",
+  "@welcomeBack": {
+    "description": "Welcome message with user name",
+    "placeholders": {
+      "userName": {
+        "type": "String",
+        "example": "John"
+      }
+    }
+  },
+  "hereIsWhatHappening": "आज आपके व्यवसाय के साथ यह हो रहा है",
+  "@hereIsWhatHappening": {
+    "description": "Subtitle text for seller dashboard"
+  },
+  "analytics": "विश्लेषण",
+  "@analytics": {
+    "description": "Analytics section title"
+  },
+  "products": "उत्पाद",
+  "@products": {
+    "description": "Products tab"
+  },
+  "orders": "आदेश",
+  "@orders": {
+    "description": "Orders tab"
+  },
+  "myStore": "मेरा स्टोर",
+  "@myStore": {
+    "description": "Store section title"
+  },
+  "addProduct": "उत्पाद जोड़ें",
+  "@addProduct": {
+    "description": "Add product button"
+  },
+  "addProducts": "उत्पाद जोड़ें",
+  "@addProducts": {
+    "description": "Add products action"
+  },
+  "removeProducts": "उत्पाद हटाएं",
+  "@removeProducts": {
+    "description": "Remove products action"
+  },
+  "earnings": "आय",
+  "@earnings": {
+    "description": "Earnings section"
+  },
+  "deleteProduct": "उत्पाद हटाएं",
+  "@deleteProduct": {
+    "description": "Delete product dialog title"
+  },
+  "areYouSureDelete": "क्या आप वाकई \"{productName}\" को हटाना चाहते हैं? यह कार्य पूर्ववत नहीं किया जा सकता।",
+  "@areYouSureDelete": {
+    "description": "Delete confirmation message",
+    "placeholders": {
+      "productName": {
+        "type": "String",
+        "example": "Handmade Vase"
+      }
+    }
+  },
+  "cancel": "रद्द करें",
+  "@cancel": {
+    "description": "Cancel button"
+  },
+  "delete": "हटाएं",
+  "@delete": {
+    "description": "Delete button"
+  },
+  "noStoreCreatedYet": "अभी तक कोई स्टोर नहीं बनाया गया",
+  "@noStoreCreatedYet": {
+    "description": "Message when no store exists"
+  },
+  "createStoreDescription": "अपने अद्भुत उत्पादों को बेचना शुरू करने के लिए अपना स्टोर बनाएं",
+  "@createStoreDescription": {
+    "description": "Description for creating store"
+  },
+  "createMyStore": "मेरा स्टोर बनाएं",
+  "@createMyStore": {
+    "description": "Create store button"
+  },
+  "noProductsYet": "अभी तक कोई उत्पाद नहीं।\nअपना पहला उत्पाद जोड़ें!",
+  "@noProductsYet": {
+    "description": "Message when no products exist"
+  },
+  "stock": "स्टॉक : {quantity}",
+  "@stock": {
+    "description": "Stock quantity display",
+    "placeholders": {
+      "quantity": {
+        "type": "int",
+        "example": "10"
+      }
+    }
+  },
+  "lowStock": "कम स्टॉक!",
+  "@lowStock": {
+    "description": "Low stock warning"
+  },
+  "tapToManage": "प्रबंधित करने के लिए टैप करें",
+  "@tapToManage": {
+    "description": "Hint text for product management"
+  },
+  "uncategorized": "श्रेणीबद्ध नहीं",
+  "@uncategorized": {
+    "description": "Default category name"
+  },
+  "viewFAQ": "FAQ देखें",
+  "@viewFAQ": {
+    "description": "View FAQ menu item"
+  },
+  "manageFAQs": "FAQ प्रबंधित करें",
+  "@manageFAQs": {
+    "description": "Manage FAQs admin menu item"
+  },
+  "faqSetup": "FAQ सेटअप",
+  "@faqSetup": {
+    "description": "FAQ Setup admin menu item"
+  },
+  "selectProduct": "उत्पाद चुनें",
+  "@selectProduct": {
+    "description": "Select product dialog title"
+  },
+  "storyAlreadyCreated": "कहानी पहले से बनी है",
+  "@storyAlreadyCreated": {
+    "description": "Status when story exists"
+  },
+  "noStoryYet": "अभी तक कोई कहानी नहीं",
+  "@noStoryYet": {
+    "description": "Status when no story exists"
+  },
+  "logout": "लॉगआउट",
+  "@logout": {
+    "description": "Logout button"
+  },
+  "areYouSureLogout": "क्या आप वाकई लॉगआउट करना चाहते हैं?",
+  "@areYouSureLogout": {
+    "description": "Logout confirmation message"
+  },
+  "errorLoggingOut": "लॉगआउट करने में त्रुटि: {error}",
+  "@errorLoggingOut": {
+    "description": "Error message for logout failure",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "pleaseLoginFirst": "कृपया पहले लॉगिन करें",
+  "@pleaseLoginFirst": {
+    "description": "Login required message"
+  },
+  "needProductsForStories": "शिल्पकार विरासत कहानियां जोड़ने से पहले आपको पहले उत्पाद बनाने होंगे",
+  "@needProductsForStories": {
+    "description": "Message requiring products for stories"
+  },
+  "errorLoadingProducts": "उत्पाद लोड करने में त्रुटि: {error}",
+  "@errorLoadingProducts": {
+    "description": "Error message for product loading failure",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network timeout"
+      }
+    }
+  },
+  "home": "होम",
+  "@home": {
+    "description": "Home navigation item"
+  },
+  "artisanLegacy": "शिल्पकार विरासत",
+  "@artisanLegacy": {
+    "description": "Artisan Legacy menu item"
+  },
+  "collaborations": "सहयोग",
+  "@collaborations": {
+    "description": "Collaborations menu item"
+  },
+  "requests": "अनुरोध",
+  "@requests": {
+    "description": "Requests menu item"
+  },
+  "pleaseLogIn": "कृपया लॉग इन करें।",
+  "@pleaseLogIn": {
+    "description": "Login required message"
+  },
+  "selectLanguage": "अपनी पसंदीदा भाषा चुनें। इस पृष्ठ पर पाठ आपके लिए अनुवादित किया जाएगा।",
+  "@selectLanguage": {
+    "description": "Language selection instruction"
+  },
+  "languageSetTo": "भाषा {languageName} पर सेट की गई",
+  "@languageSetTo": {
+    "description": "Language selection confirmation",
+    "placeholders": {
+      "languageName": {
+        "type": "String",
+        "example": "Tamil"
+      }
+    }
+  },
+  "showingOriginalLanguage": "मूल भाषा दिखाई जा रही है",
+  "@showingOriginalLanguage": {
+    "description": "Original language selection confirmation"
+  },
+  "pageLanguage": "पृष्ठ भाषा",
+  "@pageLanguage": {
+    "description": "Language selector title"
+  },
+  "activeOrdersCount": "आपके पास {count} सक्रिय आदेश हैं।",
+  "@activeOrdersCount": {
+    "description": "Active orders count message",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "quickActions": "त्वरित कार्य",
+  "@quickActions": {
+    "description": "Quick actions section title"
+  },
+  "manageYourBusiness": "अपना व्यवसाय प्रबंधित करें",
+  "@manageYourBusiness": {
+    "description": "Subtitle under My Store header"
+  },
+  "storeViews": "स्टोर व्यू",
+  "@storeViews": {
+    "description": "Analytics item for store views"
+  },
+  "sales": "बिक्री",
+  "@sales": {
+    "description": "Analytics item for sales"
+  },
+  "translatePage": "पृष्ठ अनुवाद करें",
+  "@translatePage": {
+    "description": "Tooltip for translate button"
+  },
+  "selectProductBelowToRemove": "हटाने के लिए नीचे एक उत्पाद चुनें।",
+  "@selectProductBelowToRemove": {
+    "description": "Instructional snackbar when remove pressed"
+  },
+  "switchToOriginalImage": "मूल छवि पर स्विच करें",
+  "@switchToOriginalImage": {
+    "description": "Tooltip to switch from AI image to original"
+  },
+  "switchToAiEnhancedImage": "AI-संवर्धित छवि पर स्विच करें",
+  "@switchToAiEnhancedImage": {
+    "description": "Tooltip to switch from original to AI image"
+  },
+  "connectWithOthers": "दूसरों से जुड़ें",
+  "@connectWithOthers": {
+    "description": "Quick action description for collaborations"
+  },
+  "viewCustomOrders": "कस्टम आदेश देखें",
+  "@viewCustomOrders": {
+    "description": "Quick action description for requests"
+  },
+  "manageYourProducts": "अपने उत्पाद प्रबंधित करें",
+  "@manageYourProducts": {
+    "description": "Quick action description for My Store"
+  },
+  "listNewItem": "नई वस्तु सूचीबद्ध करें",
+  "@listNewItem": {
+    "description": "Quick action description for Add Product"
+  },
+  "errorLoadingStore": "स्टोर लोड करने में त्रुटि: {error}",
+  "@errorLoadingStore": {
+    "description": "Error message when store data fails to load",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "failedToDeleteProduct": "उत्पाद हटाने में विफल।",
+  "@failedToDeleteProduct": {
+    "description": "Error message when product deletion fails"
+  },
+  "failedToUpdateImageDisplay": "छवि प्रदर्शन अपडेट करने में विफल",
+  "@failedToUpdateImageDisplay": {
+    "description": "Error message when image display update fails"
+  },
+  "unableToToggleImages": "छवियों को टॉगल करने में असमर्थ: छवि डेटा गुम",
+  "@unableToToggleImages": {
+    "description": "Error message when image toggle fails due to missing data"
+  },
+  "updatingImageDisplay": "छवि प्रदर्शन अपडेट कर रहे हैं...",
+  "@updatingImageDisplay": {
+    "description": "Loading message when updating image display"
+  },
+  "successfullySwitchedToImage": "सफलतापूर्वक {imageType} छवि पर स्विच किया गया!",
+  "@successfullySwitchedToImage": {
+    "description": "Success message when image is switched",
+    "placeholders": {
+      "imageType": {
+        "type": "String",
+        "example": "AI-enhanced"
+      }
+    }
+  },
+  "originalImage": "मूल",
+  "@originalImage": {
+    "description": "Label for original image type"
+  },
+  "aiEnhanced": "AI-संवर्धित",
+  "@aiEnhanced": {
+    "description": "Label for AI-enhanced image type"
+  },
+  "deletingProduct": "उत्पाद हटाया जा रहा है...",
+  "@deletingProduct": {
+    "description": "Loading message when deleting a product"
+  },
+  "productDeletedSuccessfully": "उत्पाद \"{productName}\" सफलतापूर्वक हटा दिया गया!",
+  "@productDeletedSuccessfully": {
+    "description": "Success message when product is deleted",
+    "placeholders": {
+      "productName": {
+        "type": "String",
+        "example": "Wooden Sculpture"
+      }
+    }
+  },
+  "errorEditingProduct": "उत्पाद संपादित करने में त्रुटि: {error}",
+  "@errorEditingProduct": {
+    "description": "Error message when product editing fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "errorDeletingProduct": "उत्पाद हटाने में त्रुटि: {error}",
+  "@errorDeletingProduct": {
+    "description": "Error message when product deletion fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "productUpdatedSuccessfully": "उत्पाद सफलतापूर्वक अपडेट किया गया!",
+  "@productUpdatedSuccessfully": {
+    "description": "Success message when product is updated"
+  },
+  "defaultStoreName": "स्टोर - 1",
+  "@defaultStoreName": {
+    "description": "Default store name fallback"
+  },
+  "noName": "कोई नाम नहीं",
+  "@noName": {
+    "description": "Default product name when no name is provided"
+  },
+  "errorOpeningProductManagement": "उत्पाद प्रबंधन खोलने में त्रुटि",
+  "@errorOpeningProductManagement": {
+    "description": "Error message when product management screen fails to open"
+  }
+}

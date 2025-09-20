@@ -12,16 +12,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'add_product_screen.dart';
-import 'enhanced_product_listing_page.dart';
-import 'login_screen.dart';
-import 'craft_it/seller_view.dart';
-import 'edit_artisan_story_screen.dart';
+import '../screens/add_product_screen.dart';
+import '../screens/enhanced_product_listing_page.dart';
+import '../screens/login_screen.dart';
+import '../screens/craft_it/seller_view.dart';
+import '../screens/edit_artisan_story_screen.dart';
 import '../services/order_service.dart';
-import 'collaboration/seller_collaboration_screen.dart';
+import '../screens/collaboration/seller_collaboration_screen.dart';
 import 'package:arti/navigation/Sellerside_navbar.dart';
-import 'package:intl/intl.dart';
-import 'package:arti/services/analytics_service.dart';
+import 'package:intl/intl.dart'; 
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -38,6 +37,10 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   int _orderCount = 0;
   bool _isAdmin = false; // Track admin status
   late TabController _tabController;
+  
+  // Translation state
+  String _selectedLanguage = 'auto';
+  bool _showLanguageSelector = false;
 
   @override
   void initState() {
@@ -93,7 +96,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           _isLoading = false;
         });
       }
-      _showSnackBar(AppLocalizations.of(context)!.errorLoadingStore(e.toString()), isError: true);
+      _showSnackBar('Error loading store: $e', isError: true);
     }
   }
 
@@ -145,10 +148,10 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         ),
       );
       if (result == true) {
-        _showSnackBar(AppLocalizations.of(context)!.productUpdatedSuccessfully);
+        _showSnackBar('Product updated successfully!');
       }
     } catch (e) {
-      _showSnackBar(AppLocalizations.of(context)!.errorEditingProduct(e.toString()), isError: true);
+      _showSnackBar('Error editing product: $e', isError: true);
     }
   }
 
@@ -184,15 +187,15 @@ class _MyStoreScreenState extends State<MyStoreScreen>
     if (!shouldDelete) return;
 
     try {
-      _showSnackBar(AppLocalizations.of(context)!.deletingProduct);
+      _showSnackBar('Deleting product...');
       final success = await _productService.deleteProduct(productData['id']);
       if (success) {
-        _showSnackBar(AppLocalizations.of(context)!.productDeletedSuccessfully(productData['name'] ?? ''));
+        _showSnackBar('Product "${productData['name']}" deleted successfully!');
       } else {
-        _showSnackBar(AppLocalizations.of(context)!.failedToDeleteProduct, isError: true);
+        _showSnackBar('Failed to delete product.', isError: true);
       }
     } catch (e) {
-      _showSnackBar(AppLocalizations.of(context)!.errorDeletingProduct(e.toString()), isError: true);
+      _showSnackBar('Error deleting product: $e', isError: true);
     }
   }
 
@@ -207,7 +210,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           : null;
 
       if (aiEnhancedImageUrl == null || originalImageUrl == null) {
-        _showSnackBar(AppLocalizations.of(context)!.unableToToggleImages, isError: true);
+        _showSnackBar('Unable to toggle images: Missing image data', isError: true);
         return;
       }
 
@@ -215,7 +218,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       final bool isCurrentlyShowingAi = currentDisplayImage == aiEnhancedImageUrl;
       final String newDisplayImage = isCurrentlyShowingAi ? originalImageUrl : aiEnhancedImageUrl;
 
-      _showSnackBar(AppLocalizations.of(context)!.updatingImageDisplay);
+      _showSnackBar('Updating image display...');
 
       // Update the product document in Firestore
       await FirebaseFirestore.instance
@@ -239,14 +242,12 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         });
       }
 
-      final String imageType = isCurrentlyShowingAi 
-          ? AppLocalizations.of(context)!.originalImage 
-          : AppLocalizations.of(context)!.aiEnhanced;
-      _showSnackBar(AppLocalizations.of(context)!.successfullySwitchedToImage(imageType));
+      final String imageType = isCurrentlyShowingAi ? 'original' : 'AI-enhanced';
+      _showSnackBar('Successfully switched to $imageType image!');
 
     } catch (e) {
       print('Error toggling AI image display: $e');
-      _showSnackBar(AppLocalizations.of(context)!.failedToUpdateImageDisplay, isError: true);
+      _showSnackBar('Failed to update image display', isError: true);
     }
   }
 
@@ -270,7 +271,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       );
     } catch (e) {
       print('Error opening product management: $e');
-      _showSnackBar(AppLocalizations.of(context)!.errorOpeningProductManagement, isError: true);
+      _showSnackBar('Error opening product management', isError: true);
     }
   }
 
@@ -310,24 +311,23 @@ class _MyStoreScreenState extends State<MyStoreScreen>
 
   // View product reviews
   Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
-    try {
-      // Convert Map to Product object
-      final product = _mapToProduct(productData);
+  try {
+    // Convert Map to Product object
+    final product = _mapToProduct(productData);
 
-      // Navigate to the Product Reviews Management screen
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductReviewsManagementScreen(
-            product: product,
-          ),
+    // Navigate to the Product Reviews Management screen
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductReviewsManagementScreen(
+          product: product,
         ),
-      );
-    } catch (e) {
-      print('Error navigating to product reviews: $e');
-    }
+      ),
+    );
+  } catch (e) {
+    print('Error navigating to product reviews: $e');
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return MainSellerScaffold(
@@ -359,10 +359,6 @@ class _MyStoreScreenState extends State<MyStoreScreen>
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,
-              softWrap: true,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
             ),
             const SizedBox(height: 10),
             Text(
@@ -372,9 +368,6 @@ class _MyStoreScreenState extends State<MyStoreScreen>
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
-              softWrap: true,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 3,
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
@@ -415,7 +408,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -426,29 +419,104 @@ class _MyStoreScreenState extends State<MyStoreScreen>
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
                     Text(
-                      AppLocalizations.of(context)!.manageYourBusiness,
+                      'Manage your Business',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black54,
                       ),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
                   ],
+                ),
+              ),
+              // Translation toggle button
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showLanguageSelector = !_showLanguageSelector;
+                    });
+                  },
+                  icon: Icon(
+                    Icons.translate,
+                    color: _selectedLanguage != 'auto' ? Colors.blue : Colors.grey[600],
+                  ),
+                  tooltip: 'Translate Page',
                 ),
               ),
             ],
           ),
           
+          // Language selector panel
+          if (_showLanguageSelector)
+            TranslatableContainer(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.translate, color: Colors.blue, size: 20),
+                      const SizedBox(width: 8),
+                      const TranslatableText(
+                        'Page Language',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.85,
+                    ),
+                    child: LanguageSelector(
+                      selectedLanguage: _selectedLanguage,
+                      primaryColor: Colors.blue,
+                      accentColor: Colors.blue.shade300,
+                      onLanguageChanged: (languageCode, languageName) async {
+                        await PageTranslationService.setLanguage(languageCode);
+                        setState(() {
+                          _selectedLanguage = languageCode;
+                          _showLanguageSelector = false;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
           const SizedBox(height: 24),
+          
           _buildStoreInfoCard(),
           const SizedBox(height: 20),
           _buildActionButtons(),
@@ -498,8 +566,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           // This makes the Text widget take up the available space,
           // pushing the edit button to the far right.
           Expanded(
-            child: Text(
-              _storeData?['storeName'] ?? AppLocalizations.of(context)!.defaultStoreName,
+            child: TranslatableText(
+              _storeData?['storeName'] ?? 'Store - 1',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -508,6 +576,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           ),
 
           // --- CHANGE 3: Add Edit Button ---
+          
         ],
       ),
     );
@@ -515,73 +584,48 @@ class _MyStoreScreenState extends State<MyStoreScreen>
 
   Widget _buildActionButtons() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
+        _buildCircularButton(Icons.add, 'Add Products', const Color(0xFFE4F5E9),
+            () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const EnhancedProductListingPage(),
+            ),
+          );
+        }),
         _buildCircularButton(
-          Icons.add, 
-          AppLocalizations.of(context)!.addProducts,
-          const Color(0xFFE4F5E9),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const EnhancedProductListingPage(),
-              ),
-            );
-          }
-        ),
+            Icons.remove, 'Remove Products', const Color(0xFFFFF1D8), () {
+          _showSnackBar("Select a product below to remove it.");
+        }),
         _buildCircularButton(
-          Icons.remove, 
-          AppLocalizations.of(context)!.removeProducts,
-          const Color(0xFFFFF1D8), 
-          () {
-            _showSnackBar(AppLocalizations.of(context)!.selectProductBelowToRemove);
-          }
-        ),
-        _buildCircularButton(
-          Icons.currency_rupee, 
-          AppLocalizations.of(context)!.earnings,
-          const Color(0xFFE3EDFC), 
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SellerOrdersPage()),
-            );
-          }
-        ),
+            Icons.currency_rupee, 'Earnings', const Color(0xFFE3EDFC), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SellerOrdersPage()),
+          );
+        }),
       ],
     );
   }
 
   Widget _buildCircularButton(
       IconData icon, String label, Color color, VoidCallback onPressed) {
-    return SizedBox(
-      width: 90, // Fixed width to prevent position changes
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(30),
-            child: CircleAvatar(
-              radius: 30,
-              backgroundColor: color,
-              child: Icon(icon, color: Colors.black, size: 28),
-            ),
+    return Column(
+      children: [
+        InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(30),
+          child: CircleAvatar(
+            radius: 30,
+            backgroundColor: color,
+            child: Icon(icon, color: Colors.black, size: 28),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 32, // Fixed height to prevent layout shifts
-            child: Text(
-              label, 
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        TranslatableText(label, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 
@@ -592,9 +636,9 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       unselectedLabelColor: Colors.grey,
       indicatorColor: Colors.black,
       indicatorSize: TabBarIndicatorSize.label,
-      tabs: [
-        Tab(child: Text(AppLocalizations.of(context)!.products)),
-        Tab(child: Text(AppLocalizations.of(context)!.orders)),
+      tabs: const [
+        Tab(child: TranslatableText('Product list')),
+        Tab(child: TranslatableText('Orders')),
       ],
     );
   }
@@ -602,7 +646,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   Widget _buildProductList() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Center(child: Text(AppLocalizations.of(context)!.pleaseLogIn));
+      return const Center(child: TranslatableText("Please log in."));
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -643,7 +687,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(AppLocalizations.of(context)!.activeOrdersCount(_orderCount),
+        TranslatableText("You have $_orderCount active orders.",
             style: const TextStyle(fontSize: 18, color: Colors.black54)),
         const SizedBox(height: 20),
         ElevatedButton(
@@ -664,8 +708,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   }
 
   Widget _buildNewProductCard(Map<String, dynamic> product) {
-    final bool isLowStock = (product['stockQuantity'] ?? 0) <= 10 &&
-        (product['stockQuantity'] ?? 0) > 0;
+    final bool isLowStock =
+        (product['stockQuantity'] ?? 0) <= 10 && (product['stockQuantity'] ?? 0) > 0;
     final formattedPrice =
         NumberFormat.decimalPattern('en_IN').format(product['price'] ?? 0);
 
@@ -745,29 +789,21 @@ class _MyStoreScreenState extends State<MyStoreScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product['name'] ?? AppLocalizations.of(context)!.noName,
+                TranslatableText(
+                  product['name'] ?? 'No Name',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16),
                   overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 2,
                 ),
-                Text(
-                  product['category'] ?? AppLocalizations.of(context)!.uncategorized,
+                TranslatableText(
+                  product['category'] ?? 'Uncategorized',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 1,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '₹$formattedPrice',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 1,
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -775,36 +811,26 @@ class _MyStoreScreenState extends State<MyStoreScreen>
                     const Icon(Icons.visibility_outlined,
                         size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: Text('${product['views'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          overflow: TextOverflow.ellipsis),
-                    ),
+                    Text('${product['views'] ?? 0}',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 10),
                     const Icon(Icons.favorite_outline,
                         size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: Text('${product['likes'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          overflow: TextOverflow.ellipsis),
-                    ),
+                    Text('${product['likes'] ?? 0}',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 4),
                 // Tap hint
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.touch_app, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        AppLocalizations.of(context)!.tapToManage,
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
+                    Icon(Icons.touch_app, size: 12, color: Colors.grey),
+                    SizedBox(width: 4),
+                    TranslatableText('Tap to manage', 
+                        style: TextStyle(fontSize: 10, color: Colors.grey)),
                   ],
                 ),
               ],
@@ -848,15 +874,15 @@ class _MyStoreScreenState extends State<MyStoreScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    AppLocalizations.of(context)!.stock(product['stockQuantity'] ?? 0),
+                  TranslatableText(
+                    'Stock : ${product['stockQuantity'] ?? 0}',
                     style: const TextStyle(
                         fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   if (isLowStock)
-                    Text(
-                      AppLocalizations.of(context)!.lowStock,
-                      style: const TextStyle(
+                    const TranslatableText(
+                      'Low Stock!',
+                      style: TextStyle(
                           fontSize: 11,
                           color: Colors.red,
                           fontWeight: FontWeight.bold),
@@ -874,6 +900,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   }
 }
 
+
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
 
@@ -886,37 +913,12 @@ class _SellerScreenState extends State<SellerScreen> {
   Map<String, dynamic>? _storeData;
   bool _isAdmin = false; // Track admin status
 
-  final AnalyticsService _analyticsService = AnalyticsService();
-  Map<String, dynamic> _analyticsData = {};
-  bool _isLoadingAnalytics = true;
-
   @override
   void initState() {
     super.initState();
     _saveCurrentScreen();
     _loadStoreData();
-    _checkAdminStatus();
-    _loadAnalyticsData(); // Add this line
-  }
-
-  // Add this new method to load analytics data
-  Future<void> _loadAnalyticsData() async {
-    try {
-      final analyticsData = await _analyticsService.getComprehensiveAnalytics();
-      if (mounted) {
-        setState(() {
-          _analyticsData = analyticsData;
-          _isLoadingAnalytics = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading analytics data: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingAnalytics = false;
-        });
-      }
-    }
+    _checkAdminStatus(); // Check admin status on init
   }
 
   Future<void> _loadStoreData() async {
@@ -975,20 +977,20 @@ class _SellerScreenState extends State<SellerScreen> {
             barrierDismissible: true,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: Text(
-                  AppLocalizations.of(context)!.logout,
+                title: TranslatableText(
+                  'Logout',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                content: Text(AppLocalizations.of(context)!.areYouSureLogout),
+                content: const TranslatableText('Are you sure you want to logout?'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(
-                      AppLocalizations.of(context)!.cancel,
-                      style: const TextStyle(color: Colors.grey),
+                    child: const TranslatableText(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
                     ),
                   ),
                   ElevatedButton(
@@ -997,7 +999,7 @@ class _SellerScreenState extends State<SellerScreen> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: Text(AppLocalizations.of(context)!.logout),
+                    child: const TranslatableText('Logout'),
                   ),
                 ],
               );
@@ -1020,19 +1022,19 @@ class _SellerScreenState extends State<SellerScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!.errorLoggingOut(e.toString())),
+            content: TranslatableText('Error logging out: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
-
+          
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseLoginFirst)),
+        const SnackBar(content: TranslatableText('Please login first')),
       );
       return;
     }
@@ -1046,16 +1048,17 @@ class _SellerScreenState extends State<SellerScreen> {
 
       if (snapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.needProductsForStories),
+          const SnackBar(
+            content: TranslatableText(
+                'You need to create products first before adding Artisan Legacy stories'),
           ),
         );
         return;
       }
 
       final products = snapshot.docs
-          .map((doc) => Product.fromMap(
-              {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+          .map((doc) =>
+              Product.fromMap({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
           .toList();
 
       showDialog(
@@ -1067,8 +1070,8 @@ class _SellerScreenState extends State<SellerScreen> {
             children: [
               const Icon(Icons.auto_stories, color: Color(0xFF8B6914)),
               const SizedBox(width: 8),
-              Text(
-                AppLocalizations.of(context)!.selectProduct,
+              TranslatableText(
+                'Select Product',
                 style: GoogleFonts.playfairDisplay(
                   color: const Color(0xFF2C1810),
                   fontWeight: FontWeight.bold,
@@ -1095,12 +1098,12 @@ class _SellerScreenState extends State<SellerScreen> {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  title: Text(
+                  title: TranslatableText(
                     product.name,
                     style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: Text(
-                    hasStory ? AppLocalizations.of(context)!.storyAlreadyCreated : AppLocalizations.of(context)!.noStoryYet,
+                  subtitle: TranslatableText(
+                    hasStory ? 'Story already created' : 'No story yet',
                     style: TextStyle(
                       color: hasStory ? Colors.green : Colors.orange,
                       fontSize: 12,
@@ -1127,14 +1130,14 @@ class _SellerScreenState extends State<SellerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(AppLocalizations.of(context)!.cancel),
+              child: const TranslatableText('Cancel'),
             ),
           ],
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.errorLoadingProducts(e.toString()))),
+        SnackBar(content: TranslatableText('Error loading products: $e')),
       );
     }
   }
@@ -1169,7 +1172,7 @@ class _SellerScreenState extends State<SellerScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  TranslatableText(
                     _storeData != null ? _storeData!['storeName'] : 'Artisan',
                     style: GoogleFonts.inter(
                       color: Colors.white,
@@ -1182,36 +1185,34 @@ class _SellerScreenState extends State<SellerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.home_outlined),
-              title: Text(AppLocalizations.of(context)!.home),
+              title: const TranslatableText('Home'),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               leading: const Icon(Icons.storefront_outlined),
-              title: Text(AppLocalizations.of(context)!.myStore),
+              title: const TranslatableText('My Store'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const MyStoreScreen()),
+                  MaterialPageRoute(builder: (context) => const MyStoreScreen()),
                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.add_box_outlined),
-              title: Text(AppLocalizations.of(context)!.addProduct),
+              title: const TranslatableText('Add Product'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const AddProductScreen()),
+                  MaterialPageRoute(builder: (context) => const AddProductScreen()),
                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.auto_stories_outlined),
-              title: Text(AppLocalizations.of(context)!.artisanLegacy),
+              title: const TranslatableText('Artisan Legacy'),
               onTap: () {
                 Navigator.pop(context);
                 _showArtisanLegacyDialog(context);
@@ -1219,7 +1220,7 @@ class _SellerScreenState extends State<SellerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.group_work_outlined),
-              title: Text(AppLocalizations.of(context)!.collaborations),
+              title: const TranslatableText('Collaborations'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -1231,7 +1232,7 @@ class _SellerScreenState extends State<SellerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.assignment_outlined),
-              title: Text(AppLocalizations.of(context)!.requests),
+              title: const TranslatableText('Requests'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -1244,7 +1245,7 @@ class _SellerScreenState extends State<SellerScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: Text(AppLocalizations.of(context)!.logout),
+              title: const TranslatableText('Logout'),
               onTap: () {
                 Navigator.pop(context);
                 _logout(context);
@@ -1261,18 +1262,16 @@ class _SellerScreenState extends State<SellerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppLocalizations.of(context)!.welcomeBack(artisanName),
+                    'Welcome Back, $artisanName',
                     style: GoogleFonts.roboto(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF2C1810),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    AppLocalizations.of(context)!.hereIsWhatHappening,
+                    "Here's what's happening with your business today",
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -1282,7 +1281,7 @@ class _SellerScreenState extends State<SellerScreen> {
                   _buildAnalyticsSection(context),
                   const SizedBox(height: 24),
                   Text(
-                    AppLocalizations.of(context)!.quickActions,
+                    'Quick Actions',
                     style: GoogleFonts.roboto(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -1304,7 +1303,7 @@ class _SellerScreenState extends State<SellerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          AppLocalizations.of(context)!.analytics,
+          'Analytics',
           style: GoogleFonts.roboto(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -1325,46 +1324,13 @@ class _SellerScreenState extends State<SellerScreen> {
               ),
             ],
           ),
-          child: _isLoadingAnalytics
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              : Column(
+          child: Column(
             children: [
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.sales, 
-                value: '₹${_analyticsData['monthlyRevenue']?.toStringAsFixed(0) ?? '0'}',
-                icon: Icons.currency_rupee,
-                color: const Color(0xFF4CAF50),
-              ),
+              _buildAnalyticsCard(context, title: 'Sales', value: '₹--'),
               const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.monthlyOrders,
-                value: '${_analyticsData['monthlyOrders'] ?? 0}',
-                icon: Icons.shopping_cart,
-                color: const Color(0xFF2196F3),
-              ),
+              _buildAnalyticsCard(context, title: 'Orders', value: '--'),
               const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.totalOrders,
-                value: '${_analyticsData['totalOrders'] ?? 0}',
-                icon: Icons.assignment,
-                color: const Color(0xFFFF9800),
-              ),
-              const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context,
-                title: AppLocalizations.of(context)!.totalRevenue,
-                value: '₹${_analyticsData['totalRevenue']?.toStringAsFixed(0) ?? '0'}',
-                icon: Icons.account_balance_wallet,
-                color: const Color(0xFF9C27B0),
-              ),
+              _buildAnalyticsCard(context, title: 'Store Views', value: '--'),
             ],
           ),
         ),
@@ -1376,63 +1342,32 @@ class _SellerScreenState extends State<SellerScreen> {
     BuildContext context, {
     required String title,
     required String value,
-    required IconData icon,
-    required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: const Color(0xFF2C1810).withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Flexible(
-            flex: 2,
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF2C1810),
-              ),
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-              maxLines: 1,
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF2C1810),
             ),
           ),
-          Flexible(
-            flex: 1,
-            child: Text(
-              value,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
-              ),
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-              maxLines: 1,
-              textAlign: TextAlign.end,
+          Text(
+            value,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2C1810),
             ),
           ),
-          if (title.contains('Monthly'))
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'This Month',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1445,12 +1380,12 @@ class _SellerScreenState extends State<SellerScreen> {
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.5, // Increased to accommodate fixed height
+      childAspectRatio: 1.2,
       children: [
         _buildQuickActionButton(
           context,
-          title: AppLocalizations.of(context)!.collaborations,
-          description: AppLocalizations.of(context)!.connectWithOthers,
+          title: 'Collaboration',
+          description: 'Connect with others',
           icon: Icons.group_work,
           onPressed: () {
             Navigator.push(
@@ -1461,20 +1396,18 @@ class _SellerScreenState extends State<SellerScreen> {
         ),
         _buildQuickActionButton(
           context,
-          title: AppLocalizations.of(context)!.requests,
-          description: AppLocalizations.of(context)!.viewCustomOrders,
+          title: 'Requests',
+          description: 'View custom orders',
           icon: Icons.assignment_turned_in,
           onPressed: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SellerRequestsScreen()));
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const SellerRequestsScreen()));
           },
         ),
         _buildQuickActionButton(
           context,
-          title: AppLocalizations.of(context)!.myStore,
-          description: AppLocalizations.of(context)!.manageYourProducts,
+          title: 'My Store',
+          description: 'Manage your products',
           icon: Icons.storefront,
           onPressed: () {
             Navigator.push(context,
@@ -1483,8 +1416,8 @@ class _SellerScreenState extends State<SellerScreen> {
         ),
         _buildQuickActionButton(
           context,
-          title: AppLocalizations.of(context)!.addProduct,
-          description: AppLocalizations.of(context)!.listNewItem,
+          title: 'Add Product',
+          description: 'List a new item',
           icon: Icons.add_box,
           onPressed: () {
             Navigator.push(
@@ -1519,43 +1452,32 @@ class _SellerScreenState extends State<SellerScreen> {
             ),
           ],
         ),
-        child: Container(
-          height: 120, // Fixed height to prevent overflow
-          padding: const EdgeInsets.all(12.0),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 24,
+                size: 28,
                 color: const Color(0xFF2C1810),
               ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 32, // Fixed height for title (2 lines max)
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2C1810),
                 ),
               ),
-              const SizedBox(height: 2),
-              SizedBox(
-                height: 24, // Fixed height for description (2 lines max)
-                child: Text(
-                  description,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: Colors.grey[600],
                 ),
               ),
             ],
@@ -1568,13 +1490,13 @@ class _SellerScreenState extends State<SellerScreen> {
   // Build FAQ menu items dynamically based on admin access
   List<PopupMenuEntry<String>> _buildFAQMenuItems() {
     List<PopupMenuEntry<String>> items = [
-      PopupMenuItem(
+      const PopupMenuItem(
         value: 'faq',
         child: Row(
           children: [
-            const Icon(Icons.help_center, size: 20),
-            const SizedBox(width: 12),
-            Text(AppLocalizations.of(context)!.viewFAQ),
+            Icon(Icons.help_center, size: 20),
+            SizedBox(width: 12),
+            TranslatableText('View FAQ'),
           ],
         ),
       ),
@@ -1583,23 +1505,23 @@ class _SellerScreenState extends State<SellerScreen> {
     // Only add admin items if user is actually an admin
     if (_isAdmin) {
       items.addAll([
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'manage',
           child: Row(
             children: [
-              const Icon(Icons.admin_panel_settings, size: 20, color: Colors.orange),
-              const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.manageFAQs, style: const TextStyle(color: Colors.orange)),
+              Icon(Icons.admin_panel_settings, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              TranslatableText('Manage FAQs', style: TextStyle(color: Colors.orange)),
             ],
           ),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'setup',
           child: Row(
             children: [
-              const Icon(Icons.settings_suggest, size: 20, color: Colors.orange),
-              const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.faqSetup, style: const TextStyle(color: Colors.orange)),
+              Icon(Icons.settings_suggest, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              TranslatableText('FAQ Setup', style: TextStyle(color: Colors.orange)),
             ],
           ),
         ),
@@ -1608,5 +1530,4 @@ class _SellerScreenState extends State<SellerScreen> {
 
     return items;
   }
-
 }

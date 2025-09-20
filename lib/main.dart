@@ -23,7 +23,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:arti/services/locale_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +39,9 @@ void main() async {
 
   // Initialize Gemini Service
   GeminiService.initialize();
+  
+  // Initialize Locale Service
+  await LocaleService.instance.initialize();
   // Initialize Retailer Analytics Service for AI recommendations
   RetailerAnalyticsService.initialize();
   // Initialize Nano-Banana (Gemini Image Enhancement) Service
@@ -48,6 +54,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => CartService()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider.value(value: LocaleService.instance),
       ],
       child: const MyApp(),
     ),
@@ -59,10 +66,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: NotificationNavigation.navigatorKey,
-      debugShowCheckedModeBanner: false,
-      title: 'Arti',
+    return Consumer<LocaleService>(
+      builder: (context, localeService, child) {
+        return MaterialApp(
+          navigatorKey: NotificationNavigation.navigatorKey,
+          debugShowCheckedModeBanner: false,
+          title: 'Arti',
+          locale: localeService.currentLocale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: LocaleService.supportedLocales,
 
       // Handle route with arguments for /main to pass userType to BottomAppNavigator
       onGenerateRoute: (settings) {
@@ -177,6 +194,8 @@ class MyApp extends StatelessWidget {
         '/enhanced-seller': (context) => const SellerRequestsScreen(),
         // Add notification routes
         '/notifications': (context) => const NotificationScreen(),
+      },
+        );
       },
     );
   }

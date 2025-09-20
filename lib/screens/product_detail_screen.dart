@@ -15,8 +15,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product? product;
+  final bool isSellerView; // New parameter to indicate if this is seller's preview
 
-  const ProductDetailScreen({super.key, this.product});
+  const ProductDetailScreen({super.key, this.product, this.isSellerView = false});
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -491,61 +492,62 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   
                   const SizedBox(height: 32),
                   
-                  // Add to Cart Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final cart = Provider.of<CartService>(context, listen: false);
-                        cart.addItem(p);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle, color: Colors.white),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Added to cart!',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w600,
+                  // Add to Cart Button (hidden for seller view)
+                  if (!widget.isSellerView)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final cart = Provider.of<CartService>(context, listen: false);
+                          cart.addItem(p);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: Colors.white),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Added to cart!',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentGold,
+                          foregroundColor: Colors.white,
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentGold,
-                        foregroundColor: Colors.white,
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.shopping_cart_outlined, size: 24),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Add to Cart',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.shopping_cart_outlined, size: 24),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Add to Cart',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
                   
                   const SizedBox(height: 20),
                 ],
@@ -618,7 +620,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
-              if (_canUserReview || _userReview != null)
+              if (!widget.isSellerView && (_canUserReview || _userReview != null))
                 ElevatedButton.icon(
                   onPressed: () => _showAddEditReviewDialog(product),
                   icon: Icon(
@@ -873,7 +875,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (_canUserReview) ...[
+                if (!widget.isSellerView && _canUserReview) ...[
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () => _showAddEditReviewDialog(product),
