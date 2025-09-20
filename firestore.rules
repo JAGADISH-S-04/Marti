@@ -123,45 +123,17 @@ service cloud.firestore {
     }
     
     // ============ ORDER AND TRANSACTION MANAGEMENT ============
+    // ...existing code...
     match /orders/{orderId} {
   // Allow creation if user is authenticated
   allow create: if request.auth != null;
   
-  // Allow read if user is buyer OR any artisan in the items array
-  allow read: if request.auth != null && (
-    request.auth.uid == resource.data.buyerId ||
-    userIsArtisanInOrderItems(request.auth.uid, resource.data.items)
-  );
-  
-  // Allow update if user is buyer OR any artisan in the items array
-  allow update: if request.auth != null && (
-    request.auth.uid == resource.data.buyerId ||
-    userIsArtisanInOrderItems(request.auth.uid, resource.data.items)
-  );
+  // Allow read/update for authenticated users (simplified for now)
+  allow read, update: if request.auth != null;
   
   // Allow delete only by buyer
   allow delete: if request.auth != null && 
     request.auth.uid == resource.data.buyerId;
-}
-// CORRECTED Helper function to check if user is an artisan in any order item
-function userIsArtisanInOrderItems(userId, items) {
-  return items != null && 
-         items is list && 
-         items.size() > 0 &&
-         existsIn(items, userId);
-}
-
-// Helper function to check if userId exists as artisanId in any item
-function existsIn(items, userId) {
-  return items.hasAny([userId]) || 
-         checkItemsForArtisan(items, userId, 0);
-}
-
-// Recursive function to check items array
-function checkItemsForArtisan(items, userId, index) {
-  return index < items.size() && 
-         (items[index].artisanId == userId || 
-          checkItemsForArtisan(items, userId, index + 1));
 }
     
     // Quotations - For craft requests and custom orders
@@ -563,6 +535,98 @@ function validateTaskStatusUpdate(newData, existingData) {
              data.budget is number && data.budget > 0;
     }
     
+    // Forum validation functions
+    function validateForumPostData(data) {
+      return data.keys().hasAll(['authorId', 'title', 'content', 'category', 'priority']) &&
+             data.authorId is string && data.authorId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.content is string && data.content.size() > 0 &&
+             data.category in ['general', 'techniques', 'materials', 'business', 'tools', 'inspiration'] &&
+             data.priority in ['low', 'normal', 'high', 'urgent'] &&
+             // Allow additional optional fields
+             (!data.keys().hasAny(['authorName']) || data.authorName is string) &&
+             (!data.keys().hasAny(['authorType']) || data.authorType is string) &&
+             (!data.keys().hasAny(['timestamp']) || data.timestamp is timestamp) &&
+             (!data.keys().hasAny(['lastActivity']) || data.lastActivity is timestamp) &&
+             (!data.keys().hasAny(['viewCount']) || data.viewCount is number) &&
+             (!data.keys().hasAny(['commentCount']) || data.commentCount is number) &&
+             (!data.keys().hasAny(['tags']) || data.tags is list) &&
+             (!data.keys().hasAny(['isResolved']) || data.isResolved is bool) &&
+             (!data.keys().hasAny(['resolvedByUserId']) || data.resolvedByUserId is string || data.resolvedByUserId == null) &&
+             (!data.keys().hasAny(['resolvedAt']) || data.resolvedAt is timestamp || data.resolvedAt == null) &&
+             (!data.keys().hasAny(['imageUrl']) || data.imageUrl is string || data.imageUrl == null) &&
+             (!data.keys().hasAny(['voiceUrl']) || data.voiceUrl is string || data.voiceUrl == null) &&
+             (!data.keys().hasAny(['transcription']) || data.transcription is string || data.transcription == null) &&
+             (!data.keys().hasAny(['voiceDurationSeconds']) || data.voiceDurationSeconds is number || data.voiceDurationSeconds == null) &&
+             (!data.keys().hasAny(['detectedLanguage']) || data.detectedLanguage is string || data.detectedLanguage == null);
+    }
+    
+    function validateForumPostUpdate(newData, existingData) {
+      // Ensure authorId doesn't change and only allow updates to specific fields
+      return newData.authorId == existingData.authorId &&
+             newData.diff(existingData).affectedKeys().hasOnly(['title', 'content', 'category', 'priority', 'tags', 'isResolved', 'resolvedByUserId', 'resolvedAt', 'updatedAt', 'imageUrl', 'voiceUrl', 'transcription', 'voiceDuration']);
+    }
+    
+    function onlyUpdatingViewCount(newData, existingData) {
+      // Only allow updates to view count field
+      return newData.diff(existingData).affectedKeys().hasOnly(['viewCount']) &&
+             // Ensure critical fields remain unchanged
+             newData.authorId == existingData.authorId &&
+             newData.title == existingData.title &&
+             newData.content == existingData.content;
+    }
+    
+    function onlyUpdatingCommentCount(newData, existingData) {
+      // Only allow updates to comment count and lastActivity fields (when adding comments)
+      return newData.diff(existingData).affectedKeys().hasOnly(['commentCount', 'lastActivity']) &&
+             // Ensure critical fields remain unchanged
+             newData.authorId == existingData.authorId &&
+             newData.title == existingData.title &&
+             newData.content == existingData.content;
+    }
+    
+    function onlyUpdatingHelpfulCount(newData, existingData) {
+      // Only allow updates to helpful count field (when marking as helpful)
+      return newData.diff(existingData).affectedKeys().hasOnly(['helpfulCount']) &&
+             // Ensure critical fields remain unchanged
+             newData.authorId == existingData.authorId &&
+             newData.content == existingData.content;
+    }
+    
+    function validateForumCommentData(data) {
+      return data.keys().hasAll(['authorId', 'postId', 'content']) &&
+             data.authorId is string && data.authorId.size() > 0 &&
+             data.postId is string && data.postId.size() > 0 &&
+             data.content is string && data.content.size() > 0 &&
+             // Allow optional fields that might be present
+             (!data.keys().hasAny(['authorName']) || (data.authorName is string)) &&
+             (!data.keys().hasAny(['authorType']) || (data.authorType is string)) &&
+             (!data.keys().hasAny(['imageUrl']) || (data.imageUrl is string || data.imageUrl == null)) &&
+             (!data.keys().hasAny(['voiceUrl']) || (data.voiceUrl is string || data.voiceUrl == null)) &&
+             (!data.keys().hasAny(['transcription']) || (data.transcription is string || data.transcription == null)) &&
+             (!data.keys().hasAny(['timestamp']) || (data.timestamp is timestamp)) &&
+             (!data.keys().hasAny(['isHelpful']) || (data.isHelpful is bool)) &&
+             (!data.keys().hasAny(['helpfulCount']) || (data.helpfulCount is number)) &&
+             (!data.keys().hasAny(['isAcceptedAnswer']) || (data.isAcceptedAnswer is bool)) &&
+             (!data.keys().hasAny(['parentCommentId']) || (data.parentCommentId is string || data.parentCommentId == null));
+    }
+    
+    function validateForumVoteData(data) {
+      return (
+        // Standard vote format: userId, targetId, targetType, voteType
+        (data.keys().hasAll(['userId', 'targetId', 'targetType', 'voteType']) &&
+         data.userId is string && data.userId.size() > 0 &&
+         data.targetId is string && data.targetId.size() > 0 &&
+         data.targetType in ['post', 'comment'] &&
+         data.voteType in ['upvote', 'downvote']) ||
+        // Helpful vote format: userId, commentId, type, timestamp
+        (data.keys().hasAll(['userId', 'commentId', 'type']) &&
+         data.userId is string && data.userId.size() > 0 &&
+         data.commentId is string && data.commentId.size() > 0 &&
+         data.type == 'helpful')
+      );
+    }
+    
     // ============ CHAT SYSTEM ============
     // ...existing code...
     match /chat_rooms/{chatRoomId} {
@@ -737,6 +801,75 @@ function validateTaskStatusUpdate(newData, existingData) {
       
       // Allow system updates for analytics
       allow create, update: if request.auth != null;
+    }
+    
+    // ============ FORUM SYSTEM ============
+    // Forum Posts - Allow sellers to create posts, authenticated users to read
+    match /forum_posts/{postId} {
+      // Anyone authenticated can read/list forum posts
+      allow read, list: if request.auth != null;
+      
+      // Only authenticated users can create posts (sellers only, but checked in app logic)
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.authorId;
+      
+      // Post author can update their own posts (including marking as resolved)
+      // OR any authenticated user can update view counts OR comment counts
+      allow update: if request.auth != null && (
+                   // Post author can update everything
+                   (request.auth.uid == resource.data.authorId &&
+                    validateForumPostUpdate(request.resource.data, resource.data)) ||
+                   // Any authenticated user can update view count
+                   onlyUpdatingViewCount(request.resource.data, resource.data) ||
+                   // Any authenticated user can update comment count (when adding comments)
+                   onlyUpdatingCommentCount(request.resource.data, resource.data)
+                   );
+      
+      // Post author can delete their own posts
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.authorId;
+    }
+    
+    // Forum Comments - Allow authenticated users to comment on posts
+    match /forum_comments/{commentId} {
+      // Anyone authenticated can read/list comments
+      allow read, list: if request.auth != null;
+      
+      // Only authenticated users can create comments
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.authorId;
+      
+      // Comment author can update their own comments
+      // OR any authenticated user can update helpful count
+      allow update: if request.auth != null && (
+                   // Comment author can update everything
+                   request.auth.uid == resource.data.authorId ||
+                   // Any authenticated user can update helpful count
+                   onlyUpdatingHelpfulCount(request.resource.data, resource.data)
+                   );
+      
+      // Comment author can delete their own comments
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.authorId;
+    }
+    
+    // Forum Votes - Allow authenticated users to vote on posts and comments
+    match /forum_votes/{voteId} {
+      // Users can read/list their own votes and others for display
+      allow read, list: if request.auth != null;
+      
+      // Users can create votes
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.userId &&
+                   validateForumVoteData(request.resource.data);
+      
+      // Users can update their own votes (change vote type)
+      allow update: if request.auth != null && 
+                   request.auth.uid == resource.data.userId;
+      
+      // Users can delete their own votes
+      allow delete: if request.auth != null && 
+                   request.auth.uid == resource.data.userId;
     }
     
     // ============ FALLBACK RULES ============

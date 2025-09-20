@@ -6,6 +6,7 @@ import 'package:arti/screens/seller_analytics_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
+import 'package:arti/screens/forum/forum_screen.dart';
 
 import 'package:arti/screens/faq/retailer_faq_screen.dart';
 
@@ -125,14 +126,14 @@ Widget build(BuildContext context) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const RetailerFAQScreen()),
+                    builder: (context) => const ForumScreen()),
               );
             },
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.insert_chart_outlined,
-            label: 'Analytics',
+            icon: Icons.forum,
+            label: 'Forum',
             index: 2,
             onTap: () {
               Navigator.pushReplacement(
