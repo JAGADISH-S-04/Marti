@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../models/forum_models.dart';
 import '../../services/forum_service.dart';
 import 'forum_post_detail_screen.dart';
@@ -44,8 +45,8 @@ class _ForumScreenState extends State<ForumScreen>
         if (mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Forum access is restricted to sellers only.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.forumAccessRestricted),
               backgroundColor: Colors.red,
             ),
           );
@@ -72,7 +73,7 @@ class _ForumScreenState extends State<ForumScreen>
         elevation: 0,
         iconTheme: IconThemeData(color: primaryTextColor),
         title: Text(
-          'Artisan Forum',
+          AppLocalizations.of(context)!.artisanForum,
           style: GoogleFonts.inter(
             color: primaryTextColor,
             fontWeight: FontWeight.w600,
@@ -85,10 +86,10 @@ class _ForumScreenState extends State<ForumScreen>
           labelColor: primaryTextColor,
           unselectedLabelColor: primaryTextColor.withOpacity(0.6),
           labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500),
-          tabs: const [
-            Tab(text: 'All Posts', icon: Icon(Icons.forum, size: 20)),
-            Tab(text: 'Trending', icon: Icon(Icons.trending_up, size: 20)),
-            Tab(text: 'My Posts', icon: Icon(Icons.person, size: 20)),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.allPosts, icon: const Icon(Icons.forum, size: 20)),
+            Tab(text: AppLocalizations.of(context)!.trending, icon: const Icon(Icons.trending_up, size: 20)),
+            Tab(text: AppLocalizations.of(context)!.myPosts, icon: const Icon(Icons.person, size: 20)),
           ],
         ),
       ),
@@ -123,7 +124,7 @@ class _ForumScreenState extends State<ForumScreen>
           foregroundColor: cardColor,
           icon: const Icon(Icons.add),
           label: Text(
-            'Ask Question',
+            AppLocalizations.of(context)!.askQuestion,
             style: GoogleFonts.inter(fontWeight: FontWeight.w500),
           ),
         ),
@@ -150,7 +151,7 @@ class _ForumScreenState extends State<ForumScreen>
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search posts, tags, or keywords...',
+              hintText: AppLocalizations.of(context)!.searchPostsHint,
               prefixIcon: Icon(Icons.search, color: primaryTextColor),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
@@ -190,7 +191,7 @@ class _ForumScreenState extends State<ForumScreen>
                 child: DropdownButtonFormField<PostCategory>(
                   value: _selectedCategory,
                   decoration: InputDecoration(
-                    labelText: 'Category',
+                    labelText: AppLocalizations.of(context)!.category,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -198,9 +199,9 @@ class _ForumScreenState extends State<ForumScreen>
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   items: [
-                    const DropdownMenuItem<PostCategory>(
+                    DropdownMenuItem<PostCategory>(
                       value: null,
-                      child: Text('All Categories'),
+                      child: Text(AppLocalizations.of(context)!.allCategories),
                     ),
                     ...PostCategory.values.map((category) {
                       return DropdownMenuItem<PostCategory>(
@@ -227,7 +228,7 @@ class _ForumScreenState extends State<ForumScreen>
 
               // Resolved filter
               FilterChip(
-                label: const Text('Unresolved only'),
+                label: Text(AppLocalizations.of(context)!.unresolvedOnly),
                 selected: _showOnlyUnresolved,
                 onSelected: (selected) {
                   setState(() {
@@ -263,10 +264,10 @@ class _ForumScreenState extends State<ForumScreen>
               children: [
                 Icon(Icons.error, size: 64, color: Colors.red[300]),
                 const SizedBox(height: 16),
-                Text('Error loading posts: ${snapshot.error}'),
+                Text(AppLocalizations.of(context)!.errorLoadingPosts(snapshot.error.toString())),
                 ElevatedButton(
                   onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
+                  child: Text(AppLocalizations.of(context)!.retry),
                 ),
               ],
             ),
@@ -472,7 +473,7 @@ class _ForumScreenState extends State<ForumScreen>
                               size: 12, color: Colors.orange[700]),
                           const SizedBox(width: 2),
                           Text(
-                            'Trending',
+                            AppLocalizations.of(context)!.trendingBadge,
                             style: TextStyle(
                                 fontSize: 10, color: Colors.orange[700]),
                           ),
@@ -495,7 +496,7 @@ class _ForumScreenState extends State<ForumScreen>
                               size: 12, color: Colors.green[700]),
                           const SizedBox(width: 2),
                           Text(
-                            'Resolved',
+                            AppLocalizations.of(context)!.resolvedBadge,
                             style: TextStyle(
                                 fontSize: 10, color: Colors.green[700]),
                           ),
@@ -539,7 +540,7 @@ class _ForumScreenState extends State<ForumScreen>
                     Icon(Icons.mic, size: 16, color: accentColor),
                     const SizedBox(width: 4),
                     Text(
-                      'Voice message included',
+                      AppLocalizations.of(context)!.voiceMessageIncluded,
                       style: TextStyle(
                         fontSize: 12,
                         color: accentColor,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'dart:io';
 import '../../models/forum_models.dart';
 import '../../services/forum_service.dart';
@@ -51,8 +52,8 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
         if (mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Forum access is restricted to sellers only.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.forumAccessRestricted),
               backgroundColor: Colors.red,
             ),
           );
@@ -64,7 +65,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error accessing forum: $e'),
+            content: Text(AppLocalizations.of(context)!.errorAccessingForum(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -87,9 +88,9 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
 
     if (_contentController.text.trim().isEmpty && _voiceFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content:
-              Text('Please provide either text content or a voice message'),
+              Text(AppLocalizations.of(context)!.provideContentOrVoice),
         ),
       );
       return;
@@ -124,19 +125,18 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post created successfully!')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.postCreatedSuccessfully)),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       print('Error creating forum post: $e');
       if (mounted) {
-        String errorMessage = 'Error creating post: $e';
+        String errorMessage = AppLocalizations.of(context)!.errorCreatingPost(e.toString());
         if (e.toString().contains('User profile not found')) {
-          errorMessage =
-              'Please ensure you are logged in as a seller to access the forum.';
+          errorMessage = AppLocalizations.of(context)!.ensureSellerLogin;
         } else if (e.toString().contains('Forum access is restricted')) {
-          errorMessage = 'Forum access is restricted to sellers only.';
+          errorMessage = AppLocalizations.of(context)!.forumAccessRestricted;
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -181,7 +181,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text(
-          'Ask a Question',
+          AppLocalizations.of(context)!.askQuestion,
           style: GoogleFonts.inter(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -193,7 +193,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           TextButton(
             onPressed: _isSubmitting ? null : _submitPost,
             child: Text(
-              'Post',
+              AppLocalizations.of(context)!.postQuestion,
               style: GoogleFonts.inter(
                 color: _isSubmitting ? Colors.white54 : Colors.white,
                 fontWeight: FontWeight.bold,
@@ -241,7 +241,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Question Title *',
+          AppLocalizations.of(context)!.questionTitle,
           style: GoogleFonts.inter(
             fontSize: isTablet ? 16 : 14,
             fontWeight: FontWeight.w600,
@@ -253,7 +253,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           controller: _titleController,
           style: GoogleFonts.inter(fontSize: isTablet ? 16 : 14),
           decoration: InputDecoration(
-            hintText: 'What\'s your question?',
+            hintText: AppLocalizations.of(context)!.questionTitleHint,
             hintStyle:
                 GoogleFonts.inter(color: primaryTextColor.withOpacity(0.6)),
             border: OutlineInputBorder(
@@ -273,7 +273,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return 'Please enter a title for your question';
+              return AppLocalizations.of(context)!.enterQuestionTitle;
             }
             return null;
           },
@@ -287,7 +287,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Category *',
+          AppLocalizations.of(context)!.category + ' *',
           style: GoogleFonts.inter(
             fontSize: isTablet ? 16 : 14,
             fontWeight: FontWeight.w600,
@@ -338,7 +338,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Priority',
+          AppLocalizations.of(context)!.priority,
           style: GoogleFonts.inter(
             fontSize: isTablet ? 16 : 14,
             fontWeight: FontWeight.w600,
@@ -383,7 +383,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Description',
+          AppLocalizations.of(context)!.questionContent,
           style: GoogleFonts.inter(
             fontSize: isTablet ? 16 : 14,
             fontWeight: FontWeight.w600,
@@ -396,7 +396,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           style: GoogleFonts.inter(fontSize: isTablet ? 16 : 14),
           maxLines: isTablet ? 8 : 5,
           decoration: InputDecoration(
-            hintText: 'Describe your question in detail...',
+            hintText: AppLocalizations.of(context)!.describeQuestionHint,
             hintStyle:
                 GoogleFonts.inter(color: primaryTextColor.withOpacity(0.6)),
             border: OutlineInputBorder(
@@ -413,7 +413,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           ),
           validator: (value) {
             if ((value == null || value.trim().isEmpty) && _voiceFile == null) {
-              return 'Please provide either text content or a voice message';
+              return AppLocalizations.of(context)!.provideContentOrVoice;
             }
             return null;
           },
@@ -431,7 +431,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
             Icon(Icons.mic, size: isTablet ? 20 : 16, color: accentColor),
             const SizedBox(width: 8),
             Text(
-              'Voice Message (Optional)',
+              AppLocalizations.of(context)!.voiceMessage,
               style: GoogleFonts.inter(
                 fontSize: isTablet ? 16 : 14,
                 fontWeight: FontWeight.w600,
@@ -464,7 +464,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Voice message recorded',
+                        AppLocalizations.of(context)!.voiceRecorded(_voiceDuration != null ? '${_voiceDuration!.inSeconds}s' : ''),
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w600,
                           color: primaryTextColor,
@@ -509,7 +509,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Tags (comma-separated)',
+          AppLocalizations.of(context)!.tags,
           style: GoogleFonts.inter(
             fontSize: isTablet ? 16 : 14,
             fontWeight: FontWeight.w600,
@@ -521,7 +521,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
           controller: _tagsController,
           style: GoogleFonts.inter(fontSize: isTablet ? 16 : 14),
           decoration: InputDecoration(
-            hintText: 'e.g., metalwork, woodworking, pottery',
+            hintText: AppLocalizations.of(context)!.tagsHint,
             hintStyle:
                 GoogleFonts.inter(color: primaryTextColor.withOpacity(0.6)),
             border: OutlineInputBorder(
@@ -566,7 +566,7 @@ class _CreateForumPostScreenState extends State<CreateForumPostScreen> {
                 ),
               )
             : Text(
-                'Post Question',
+                AppLocalizations.of(context)!.postQuestion,
                 style: GoogleFonts.inter(
                   fontSize: isTablet ? 16 : 14,
                   fontWeight: FontWeight.bold,

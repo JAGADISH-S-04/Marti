@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'notification_service.dart';
 import 'notification_screen.dart';
 import 'chat_screen.dart';
@@ -12,8 +13,7 @@ import '../../services/collab_service.dart';
 import '../collaboration/create_collaboration_screen.dart';
 import '../collaboration/collaboration_details_screen.dart';
 import '../../models/collab_model.dart';
-import '../collaboration/collaboration_management_screen.dart';
-import '../collaboration/project_management.dart';
+
 import '../../utils/deadline_utils.dart';
 
 class SellerRequestsScreen extends StatefulWidget {
@@ -118,7 +118,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
       final customerId = requestData['userId'] ?? '';
 
       // Get customer name
-      String customerName = 'Customer';
+      String customerName = AppLocalizations.of(context)!.customer;
       try {
         final customerDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -127,14 +127,14 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         if (customerDoc.exists && customerDoc.data() != null) {
           customerName = customerDoc.data()!['name'] ??
               customerDoc.data()!['email']?.split('@')[0] ??
-              'Customer';
+              AppLocalizations.of(context)!.customer;
         }
       } catch (e) {
         print('Error fetching customer info: $e');
       }
 
       // Get artisan name
-      String artisanName = 'Artisan';
+      String artisanName = AppLocalizations.of(context)!.artisan;
       try {
         final artisanDoc = await FirebaseFirestore.instance
             .collection('retailers')
@@ -144,7 +144,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           artisanName = artisanDoc.data()!['fullName'] ??
               artisanDoc.data()!['name'] ??
               user.email?.split('@')[0] ??
-              'Artisan';
+              AppLocalizations.of(context)!.artisan;
         }
       } catch (e) {
         print('Error fetching artisan info: $e');
@@ -170,7 +170,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error opening chat: ${e.toString()}'),
+          content: Text(AppLocalizations.of(context)!.errorOpeningChat(e.toString())),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -186,7 +186,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         backgroundColor: primaryBrown,
         foregroundColor: Colors.white,
         title: Text(
-          'AI-Powered Craft Requests',
+          AppLocalizations.of(context)!.aiPoweredCraftRequests,
           style: GoogleFonts.playfairDisplay(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -214,7 +214,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         ),
                       );
                     },
-                    tooltip: 'Notifications',
+                    tooltip: AppLocalizations.of(context)!.notifications,
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -251,7 +251,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               setState(() {}); // Force refresh
               _loadRecommendations(); // Refresh AI recommendations too
             },
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.refresh,
           ),
         ],
         bottom: TabBar(
@@ -259,10 +259,10 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'AI Picks', icon: Icon(Icons.auto_awesome)),
-            Tab(text: 'All Requests', icon: Icon(Icons.list_alt)),
-            Tab(text: 'Insights', icon: Icon(Icons.analytics)),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.aiPicks, icon: const Icon(Icons.auto_awesome)),
+            Tab(text: AppLocalizations.of(context)!.allRequests, icon: const Icon(Icons.list_alt)),
+            Tab(text: AppLocalizations.of(context)!.insights, icon: const Icon(Icons.analytics)),
           ],
         ),
       ),
@@ -285,11 +285,11 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           children: [
             CircularProgressIndicator(color: primaryBrown),
             const SizedBox(height: 16),
-            const Text('Analyzing your preferences...'),
+            Text(AppLocalizations.of(context)!.analyzingPreferences),
             const SizedBox(height: 8),
-            const Text(
-              'Our AI is finding the perfect requests for you',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            Text(
+              AppLocalizations.of(context)!.aiAnalyzingMessage,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -317,14 +317,14 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
-              'No AI recommendations available',
+              AppLocalizations.of(context)!.noAiRecommendationsAvailable,
               style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             Text(
               _recommendedRequests.isNotEmpty
-                  ? 'Great! Your accepted requests have been moved to progress tracking'
-                  : 'Complete some projects to help our AI learn your preferences',
+                  ? AppLocalizations.of(context)!.acceptedRequestsMovedMessage
+                  : AppLocalizations.of(context)!.completeProjectsAiMessage,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
@@ -332,7 +332,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             ElevatedButton.icon(
               onPressed: _loadRecommendations,
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh Recommendations'),
+              label: Text(AppLocalizations.of(context)!.refreshRecommendations),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryBrown,
                 foregroundColor: Colors.white,
@@ -463,7 +463,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                 size: 14, color: Colors.white),
                             const SizedBox(width: 4),
                             Text(
-                              '${recommendationScore.round()}% Match',
+                              AppLocalizations.of(context)!.percentMatch(recommendationScore.round()),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -485,7 +485,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               border: Border.all(color: Colors.green),
                             ),
                             child: Text(
-                              '${winChance.round()}% Win',
+                              AppLocalizations.of(context)!.percentWin(winChance.round()),
                               style: TextStyle(
                                 color: Colors.green.shade800,
                                 fontSize: 10,
@@ -540,7 +540,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     children: [
                       Expanded(
                         child: Text(
-                          request['title'] ?? 'Untitled Request',
+                          request['title'] ?? AppLocalizations.of(context)!.untitledRequest,
                           style: GoogleFonts.playfairDisplay(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -558,7 +558,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
                   // Description
                   Text(
-                    request['description'] ?? 'No description provided',
+                    request['description'] ?? AppLocalizations.of(context)!.noDescriptionProvided,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade700,
@@ -581,7 +581,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               size: 16, color: Colors.grey.shade600),
                           const SizedBox(width: 4),
                           Text(
-                            request['category'] ?? 'Unknown',
+                            request['category'] ?? AppLocalizations.of(context)!.unknown,
                             style: TextStyle(
                                 fontSize: 12, color: Colors.grey.shade600),
                           ),
@@ -610,7 +610,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   // AI Match Reasons
                   if (matchReasons.isNotEmpty) ...[
                     Text(
-                      'Why this is perfect for you:',
+                      AppLocalizations.of(context)!.whyPerfectForYou,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -662,7 +662,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                   size: 14, color: Colors.blue.shade700),
                               const SizedBox(width: 4),
                               Text(
-                                'AI Strategy Tip:',
+                                AppLocalizations.of(context)!.aiStrategyTip,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -703,7 +703,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Quotation submitted - awaiting response',
+                              AppLocalizations.of(context)!.quotationSubmittedAwaiting,
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -729,7 +729,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           request,
                         ),
                         icon: const Icon(Icons.send, size: 16),
-                        label: const Text('Submit Quotation'),
+                        label: Text(AppLocalizations.of(context)!.submitQuotation),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _getScoreColor(recommendationScore),
                           foregroundColor: Colors.white,
@@ -755,7 +755,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               size: 16, color: Colors.grey.shade600),
                           const SizedBox(width: 8),
                           Text(
-                            'Awaiting Customer Response',
+                            AppLocalizations.of(context)!.awaitingCustomerResponse,
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 14,
@@ -770,7 +770,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Tap anywhere to view full details',
+                      AppLocalizations.of(context)!.tapViewFullDetails,
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade500,
@@ -797,7 +797,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           child: Row(
             children: [
               Text(
-                'Filter: ',
+                AppLocalizations.of(context)!.filter,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: primaryBrown,
@@ -809,16 +809,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   child: Row(
                     children: [
                       _buildFilterChip(
-                          'Available', 'all'), // Changed from 'All Active'
+                          AppLocalizations.of(context)!.available, 'all'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Open', 'open'),
+                      _buildFilterChip(AppLocalizations.of(context)!.open, 'open'),
                       const SizedBox(width: 8),
                       _buildFilterChip(
-                          'Quoted', 'quoted'), // Changed from 'Quoted'
+                          AppLocalizations.of(context)!.quoted, 'quoted'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('In Progress', 'in_progress'),
+                      _buildFilterChip(AppLocalizations.of(context)!.inProgress, 'in_progress'),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Completed', 'completed'),
+                      _buildFilterChip(AppLocalizations.of(context)!.completed, 'completed'),
                     ],
                   ),
                 ),
@@ -838,7 +838,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     children: [
                       CircularProgressIndicator(color: primaryBrown),
                       const SizedBox(height: 16),
-                      const Text('Loading requests...'),
+                      Text(AppLocalizations.of(context)!.loadingRequests),
                     ],
                   ),
                 );
@@ -851,14 +851,14 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     children: [
                       const Icon(Icons.error, color: Colors.red, size: 48),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Error loading requests',
-                        style: TextStyle(fontSize: 16, color: Colors.red),
+                      Text(
+                        AppLocalizations.of(context)!.errorLoadingRequests,
+                        style: const TextStyle(fontSize: 16, color: Colors.red),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Please check your internet connection and try again',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      Text(
+                        AppLocalizations.of(context)!.checkInternetRetry,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -868,7 +868,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           backgroundColor: primaryBrown,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Retry'),
+                        child: Text(AppLocalizations.of(context)!.retry),
                       ),
                     ],
                   ),
@@ -953,31 +953,28 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 String emptySubMessage;
                 switch (selectedFilter) {
                   case 'all':
-                    emptyMessage = 'No active requests available';
-                    emptySubMessage =
-                        'New open requests you can quote on will appear here';
+                    emptyMessage = AppLocalizations.of(context)!.noActiveRequestsAvailable;
+                    emptySubMessage = AppLocalizations.of(context)!.newOpenRequestsMessage;
                     break;
                   case 'open':
-                    emptyMessage = 'No open requests available';
-                    emptySubMessage =
-                        'New requests you can quote on will appear here';
+                    emptyMessage = AppLocalizations.of(context)!.noOpenRequestsAvailable;
+                    emptySubMessage = AppLocalizations.of(context)!.newRequestsQuoteMessage;
                     break;
                   case 'quoted':
-                    emptyMessage = 'No pending quotations';
-                    emptySubMessage =
-                        'Quotations awaiting customer response will appear here';
+                    emptyMessage = AppLocalizations.of(context)!.noPendingQuotations;
+                    emptySubMessage = AppLocalizations.of(context)!.quotationsAwaitingMessage;
                     break;
                   case 'in_progress':
-                    emptyMessage = 'No requests in progress';
-                    emptySubMessage = 'Your accepted requests will appear here';
+                    emptyMessage = AppLocalizations.of(context)!.noRequestsInProgress;
+                    emptySubMessage = AppLocalizations.of(context)!.acceptedRequestsMessage;
                     break;
                   case 'completed':
-                    emptyMessage = 'No completed requests';
-                    emptySubMessage = 'Your completed work will appear here';
+                    emptyMessage = AppLocalizations.of(context)!.noCompletedRequests;
+                    emptySubMessage = AppLocalizations.of(context)!.completedWorkMessage;
                     break;
                   default:
-                    emptyMessage = 'No requests found';
-                    emptySubMessage = 'Check back later for new requests';
+                    emptyMessage = AppLocalizations.of(context)!.noRequestsFound;
+                    emptySubMessage = AppLocalizations.of(context)!.checkBackLaterMessage;
                 }
 
                 return Center(
@@ -1050,8 +1047,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             const SizedBox(height: 16),
             Text(
               _isLoadingRecommendations
-                  ? 'Loading your insights...'
-                  : 'No insights available yet',
+                  ? AppLocalizations.of(context)!.loadingInsights
+                  : AppLocalizations.of(context)!.noInsightsAvailableYet,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -1060,7 +1057,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
             if (!_isLoadingRecommendations && _retailerInsights.isEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Complete some projects to see your performance insights',
+                AppLocalizations.of(context)!.completeProjectsInsightsMessage,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade500,
@@ -1071,7 +1068,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               ElevatedButton.icon(
                 onPressed: _loadRecommendations,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
+                label: Text(AppLocalizations.of(context)!.refresh),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryBrown,
                   foregroundColor: Colors.white,
@@ -1103,7 +1100,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           // Performance Summary Card
           if (performanceSummary.isNotEmpty)
             _buildInsightCard(
-              title: 'Your Performance',
+              title: AppLocalizations.of(context)!.yourPerformance,
               icon: Icons.trending_up,
               color: Colors.blue,
               child: Column(
@@ -1111,13 +1108,13 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 children: [
                   if (performanceSummary.containsKey('successRate'))
                     _buildStatRow(
-                      'Success Rate',
+                      AppLocalizations.of(context)!.successRate,
                       '${_safeToInt(performanceSummary['successRate'])}%',
                       Colors.green,
                     ),
                   if (performanceSummary.containsKey('averageProjectValue'))
                     _buildStatRow(
-                      'Avg Project Value',
+                      AppLocalizations.of(context)!.avgProjectValue,
                       '₹${_safeToInt(performanceSummary['averageProjectValue'])}',
                       Colors.blue,
                     ),
@@ -1126,7 +1123,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               ?.isNotEmpty ==
                           true)
                     _buildStatRow(
-                      'Strong Categories',
+                      AppLocalizations.of(context)!.strongCategories,
                       (performanceSummary['strongCategories'] as List)
                           .join(', '),
                       Colors.purple,
@@ -1135,7 +1132,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        'No performance data available yet',
+                        AppLocalizations.of(context)!.noPerformanceDataAvailable,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontStyle: FontStyle.italic,
@@ -1151,7 +1148,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           // Market Opportunities
           if (opportunitiesList.isNotEmpty)
             _buildInsightCard(
-              title: 'Market Opportunities',
+              title: AppLocalizations.of(context)!.marketOpportunities,
               icon: Icons.business_center,
               color: Colors.green,
               child: Column(
@@ -1166,7 +1163,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           // Strategic Recommendations
           if (recommendationsList.isNotEmpty)
             _buildInsightCard(
-              title: 'Strategic Recommendations',
+              title: AppLocalizations.of(context)!.strategicRecommendations,
               icon: Icons.lightbulb,
               color: Colors.orange,
               child: Column(
@@ -1203,7 +1200,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No Insights Available',
+                    AppLocalizations.of(context)!.noInsightsAvailable,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1212,7 +1209,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Complete some projects and submit quotations to see your performance insights and market opportunities.',
+                    AppLocalizations.of(context)!.completeProjectsToSeeInsights,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
@@ -1327,8 +1324,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
   Widget _buildOpportunityItem(Map<String, dynamic> opportunity) {
     final potential = opportunity['potential']?.toString() ?? 'medium';
-    final category = opportunity['category']?.toString() ?? 'Unknown';
-    final reason = opportunity['reason']?.toString() ?? 'No reason provided';
+    final category = opportunity['category']?.toString() ?? AppLocalizations.of(context)!.unknown;
+    final reason = opportunity['reason']?.toString() ?? AppLocalizations.of(context)!.noReasonProvided;
     final action = opportunity['action']?.toString() ?? '';
 
     Color potentialColor = potential == 'high'
@@ -1366,7 +1363,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  potential.toUpperCase(),
+                  _getLocalizedPotential(potential),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -1384,7 +1381,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           if (action.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Action: $action',
+              AppLocalizations.of(context)!.action(action),
               style: TextStyle(
                 fontSize: 11,
                 color: potentialColor,
@@ -1400,7 +1397,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
   Widget _buildRecommendationItem(Map<String, dynamic> recommendation) {
     final priority = recommendation['priority']?.toString() ?? 'medium';
     final recommendationText = recommendation['recommendation']?.toString() ??
-        'No recommendation available';
+        AppLocalizations.of(context)!.noRecommendationAvailable;
     final timeframe = recommendation['timeframe']?.toString() ?? '';
     final expectedImpact = recommendation['expectedImpact']?.toString() ?? '';
 
@@ -1430,7 +1427,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${priority.toUpperCase()} PRIORITY',
+                  _getLocalizedPriority(priority),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 9,
@@ -1461,7 +1458,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           if (expectedImpact.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Impact: $expectedImpact',
+              AppLocalizations.of(context)!.impact(expectedImpact),
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade700,
@@ -1542,7 +1539,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 children: [
                   Expanded(
                     child: Text(
-                      data['title'] ?? 'Untitled Request',
+                      data['title'] ?? AppLocalizations.of(context)!.untitledRequest,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1557,7 +1554,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
               // Request Details
               Text(
-                data['description'] ?? 'No description provided',
+                data['description'] ?? AppLocalizations.of(context)!.noDescriptionProvided,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade700,
@@ -1574,7 +1571,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   Icon(Icons.category, size: 16, color: Colors.grey.shade600),
                   const SizedBox(width: 4),
                   Text(
-                    data['category'] ?? 'Unknown',
+                    data['category'] ?? AppLocalizations.of(context)!.unknown,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(width: 16),
@@ -1596,7 +1593,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               // Images (if any) - Show preview
               if (images.isNotEmpty) ...[
                 Text(
-                  'Images: ${images.length} attached',
+                  AppLocalizations.of(context)!.imagesAvailable(images.length),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1667,7 +1664,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   Icon(Icons.format_quote, size: 16, color: primaryBrown),
                   const SizedBox(width: 4),
                   Text(
-                    '${quotations.length} Quotation${quotations.length != 1 ? 's' : ''}',
+                    quotations.length == 1 
+                        ? '1 ${AppLocalizations.of(context)!.quotation}'
+                        : '${quotations.length} ${AppLocalizations.of(context)!.quotations}',
                     style: TextStyle(
                       color: primaryBrown,
                       fontSize: 14,
@@ -1689,7 +1688,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         onPressed: () => _openChat(context, requestId, data),
                         icon: const Icon(Icons.chat, size: 16),
                         label:
-                            const Text('Chat', style: TextStyle(fontSize: 12)),
+                            Text(AppLocalizations.of(context)!.openChat, style: const TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -1749,9 +1748,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                 });
 
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                        'Collaboration project not found. Status reset.'),
+                                        AppLocalizations.of(context)!.collaborationProjectNotFound),
                                     backgroundColor: Colors.orange,
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -1761,7 +1760,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content:
-                                      Text('Error accessing collaboration: $e'),
+                                      Text(AppLocalizations.of(context)!.errorAccessingCollaboration(e.toString())),
                                   backgroundColor: Colors.red,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -1789,9 +1788,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               if (result == true) {
                                 // Collaboration was created successfully
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                        'Collaboration project created successfully!'),
+                                        AppLocalizations.of(context)!.collaborationProjectCreatedSuccessfully),
                                     backgroundColor: Colors.green,
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -1799,9 +1798,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                               }
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                      'Cannot create collaboration for this request'),
+                                      AppLocalizations.of(context)!.cannotCreateCollaboration),
                                   backgroundColor: Colors.orange,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -1816,8 +1815,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             size: 16),
                         label: Text(
                             data['isOpenForCollaboration'] == true
-                                ? 'Manage Collaboration'
-                                : 'Open for Collaboration',
+                                ? AppLocalizations.of(context)!.manageCollaboration
+                                : AppLocalizations.of(context)!.openForCollaboration,
                             style: const TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
@@ -1851,8 +1850,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             'completedAt': Timestamp.now(),
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Request marked as completed!'),
+                            SnackBar(
+                              content: Text(AppLocalizations.of(context)!.requestMarkedCompleted),
                               backgroundColor: Colors.green,
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -1869,8 +1868,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         }
                       },
                       icon: const Icon(Icons.done_all, size: 16),
-                      label: const Text('Mark as Completed',
-                          style: TextStyle(fontSize: 12)),
+                      label: Text(AppLocalizations.of(context)!.markCompleted,
+                          style: const TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -1917,7 +1916,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         onPressed: () =>
                             _showEditQuotationDialog(context, requestId, data),
                         icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Edit Quotation'),
+                        label: Text(AppLocalizations.of(context)!.editQuotation),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: primaryBrown,
                           side: BorderSide(color: primaryBrown),
@@ -1935,7 +1934,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     onPressed: () =>
                         _showQuotationDialog(context, requestId, data),
                     icon: const Icon(Icons.add_business, size: 16),
-                    label: const Text('Submit Quotation'),
+                    label: Text(AppLocalizations.of(context)!.submitQuotation),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBrown,
                       foregroundColor: Colors.white,
@@ -1970,7 +1969,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Deadline passed - Cannot submit quotation',
+                                AppLocalizations.of(context)!.deadlinePassedCannotSubmit,
                                 style: TextStyle(
                                   color: Colors.red.shade700,
                                   fontSize: 14,
@@ -1989,7 +1988,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         onPressed: () =>
                             _showQuotationDialog(context, requestId, data),
                         icon: const Icon(Icons.add_business, size: 16),
-                        label: const Text('Submit Quotation'),
+                        label: Text(AppLocalizations.of(context)!.submitQuotation),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryBrown,
                           foregroundColor: Colors.white,
@@ -2082,7 +2081,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: Text(
-            'Edit Quotation',
+            AppLocalizations.of(context)!.editQuotationDialog,
             style: TextStyle(color: primaryBrown, fontWeight: FontWeight.bold),
           ),
           content: SingleChildScrollView(
@@ -2312,7 +2311,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text('Update Quotation'),
+                  : Text(AppLocalizations.of(context)!.updateQuotation),
             ),
           ],
         ),
@@ -2330,7 +2329,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     String newNotes,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not authenticated');
+    if (user == null) throw Exception(AppLocalizations.of(context)!.userNotAuthenticated);
 
     try {
       // Get current quotations
@@ -2342,7 +2341,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           quotations.indexWhere((q) => q['artisanId'] == user.uid);
 
       if (quotationIndex == -1) {
-        throw Exception('Your quotation not found');
+        throw Exception(AppLocalizations.of(context)!.quotationNotFound);
       }
 
       // Get artisan details for the updated quotation
@@ -2442,7 +2441,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         border: Border.all(color: color),
       ),
       child: Text(
-        status.toUpperCase(),
+        _getLocalizedStatus(status),
         style: TextStyle(
           color: color,
           fontSize: 10,
@@ -2510,7 +2509,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     children: [
                       // Title and Status
                       Text(
-                        data['title'] ?? 'Untitled Request',
+                        data['title'] ?? AppLocalizations.of(context)!.untitledRequest,
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -2548,7 +2547,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             child: _buildDetailItem(
                               Icons.category,
                               'Category',
-                              data['category'] ?? 'Unknown',
+                              data['category'] ?? AppLocalizations.of(context)!.unknown,
                             ),
                           ),
                           Expanded(
@@ -2575,7 +2574,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       // Images
                       if ((data['images'] as List?)?.isNotEmpty == true) ...[
                         Text(
-                          'Reference Images',
+                          AppLocalizations.of(context)!.referenceImages,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -2682,7 +2681,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Delivery Time',
+                                          AppLocalizations.of(context)!.deliveryTime,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey.shade600,
@@ -2690,7 +2689,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                         ),
                                         Text(
                                           myQuotation['deliveryTime'] ??
-                                              'Not specified',
+                                              AppLocalizations.of(context)!.notSpecified,
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
@@ -2811,7 +2810,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: Text(
-            'Submit Quotation',
+            AppLocalizations.of(context)!.submitQuotationDialog,
             style: TextStyle(color: primaryBrown, fontWeight: FontWeight.bold),
           ),
           content: SingleChildScrollView(
@@ -3033,8 +3032,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           setState(() => isSubmitting = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text(
-                                  'Cannot submit quotation: Deadline has passed'),
+                              content: Text(
+                                  AppLocalizations.of(context)!.deadlinePassedCannotSubmit),
                               backgroundColor: Colors.red,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
@@ -3051,7 +3050,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         }
 
                         // Get seller info from retailers collection
-                        String sellerName = 'Anonymous Artisan';
+                        String sellerName = AppLocalizations.of(context)!.anonymousArtisan;
                         try {
                           final sellerDoc = await FirebaseFirestore.instance
                               .collection('retailers')
@@ -3061,7 +3060,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           if (sellerDoc.exists && sellerDoc.data() != null) {
                             sellerName = sellerDoc.data()!['fullName'] ??
                                 sellerDoc.data()!['name'] ??
-                                'Anonymous Artisan';
+                                AppLocalizations.of(context)!.anonymousArtisan;
                           }
                         } catch (e) {
                           print('Error fetching seller name: $e');
@@ -3162,7 +3161,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text('Submit Quotation'),
+                  : Text(AppLocalizations.of(context)!.submitQuotation),
             ),
           ],
         ),
@@ -3575,14 +3574,53 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
     if (difference.isNegative) {
       final daysPast = (-difference.inDays);
-      if (daysPast == 0) return 'Today';
-      if (daysPast == 1) return 'Yesterday';
-      return '$daysPast days ago';
+      if (daysPast == 0) return AppLocalizations.of(context)!.today;
+      if (daysPast == 1) return AppLocalizations.of(context)!.yesterday;
+      return AppLocalizations.of(context)!.daysAgo(daysPast);
     }
 
     final daysFromNow = difference.inDays;
-    if (daysFromNow == 0) return 'Today';
-    if (daysFromNow == 1) return 'Tomorrow';
-    return 'In $daysFromNow days';
+    if (daysFromNow == 0) return AppLocalizations.of(context)!.today;
+    if (daysFromNow == 1) return AppLocalizations.of(context)!.tomorrow;
+    return AppLocalizations.of(context)!.inDays(daysFromNow);
+  }
+
+  String _getLocalizedStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return AppLocalizations.of(context)!.statusOpen;
+      case 'in_progress':
+        return AppLocalizations.of(context)!.statusInProgress;
+      case 'completed':
+        return AppLocalizations.of(context)!.statusCompleted;
+      case 'cancelled':
+        return AppLocalizations.of(context)!.statusCancelled;
+      case 'deleted':
+        return AppLocalizations.of(context)!.statusDeleted;
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  String _getLocalizedPriority(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return AppLocalizations.of(context)!.highPriority;
+      case 'medium':
+        return AppLocalizations.of(context)!.mediumPriority;
+      default:
+        return '${priority.toUpperCase()} PRIORITY';
+    }
+  }
+
+  String _getLocalizedPotential(String potential) {
+    switch (potential.toLowerCase()) {
+      case 'high':
+        return AppLocalizations.of(context)!.highLabel;
+      case 'medium':
+        return AppLocalizations.of(context)!.mediumPriority;
+      default:
+        return potential.toUpperCase();
+    }
   }
 }

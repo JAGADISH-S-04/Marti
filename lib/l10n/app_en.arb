@@ -959,5 +959,732 @@
   "createAnother": "Create Another",
   "@createAnother": {},
   "done": "Done",
-  "@done": {}
+  "@done": {},
+  "aiPoweredCraftRequests": "AI-Powered Craft Requests",
+  "@aiPoweredCraftRequests": {},
+  "notifications": "Notifications",
+  "@notifications": {},
+  "refresh": "Refresh",
+  "@refresh": {},
+  "aiPicks": "AI Picks",
+  "@aiPicks": {},
+  "allRequests": "All Requests",
+  "@allRequests": {},
+  "insights": "Insights",
+  "@insights": {},
+  "analyzingPreferences": "Analyzing your preferences...",
+  "@analyzingPreferences": {},
+  "aiAnalyzingMessage": "Our AI is finding the perfect requests for you",
+  "@aiAnalyzingMessage": {},
+  "noAiRecommendationsAvailable": "No AI recommendations available",
+  "@noAiRecommendationsAvailable": {},
+  "acceptedRequestsMovedMessage": "Great! Your accepted requests have been moved to progress tracking",
+  "@acceptedRequestsMovedMessage": {},
+  "completeProjectsAiMessage": "Complete some projects to help our AI learn your preferences",
+  "@completeProjectsAiMessage": {},
+  "refreshRecommendations": "Refresh Recommendations",
+  "@refreshRecommendations": {},
+  "percentMatch": "{score}% Match",
+  "@percentMatch": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "percentWin": "{chance}% Win",
+  "@percentWin": {
+    "placeholders": {
+      "chance": {
+        "type": "int"
+      }
+    }
+  },
+  "awaitingCustomerResponse": "Awaiting Customer Response",
+  "@awaitingCustomerResponse": {},
+  "tapViewFullDetails": "Tap anywhere to view full details",
+  "@tapViewFullDetails": {},
+  "filter": "Filter: ",
+  "@filter": {},
+  "available": "Available",
+  "@available": {},
+  "open": "Open",
+  "@open": {},
+  "quoted": "Quoted",
+  "@quoted": {},
+  "inProgress": "In Progress",
+  "@inProgress": {},
+  "completed": "Completed",
+  "@completed": {},
+  "loadingRequests": "Loading requests...",
+  "@loadingRequests": {},
+  "errorLoadingRequests": "Error loading requests",
+  "@errorLoadingRequests": {},
+  "checkInternetRetry": "Please check your internet connection and try again",
+  "@checkInternetRetry": {},
+  "retry": "Retry",
+  "@retry": {},
+  "noActiveRequestsAvailable": "No active requests available",
+  "@noActiveRequestsAvailable": {},
+  "newOpenRequestsMessage": "New open requests you can quote on will appear here",
+  "@newOpenRequestsMessage": {},
+  "noOpenRequestsAvailable": "No open requests available",
+  "@noOpenRequestsAvailable": {},
+  "newRequestsQuoteMessage": "New requests you can quote on will appear here",
+  "@newRequestsQuoteMessage": {},
+  "noPendingQuotations": "No pending quotations",
+  "@noPendingQuotations": {},
+  "quotationsAwaitingMessage": "Quotations awaiting customer response will appear here",
+  "@quotationsAwaitingMessage": {},
+  "noRequestsInProgress": "No requests in progress",
+  "@noRequestsInProgress": {},
+  "acceptedRequestsMessage": "Your accepted requests will appear here",
+  "@acceptedRequestsMessage": {},
+  "noCompletedRequests": "No completed requests",
+  "@noCompletedRequests": {},
+  "completedWorkMessage": "Your completed work will appear here",
+  "@completedWorkMessage": {},
+  "noRequestsFound": "No requests found",
+  "@noRequestsFound": {},
+  "checkBackLaterMessage": "Check back later for new requests",
+  "@checkBackLaterMessage": {},
+  "yourPerformance": "Your Performance",
+  "@yourPerformance": {},
+  "marketOpportunities": "Market Opportunities",
+  "@marketOpportunities": {},
+  "strategicRecommendations": "Strategic Recommendations",
+  "@strategicRecommendations": {},
+  "loadingInsights": "Loading your insights...",
+  "@loadingInsights": {},
+  "noInsightsAvailableYet": "No insights available yet",
+  "@noInsightsAvailableYet": {},
+  "completeProjectsInsightsMessage": "Complete some projects to see your performance insights",
+  "@completeProjectsInsightsMessage": {},
+  "errorOpeningChat": "Error opening chat: {error}",
+  "@errorOpeningChat": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customer": "Customer",
+  "@customer": {},
+  "artisan": "Artisan",
+  "@artisan": {},
+  "noDescriptionProvided": "No description provided",
+  "@noDescriptionProvided": {},
+  "budget": "Budget",
+  "@budget": {},
+  "quotations": "Quotations",
+  "@quotations": {},
+  "quotation": "Quotation",
+  "@quotation": {},
+  "imagesAvailable": "{count} images available",
+  "@imagesAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "openChat": "Open Chat",
+  "@openChat": {},
+  "viewCollaboration": "View Collaboration",
+  "@viewCollaboration": {},
+  "startCollaboration": "Start Collaboration",
+  "@startCollaboration": {},
+  "markCompleted": "Mark as Completed",
+  "@markCompleted": {},
+  "editQuotation": "Edit Quotation",
+  "@editQuotation": {},
+  "submitQuotation": "Submit Quotation",
+  "@submitQuotation": {},
+  "deadlinePassed": "Deadline has passed for this request",
+  "@deadlinePassed": {},
+  "requestDetails": "Request Details",
+  "@requestDetails": {},
+  "requestTitle": "Title",
+  "@requestTitle": {},
+  "requestDeadline": "Deadline",
+  "@requestDeadline": {},
+  "images": "Images",
+  "@images": {},
+  "myQuotation": "My Quotation",
+  "@myQuotation": {},
+  "deliveryDate": "Delivery Date",
+  "@deliveryDate": {},
+  "notes": "Notes",
+  "@notes": {},
+  "status": "Status",
+  "@status": {},
+  "otherQuotations": "Other Quotations",
+  "@otherQuotations": {},
+  "noOtherQuotations": "No other quotations submitted yet",
+  "@noOtherQuotations": {},
+  "close": "Close",
+  "@close": {},
+  "priceRupees": "Price (₹)",
+  "@priceRupees": {},
+  "enterAmount": "Enter amount",
+  "@enterAmount": {},
+  "deliveryDateSelection": "Delivery Date",
+  "@deliveryDateSelection": {},
+  "selectDeliveryDate": "Select delivery date",
+  "@selectDeliveryDate": {},
+  "addNotesOptional": "Add notes (optional)",
+  "@addNotesOptional": {},
+  "update": "Update",
+  "@update": {},
+  "customerExpectedBy": "Customer Expected By",
+  "@customerExpectedBy": {},
+  "yourDeliveryDate": "Your Delivery Date",
+  "@yourDeliveryDate": {},
+  "selectedDate": "Selected: {date}",
+  "@selectedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "tapToSelectDate": "Tap to select date",
+  "@tapToSelectDate": {},
+  "dateExceedsCustomerDeadline": "⚠️ Your date is {days} days after the customer's deadline",
+  "@dateExceedsCustomerDeadline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "deliveryDateExceedsDeadline": "Delivery Date Exceeds Customer Deadline",
+  "@deliveryDateExceedsDeadline": {},
+  "customerDeadlineText": "Customer Deadline: {date}",
+  "@customerDeadlineText": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "yourProposedDate": "Your Proposed Date: {date}",
+  "@yourProposedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "daysAfterDeadline": "Days After Deadline: {days}",
+  "@daysAfterDeadline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "lateDeliveryWarning": "⚠️ Warning: Late Delivery Impact",
+  "@lateDeliveryWarning": {},
+  "lateDeliveryImpactMessage": "Delivering after the customer's deadline may:",
+  "@lateDeliveryImpactMessage": {},
+  "lowerAcceptanceChance": "• Lower your quotation acceptance chances",
+  "@lowerAcceptanceChance": {},
+  "affectRatings": "• Affect your ratings and future recommendations",
+  "@affectRatings": {},
+  "customerSatisfaction": "• Impact customer satisfaction",
+  "@customerSatisfaction": {},
+  "considerRevisiting": "💡 Consider revisiting your timeline or declining this request to maintain your reputation for timely delivery.",
+  "@considerRevisiting": {},
+  "chooseDifferentDate": "Choose Different Date",
+  "@chooseDifferentDate": {},
+  "updateQuotation": "Update Quotation",
+  "@updateQuotation": {},
+  "noExistingQuotation": "No existing quotation found to edit.",
+  "@noExistingQuotation": {},
+  "quotationUpdated": "Quotation Updated",
+  "@quotationUpdated": {},
+  "updatedQuotationMessage": "{artisanName} updated their quotation for \"{title}\"",
+  "@updatedQuotationMessage": {
+    "placeholders": {
+      "artisanName": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "quotationSubmitted": "Quotation Submitted",
+  "@quotationSubmitted": {},
+  "submittedQuotationMessage": "{artisanName} submitted a quotation for \"{title}\"",
+  "@submittedQuotationMessage": {
+    "placeholders": {
+      "artisanName": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "editQuotationDialog": "Edit Quotation",
+  "@editQuotationDialog": {},
+  "submitQuotationDialog": "Submit Quotation",
+  "@submitQuotationDialog": {},
+  "chat": "Chat",
+  "@chat": {},
+  "today": "Today",
+  "@today": {},
+  "yesterday": "Yesterday",
+  "@yesterday": {},
+  "tomorrow": "Tomorrow",
+  "@tomorrow": {},
+  "daysAgo": "{days} days ago",
+  "@daysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "inDays": "In {days} days",
+  "@inDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "userNotAuthenticated": "User not authenticated",
+  "@userNotAuthenticated": {},
+  "quotationNotFound": "Your quotation not found",
+  "@quotationNotFound": {},
+  "action": "Action: {action}",
+  "@action": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "impact": "Impact: {impact}",
+  "@impact": {
+    "placeholders": {
+      "impact": {
+        "type": "String"
+      }
+    }
+  },
+  "noReasonProvided": "No reason provided",
+  "@noReasonProvided": {},
+  "noRecommendationAvailable": "No recommendation available",
+  "@noRecommendationAvailable": {},
+  "successRate": "Success Rate",
+  "@successRate": {},
+  "avgProjectValue": "Avg Project Value",
+  "@avgProjectValue": {},
+  "strongCategories": "Strong Categories",
+  "@strongCategories": {},
+  "noPerformanceDataAvailable": "No performance data available yet",
+  "@noPerformanceDataAvailable": {},
+  "unknown": "Unknown",
+  "@unknown": {},
+  "imagesAttached": "Images: {count} attached",
+  "@imagesAttached": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deadlinePassedCannotSubmit": "Deadline passed - Cannot submit quotation",
+  "@deadlinePassedCannotSubmit": {},
+  "untitledRequest": "Untitled Request",
+  "@untitledRequest": {},
+  "referenceImages": "Reference Images",
+  "@referenceImages": {},
+  "deliveryTime": "Delivery Time",
+  "@deliveryTime": {},
+  "notSpecified": "Not specified",
+  "@notSpecified": {},
+  "anonymousArtisan": "Anonymous Artisan",
+  "@anonymousArtisan": {},
+  "openForCollaboration": "Open for Collaboration",
+  "@openForCollaboration": {},
+  "manageCollaboration": "Manage Collaboration",
+  "@manageCollaboration": {},
+  "highPriority": "HIGH PRIORITY",
+  "@highPriority": {},
+  "mediumPriority": "MEDIUM",
+  "@mediumPriority": {},
+  "highLabel": "HIGH",
+  "@highLabel": {},
+  "inProgressStatus": "IN_PROGRESS",
+  "@inProgressStatus": {},
+  "youHaveProductsInCategory": "You have {count} products in this category",
+  "@youHaveProductsInCategory": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "focusOnCategoryForBetterRate": "Focus on {category} requests for better success rate",
+  "@focusOnCategoryForBetterRate": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "focusOnImprovingQuotation": "Focus on improving quotation quality and pricing strategy",
+  "@focusOnImprovingQuotation": {},
+  "increaseWinRateBy": "Increase win rate by {percentage}",
+  "@increaseWinRateBy": {
+    "placeholders": {
+      "percentage": {
+        "type": "String"
+      }
+    }
+  },
+  "next30Days": "Next 30 days",
+  "@next30Days": {},
+  "statusOpen": "OPEN",
+  "@statusOpen": {},
+  "statusInProgress": "IN_PROGRESS",
+  "@statusInProgress": {},
+  "statusCompleted": "COMPLETED",
+  "@statusCompleted": {},
+  "statusCancelled": "CANCELLED",
+  "@statusCancelled": {},
+  "statusDeleted": "DELETED",
+  "@statusDeleted": {},
+  "whyPerfectForYou": "Why this is perfect for you:",
+  "@whyPerfectForYou": {},
+  "aiStrategyTip": "AI Strategy Tip:",
+  "@aiStrategyTip": {},
+  "quotationSubmittedAwaiting": "Quotation submitted - awaiting response",
+  "@quotationSubmittedAwaiting": {},
+  "noInsightsAvailable": "No Insights Available",
+  "@noInsightsAvailable": {},
+  "completeProjectsToSeeInsights": "Complete some projects and submit quotations to see your performance insights and market opportunities.",
+  "@completeProjectsToSeeInsights": {},
+  "collaborationProjectNotFound": "Collaboration project not found. Status reset.",
+  "@collaborationProjectNotFound": {},
+  "errorAccessingCollaboration": "Error accessing collaboration: {error}",
+  "@errorAccessingCollaboration": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "collaborationProjectCreatedSuccessfully": "Collaboration project created successfully!",
+  "@collaborationProjectCreatedSuccessfully": {},
+  "cannotCreateCollaboration": "Cannot create collaboration for this request",
+  "@cannotCreateCollaboration": {},
+  "requestMarkedCompleted": "Request marked as completed!",
+  "@requestMarkedCompleted": {},
+  "livingWorkshop": "Living Workshop",
+  "artisanForum": "Artisan Forum",
+  "@artisanForum": {
+    "description": "Title for the forum screen"
+  },
+  "allPosts": "All Posts",
+  "@allPosts": {
+    "description": "Tab title for all forum posts"
+  },
+  "trending": "Trending",
+  "@trending": {
+    "description": "Tab title for trending posts"
+  },
+  "myPosts": "My Posts",
+  "@myPosts": {
+    "description": "Tab title for user's own posts"
+  },
+  "askQuestion": "Ask Question",
+  "@askQuestion": {
+    "description": "Button text to create a new forum post"
+  },
+  "searchPostsHint": "Search posts, tags, or keywords...",
+  "@searchPostsHint": {
+    "description": "Placeholder text for search input"
+  },
+  "allCategories": "All Categories",
+  "@allCategories": {
+    "description": "Option to show all categories in filter"
+  },
+  "unresolvedOnly": "Unresolved only",
+  "@unresolvedOnly": {
+    "description": "Filter chip text to show only unresolved posts"
+  },
+  "errorLoadingPosts": "Error loading posts: {error}",
+  "@errorLoadingPosts": {
+    "description": "Error message when posts fail to load",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "noPostsFound": "No posts found",
+  "@noPostsFound": {
+    "description": "Message when no forum posts are available"
+  },
+  "beFirstToAsk": "Be the first to ask a question!",
+  "@beFirstToAsk": {
+    "description": "Encouragement message when no posts exist"
+  },
+  "errorLoadingTrendingPosts": "Error loading trending posts: {error}",
+  "@errorLoadingTrendingPosts": {
+    "description": "Error message for trending posts",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "noTrendingPostsThisWeek": "No trending posts this week",
+  "@noTrendingPostsThisWeek": {
+    "description": "Message when no trending posts are available"
+  },
+  "pleaseLogInToViewPosts": "Please log in to view your posts",
+  "@pleaseLogInToViewPosts": {
+    "description": "Message for unauthenticated users"
+  },
+  "errorLoadingYourPosts": "Error loading your posts: {error}",
+  "@errorLoadingYourPosts": {
+    "description": "Error message for user's posts",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "noQuestionsPostedYet": "You haven't posted any questions yet",
+  "@noQuestionsPostedYet": {
+    "description": "Message when user has no posts"
+  },
+  "trendingBadge": "Trending",
+  "@trendingBadge": {
+    "description": "Badge text for trending posts"
+  },
+  "resolvedBadge": "Resolved",
+  "@resolvedBadge": {
+    "description": "Badge text for resolved posts"
+  },
+  "voiceMessageIncluded": "Voice message included",
+  "@voiceMessageIncluded": {
+    "description": "Indicator that post has voice message"
+  },
+  "hoursAgo": "{hours}h ago",
+  "@hoursAgo": {
+    "description": "Time format for hours ago",
+    "placeholders": {
+      "hours": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "minutesAgo": "{minutes}m ago",
+  "@minutesAgo": {
+    "description": "Time format for minutes ago",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "example": "15"
+      }
+    }
+  },
+  "justNow": "Just now",
+  "@justNow": {
+    "description": "Time indicator for very recent posts"
+  },
+  "forumAccessRestricted": "Forum access is restricted to sellers only.",
+  "@forumAccessRestricted": {
+    "description": "Error message for non-seller users"
+  },
+  "questionTitle": "Question Title *",
+  "@questionTitle": {
+    "description": "Label for post title input"
+  },
+  "questionTitleHint": "What's your question?",
+  "@questionTitleHint": {
+    "description": "Placeholder for post title input"
+  },
+  "enterQuestionTitle": "Please enter a title for your question",
+  "@enterQuestionTitle": {
+    "description": "Validation message for empty title"
+  },
+  "questionContent": "Question Details",
+  "@questionContent": {
+    "description": "Label for post content input"
+  },
+  "describeQuestionHint": "Describe your question in detail...",
+  "@describeQuestionHint": {
+    "description": "Placeholder for post content input"
+  },
+  "voiceMessage": "Voice Message",
+  "@voiceMessage": {
+    "description": "Label for voice message section"
+  },
+  "recordVoiceMessage": "Record a voice message to better explain your question",
+  "@recordVoiceMessage": {
+    "description": "Description for voice recording feature"
+  },
+  "voiceRecorded": "Voice message recorded ({duration})",
+  "@voiceRecorded": {
+    "description": "Confirmation message for recorded voice",
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "0:45"
+      }
+    }
+  },
+  "removeVoiceMessage": "Remove voice message",
+  "@removeVoiceMessage": {
+    "description": "Button text to remove recorded voice message"
+  },
+  "tags": "Tags (comma-separated)",
+  "@tags": {
+    "description": "Label for tags input"
+  },
+  "tagsHint": "e.g., metalwork, woodworking, pottery",
+  "@tagsHint": {
+    "description": "Placeholder for tags input"
+  },
+  "postQuestion": "Post Question",
+  "@postQuestion": {
+    "description": "Button text to submit a question"
+  },
+  "postCreatedSuccessfully": "Post created successfully!",
+  "@postCreatedSuccessfully": {
+    "description": "Success message for post creation"
+  },
+  "errorCreatingPost": "Error creating post: {error}",
+  "@errorCreatingPost": {
+    "description": "Error message for post creation",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "ensureSellerLogin": "Please ensure you are logged in as a seller to access the forum.",
+  "@ensureSellerLogin": {
+    "description": "Error message for authentication issues"
+  },
+  "provideContentOrVoice": "Please provide either text content or a voice message",
+  "@provideContentOrVoice": {
+    "description": "Validation message for empty post content"
+  },
+  "errorAccessingForum": "Error accessing forum: {error}",
+  "@errorAccessingForum": {
+    "description": "Generic forum access error",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Permission denied"
+      }
+    }
+  },
+  "commentAddedSuccessfully": "Comment added successfully",
+  "@commentAddedSuccessfully": {
+    "description": "Success message for adding comment"
+  },
+  "errorAddingComment": "Error adding comment: {error}",
+  "@errorAddingComment": {
+    "description": "Error message for adding comment",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "writeComment": "Write a comment...",
+  "@writeComment": {
+    "description": "Placeholder for comment input"
+  },
+  "addComment": "Add Comment",
+  "@addComment": {
+    "description": "Button text to add comment"
+  },
+  "comments": "Comments",
+  "@comments": {
+    "description": "Section title for comments"
+  },
+  "noCommentsYet": "No comments yet. Be the first to help!",
+  "@noCommentsYet": {
+    "description": "Message when no comments exist"
+  },
+  "markAsResolved": "Mark as Resolved",
+  "@markAsResolved": {
+    "description": "Button text to mark post as resolved"
+  },
+  "markedAsResolved": "Post marked as resolved",
+  "@markedAsResolved": {
+    "description": "Success message for marking post as resolved"
+  },
+  "errorMarkingResolved": "Error marking as resolved: {error}",
+  "@errorMarkingResolved": {
+    "description": "Error message for marking post as resolved",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Permission denied"
+      }
+    }
+  },
+  "playVoiceMessage": "Play voice message",
+  "@playVoiceMessage": {
+    "description": "Button text to play voice message"
+  },
+  "stopVoiceMessage": "Stop voice message",
+  "@stopVoiceMessage": {
+    "description": "Button text to stop voice message"
+  },
+  "transcription": "Transcription: {text}",
+  "transcriptionLabel": "Transcription:",
+  "answers": "Answers",
+  "acceptedAnswer": "Accepted Answer",
+  "helpful": "Helpful",
+  "acceptAnswer": "Accept Answer",
+  "submit": "Submit",
+  "markedAsHelpful": "Marked as helpful",
+  "@transcription": {
+    "description": "Label for voice message transcription",
+    "placeholders": {
+      "text": {
+        "type": "String",
+        "example": "Hello, this is my question"
+      }
+    }
+  },
+  "errorPlayingVoice": "Error playing voice message",
+  "markedAsAcceptedAnswer": "Marked as accepted answer",
+  "errorGeneral": "Error: {error}",
+  "@errorGeneral": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "postNotFound": "Post Not Found",
+  "postNotFoundMessage": "Post not found or has been deleted.",
+  "@errorPlayingVoice": {
+    "description": "Error message for voice playback issues"
+  },
+  "priority": "Priority",
+  "@priority": {
+    "description": "Label for priority selection"
+  }
 }

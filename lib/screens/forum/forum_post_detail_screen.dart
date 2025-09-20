@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'dart:io';
 import '../../models/forum_models.dart';
 import '../../services/forum_service.dart';
@@ -80,13 +81,13 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added successfully')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.commentAddedSuccessfully)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding comment: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.errorAddingComment(e.toString()))),
         );
       }
     } finally {
@@ -123,7 +124,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error playing voice message: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorPlayingVoice)),
       );
     }
   }
@@ -134,13 +135,13 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
       // No need to refresh - StreamBuilder will automatically update
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post marked as resolved')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.markedAsResolved)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error marking as resolved: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.errorMarkingResolved(e.toString()))),
         );
       }
     }
@@ -151,7 +152,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
       await _forumService.markCommentAsHelpful(commentId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as helpful')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.markedAsHelpful)),
         );
       }
     } catch (e) {
@@ -168,13 +169,13 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
       await _forumService.markCommentAsAcceptedAnswer(commentId, widget.postId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as accepted answer')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.markedAsAcceptedAnswer)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.errorGeneral(e.toString()))),
         );
       }
     }
@@ -199,12 +200,12 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
         if (!postSnapshot.hasData || postSnapshot.data == null) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Post Not Found'),
+              title: Text(AppLocalizations.of(context)!.postNotFound),
               backgroundColor: primaryTextColor,
               foregroundColor: Colors.white,
             ),
-            body: const Center(
-              child: Text('Post not found or has been deleted.'),
+            body: Center(
+              child: Text(AppLocalizations.of(context)!.postNotFoundMessage),
             ),
           );
         }
@@ -245,7 +246,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
             IconButton(
               onPressed: _markAsResolved,
               icon: const Icon(Icons.check_circle_outline),
-              tooltip: 'Mark as resolved',
+              tooltip: AppLocalizations.of(context)!.markAsResolved,
             ),
         ],
       ),
@@ -548,7 +549,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Transcription:',
+                    AppLocalizations.of(context)!.transcriptionLabel,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 12,
@@ -582,7 +583,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              'Answers ($realTimeCommentCount)',
+              '${AppLocalizations.of(context)!.answers} ($realTimeCommentCount)',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -690,7 +691,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
                                     size: 12, color: Colors.green[700]),
                                 const SizedBox(width: 2),
                                 Text(
-                                  'Accepted Answer',
+                                  AppLocalizations.of(context)!.acceptedAnswer,
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.green[700],
@@ -763,7 +764,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
               TextButton.icon(
                 onPressed: () => _markCommentAsHelpful(comment.id),
                 icon: const Icon(Icons.thumb_up, size: 16),
-                label: Text('Helpful (${comment.helpfulCount})'),
+                label: Text('${AppLocalizations.of(context)!.helpful} (${comment.helpfulCount})'),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.grey[600],
                   textStyle: const TextStyle(fontSize: 12),
@@ -777,7 +778,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
                 TextButton.icon(
                   onPressed: () => _markAsAcceptedAnswer(comment.id),
                   icon: const Icon(Icons.check_circle_outline, size: 16),
-                  label: const Text('Accept Answer'),
+                  label: Text(AppLocalizations.of(context)!.acceptAnswer),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.green[700],
                     textStyle: const TextStyle(fontSize: 12),
@@ -863,7 +864,7 @@ class _ForumPostDetailScreenState extends State<ForumPostDetailScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Submit'),
+                    : Text(AppLocalizations.of(context)!.submit),
               ),
             ],
           ),

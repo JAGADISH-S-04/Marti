@@ -22,6 +22,7 @@ import 'collaboration/seller_collaboration_screen.dart';
 import 'package:arti/navigation/Sellerside_navbar.dart';
 import 'package:intl/intl.dart';
 import 'package:arti/services/analytics_service.dart';
+import 'workshop_dashboard_screen.dart';
 
 class MyStoreScreen extends StatefulWidget {
   const MyStoreScreen({Key? key}) : super(key: key);
@@ -1227,6 +1228,25 @@ class _SellerScreenState extends State<SellerScreen> {
                   MaterialPageRoute(
                       builder: (context) => const SellerCollaborationScreen()),
                 );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.psychology_outlined),
+              title: Text(AppLocalizations.of(context)!.livingWorkshop),
+              onTap: () async {
+                Navigator.pop(context);
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  // Navigate to Workshop Dashboard which handles existing/new workshop logic
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WorkshopDashboardScreen(
+                        artisanId: user.uid,
+                      ),
+                    ),
+                  );
+                }
               },
             ),
             ListTile(
