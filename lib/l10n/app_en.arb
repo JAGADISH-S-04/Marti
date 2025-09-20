@@ -1,0 +1,368 @@
+{
+  "@@locale": "en",
+  "appTitle": "Arti",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "welcomeBack": "Welcome Back, {userName}",
+  "@welcomeBack": {
+    "description": "Welcome message with user name",
+    "placeholders": {
+      "userName": {
+        "type": "String",
+        "example": "John"
+      }
+    }
+  },
+  "hereIsWhatHappening": "Here's what's happening with your business today",
+  "@hereIsWhatHappening": {
+    "description": "Subtitle text for seller dashboard"
+  },
+  "analytics": "Analytics",
+  "@analytics": {
+    "description": "Analytics section title"
+  },
+  "products": "Products",
+  "@products": {
+    "description": "Products tab"
+  },
+  "orders": "Orders",
+  "@orders": {
+    "description": "Orders tab"
+  },
+  "myStore": "My Store",
+  "@myStore": {
+    "description": "Store section title"
+  },
+  "addProduct": "Add Product",
+  "@addProduct": {
+    "description": "Add product button"
+  },
+  "addProducts": "Add Products",
+  "@addProducts": {
+    "description": "Add products action"
+  },
+  "removeProducts": "Remove Products",
+  "@removeProducts": {
+    "description": "Remove products action"
+  },
+  "earnings": "Earnings",
+  "@earnings": {
+    "description": "Earnings section"
+  },
+  "deleteProduct": "Delete Product",
+  "@deleteProduct": {
+    "description": "Delete product dialog title"
+  },
+  "areYouSureDelete": "Are you sure you want to delete \"{productName}\"? This action cannot be undone.",
+  "@areYouSureDelete": {
+    "description": "Delete confirmation message",
+    "placeholders": {
+      "productName": {
+        "type": "String",
+        "example": "Handmade Vase"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button"
+  },
+  "noStoreCreatedYet": "No Store Created Yet",
+  "@noStoreCreatedYet": {
+    "description": "Message when no store exists"
+  },
+  "createStoreDescription": "Create your store to start selling your amazing products",
+  "@createStoreDescription": {
+    "description": "Description for creating store"
+  },
+  "createMyStore": "Create My Store",
+  "@createMyStore": {
+    "description": "Create store button"
+  },
+  "noProductsYet": "No products yet.\nAdd your first product!",
+  "@noProductsYet": {
+    "description": "Message when no products exist"
+  },
+  "stock": "Stock : {quantity}",
+  "@stock": {
+    "description": "Stock quantity display",
+    "placeholders": {
+      "quantity": {
+        "type": "int",
+        "example": "10"
+      }
+    }
+  },
+  "lowStock": "Low Stock!",
+  "@lowStock": {
+    "description": "Low stock warning"
+  },
+  "tapToManage": "Tap to manage",
+  "@tapToManage": {
+    "description": "Hint text for product management"
+  },
+  "uncategorized": "Uncategorized",
+  "@uncategorized": {
+    "description": "Default category name"
+  },
+  "viewFAQ": "View FAQ",
+  "@viewFAQ": {
+    "description": "View FAQ menu item"
+  },
+  "manageFAQs": "Manage FAQs",
+  "@manageFAQs": {
+    "description": "Manage FAQs admin menu item"
+  },
+  "faqSetup": "FAQ Setup",
+  "@faqSetup": {
+    "description": "FAQ Setup admin menu item"
+  },
+  "selectProduct": "Select Product",
+  "@selectProduct": {
+    "description": "Select product dialog title"
+  },
+  "storyAlreadyCreated": "Story already created",
+  "@storyAlreadyCreated": {
+    "description": "Status when story exists"
+  },
+  "noStoryYet": "No story yet",
+  "@noStoryYet": {
+    "description": "Status when no story exists"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button"
+  },
+  "areYouSureLogout": "Are you sure you want to logout?",
+  "@areYouSureLogout": {
+    "description": "Logout confirmation message"
+  },
+  "errorLoggingOut": "Error logging out: {error}",
+  "@errorLoggingOut": {
+    "description": "Error message for logout failure",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "pleaseLoginFirst": "Please login first",
+  "@pleaseLoginFirst": {
+    "description": "Login required message"
+  },
+  "needProductsForStories": "You need to create products first before adding Artisan Legacy stories",
+  "@needProductsForStories": {
+    "description": "Message requiring products for stories"
+  },
+  "errorLoadingProducts": "Error loading products: {error}",
+  "@errorLoadingProducts": {
+    "description": "Error message for product loading failure",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network timeout"
+      }
+    }
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home navigation item"
+  },
+  "artisanLegacy": "Artisan Legacy",
+  "@artisanLegacy": {
+    "description": "Artisan Legacy menu item"
+  },
+  "collaborations": "Collaborations",
+  "@collaborations": {
+    "description": "Collaborations menu item"
+  },
+  "requests": "Requests",
+  "@requests": {
+    "description": "Requests menu item"
+  },
+  "pleaseLogIn": "Please log in.",
+  "@pleaseLogIn": {
+    "description": "Login required message"
+  },
+  "selectLanguage": "Select your preferred language. Text on this page will be translated for you.",
+  "@selectLanguage": {
+    "description": "Language selection instruction"
+  },
+  "languageSetTo": "Language set to {languageName}",
+  "@languageSetTo": {
+    "description": "Language selection confirmation",
+    "placeholders": {
+      "languageName": {
+        "type": "String",
+        "example": "Tamil"
+      }
+    }
+  },
+  "showingOriginalLanguage": "Showing original language",
+  "@showingOriginalLanguage": {
+    "description": "Original language selection confirmation"
+  },
+  "pageLanguage": "Page Language",
+  "@pageLanguage": {
+    "description": "Language selector title"
+  },
+  "activeOrdersCount": "You have {count} active orders.",
+  "@activeOrdersCount": {
+    "description": "Active orders count message",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  }
+  ,
+  "quickActions": "Quick Actions",
+  "@quickActions": {
+    "description": "Quick actions section title"
+  },
+  "manageYourBusiness": "Manage your Business",
+  "@manageYourBusiness": {
+    "description": "Subtitle under My Store header"
+  },
+  "storeViews": "Store Views",
+  "@storeViews": {
+    "description": "Analytics item for store views"
+  },
+  "sales": "Sales",
+  "@sales": {
+    "description": "Analytics item for sales"
+  },
+  "translatePage": "Translate Page",
+  "@translatePage": {
+    "description": "Tooltip for translate button"
+  },
+  "selectProductBelowToRemove": "Select a product below to remove it.",
+  "@selectProductBelowToRemove": {
+    "description": "Instructional snackbar when remove pressed"
+  },
+  "switchToOriginalImage": "Switch to Original Image",
+  "@switchToOriginalImage": {
+    "description": "Tooltip to switch from AI image to original"
+  },
+  "switchToAiEnhancedImage": "Switch to AI-Enhanced Image",
+  "@switchToAiEnhancedImage": {
+    "description": "Tooltip to switch from original to AI image"
+  },
+  "connectWithOthers": "Connect with others",
+  "@connectWithOthers": {
+    "description": "Quick action description for collaborations"
+  },
+  "viewCustomOrders": "View custom orders",
+  "@viewCustomOrders": {
+    "description": "Quick action description for requests"
+  },
+  "manageYourProducts": "Manage your products",
+  "@manageYourProducts": {
+    "description": "Quick action description for My Store"
+  },
+  "listNewItem": "List a new item",
+  "@listNewItem": {
+    "description": "Quick action description for Add Product"
+  },
+  "errorLoadingStore": "Error loading store: {error}",
+  "@errorLoadingStore": {
+    "description": "Error message when store data fails to load",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "failedToDeleteProduct": "Failed to delete product.",
+  "@failedToDeleteProduct": {
+    "description": "Error message when product deletion fails"
+  },
+  "failedToUpdateImageDisplay": "Failed to update image display",
+  "@failedToUpdateImageDisplay": {
+    "description": "Error message when image display update fails"
+  },
+  "unableToToggleImages": "Unable to toggle images: Missing image data",
+  "@unableToToggleImages": {
+    "description": "Error message when image toggle fails due to missing data"
+  },
+  "updatingImageDisplay": "Updating image display...",
+  "@updatingImageDisplay": {
+    "description": "Loading message when updating image display"
+  },
+  "successfullySwitchedToImage": "Successfully switched to {imageType} image!",
+  "@successfullySwitchedToImage": {
+    "description": "Success message when image is switched",
+    "placeholders": {
+      "imageType": {
+        "type": "String",
+        "example": "AI-enhanced"
+      }
+    }
+  },
+  "originalImage": "original",
+  "@originalImage": {
+    "description": "Label for original image type"
+  },
+  "aiEnhanced": "AI-enhanced",
+  "@aiEnhanced": {
+    "description": "Label for AI-enhanced image type"
+  },
+  "deletingProduct": "Deleting product...",
+  "@deletingProduct": {
+    "description": "Loading message when deleting a product"
+  },
+  "productDeletedSuccessfully": "Product \"{productName}\" deleted successfully!",
+  "@productDeletedSuccessfully": {
+    "description": "Success message when product is deleted",
+    "placeholders": {
+      "productName": {
+        "type": "String",
+        "example": "Wooden Sculpture"
+      }
+    }
+  },
+  "errorEditingProduct": "Error editing product: {error}",
+  "@errorEditingProduct": {
+    "description": "Error message when product editing fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "errorDeletingProduct": "Error deleting product: {error}",
+  "@errorDeletingProduct": {
+    "description": "Error message when product deletion fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "Network error"
+      }
+    }
+  },
+  "productUpdatedSuccessfully": "Product updated successfully!",
+  "@productUpdatedSuccessfully": {
+    "description": "Success message when product is updated"
+  },
+  "defaultStoreName": "Store - 1",
+  "@defaultStoreName": {
+    "description": "Default store name fallback"
+  },
+  "noName": "No Name",
+  "@noName": {
+    "description": "Default product name when no name is provided"
+  },
+  "errorOpeningProductManagement": "Error opening product management",
+  "@errorOpeningProductManagement": {
+    "description": "Error message when product management screen fails to open"
+  }
+}
