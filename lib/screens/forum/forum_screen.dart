@@ -198,6 +198,36 @@ class _ForumScreenState extends State<ForumScreen>
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
+                  isExpanded: true,
+                  selectedItemBuilder: (context) {
+                    // Ensure the selected value text truncates with ellipsis to avoid overflow
+                    final items = [
+                      null,
+                      ...PostCategory.values,
+                    ];
+                    return items.map<Widget>((item) {
+                      if (item == null) {
+                        return Text(
+                          AppLocalizations.of(context)!.allCategories,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      }
+                      final category = item;
+                      return Row(
+                        children: [
+                          Text(category.icon),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              category.displayName,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList();
+                  },
                   items: [
                     DropdownMenuItem<PostCategory>(
                       value: null,
@@ -210,7 +240,13 @@ class _ForumScreenState extends State<ForumScreen>
                           children: [
                             Text(category.icon),
                             const SizedBox(width: 8),
-                            Text(category.displayName),
+                            Flexible(
+                              child: Text(
+                                category.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -227,16 +263,21 @@ class _ForumScreenState extends State<ForumScreen>
               const SizedBox(width: 12),
 
               // Resolved filter
-              FilterChip(
-                label: Text(AppLocalizations.of(context)!.unresolvedOnly),
-                selected: _showOnlyUnresolved,
-                onSelected: (selected) {
-                  setState(() {
-                    _showOnlyUnresolved = selected;
-                  });
-                },
-                selectedColor: accentColor.withOpacity(0.2),
-                checkmarkColor: accentColor,
+              Flexible(
+                child: FilterChip(
+                  label: Text(
+                    AppLocalizations.of(context)!.unresolvedOnly,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  selected: _showOnlyUnresolved,
+                  onSelected: (selected) {
+                    setState(() {
+                      _showOnlyUnresolved = selected;
+                    });
+                  },
+                  selectedColor: accentColor.withOpacity(0.2),
+                  checkmarkColor: accentColor,
+                ),
               ),
             ],
           ),
