@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../services/nano_banana_service.dart';
 
 /// Simple Nano-Banana Enhancement Button for Buyer Display
@@ -122,18 +123,20 @@ class _NanoBananaEnhanceButtonState extends State<NanoBananaEnhanceButton> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '🎨 Enhancement Style:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                AppLocalizations.of(context)!.enhancementStyle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
-                  _buildStyleChip('professional', '💼 Professional'),
-                  _buildStyleChip('vibrant', '🌈 Vibrant'),
-                  _buildStyleChip('minimalist', '✨ Minimalist'),
-                  _buildStyleChip('lifestyle', '🏠 Lifestyle'),
+                  _buildStyleChip('professional', AppLocalizations.of(context)!.enhancementStyleProfessional),
+                  _buildStyleChip('vibrant', AppLocalizations.of(context)!.enhancementStyleVibrant),
+                  _buildStyleChip('minimalist', AppLocalizations.of(context)!.enhancementStyleMinimalist),
+                  _buildStyleChip('lifestyle', AppLocalizations.of(context)!.enhancementStyleLifestyle),
                 ],
               ),
             ],
@@ -157,8 +160,8 @@ class _NanoBananaEnhanceButtonState extends State<NanoBananaEnhanceButton> {
             child: _isProcessing
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      SizedBox(
+                    children: [
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -166,13 +169,19 @@ class _NanoBananaEnhanceButtonState extends State<NanoBananaEnhanceButton> {
                           strokeWidth: 2,
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Text('🍌 Processing...'),
+                      const SizedBox(width: 12),
+                      Text(
+                        AppLocalizations.of(context)!.processingWithBanana,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   )
-                : const Text(
-                    '🍌 Enhance with AI (Nano-Banana)',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                : Text(
+                    AppLocalizations.of(context)!.enhanceWithAiNanoBanana,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
           ),
         ),
@@ -191,11 +200,13 @@ class _NanoBananaEnhanceButtonState extends State<NanoBananaEnhanceButton> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'This will enhance your image using AI for professional marketplace display',
+                  AppLocalizations.of(context)!.aiEnhanceImageInfo,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.blue.shade700,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -208,7 +219,11 @@ class _NanoBananaEnhanceButtonState extends State<NanoBananaEnhanceButton> {
   Widget _buildStyleChip(String value, String label) {
     final isSelected = _selectedStyle == value;
     return ChoiceChip(
-      label: Text(label),
+      label: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       selected: isSelected,
       onSelected: (selected) {
         if (selected) {
