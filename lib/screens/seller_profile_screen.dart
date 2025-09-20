@@ -77,13 +77,13 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
       // Get products count
       final productsSnapshot = await FirebaseFirestore.instance
           .collection('products')
-          .where('sellerId', isEqualTo: sellerId)
+          .where('artisanId', isEqualTo: sellerId)
           .get();
 
       print(
           'DEBUG: Found ${productsSnapshot.docs.length} products for seller $sellerId');
 
-      // Get orders count - need to check items array for seller's products
+      // Get orders count - get all orders containing seller's products
       print(
           'DEBUG: Querying orders collection for items containing seller products...');
 
@@ -122,16 +122,13 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
         }
 
         if (hasSellerItem) {
-          // Check if order status is valid
-          final status = orderData['status']?.toString().toLowerCase() ?? '';
-          if (['pending', 'confirmed', 'shipped', 'delivered', 'completed']
-              .contains(status)) {
-            sellerOrders.add(orderDoc);
+          // Count ALL orders containing seller's items (removed status filtering)
+          sellerOrders.add(orderDoc);
 
-            // Only add revenue for completed orders
-            if (status == 'completed' || status == 'delivered') {
-              totalRevenue += orderSellerRevenue;
-            }
+          // Only add revenue for completed/delivered orders
+          final status = orderData['status']?.toString().toLowerCase() ?? '';
+          if (status == 'completed' || status == 'delivered') {
+            totalRevenue += orderSellerRevenue;
           }
         }
       }
@@ -143,7 +140,22 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
             'DEBUG: Order ${doc.id} - Status: ${(doc.data() as Map<String, dynamic>)['status']}');
       }
 
-      // Get reviews count and average rating (this represents "likes")
+      // Get total likes from all seller's products (sum of likes field from each product)
+      int totalLikes = 0;
+      print(
+          'DEBUG: Processing ${productsSnapshot.docs.length} products for likes calculation...');
+
+      for (var productDoc in productsSnapshot.docs) {
+        final productData = productDoc.data();
+        final productLikes = (productData['likes'] ?? 0) as int;
+        final productName = productData['name'] ?? 'Unknown Product';
+        print('DEBUG: Product "$productName" has $productLikes likes');
+        totalLikes += productLikes;
+      }
+
+      print('DEBUG: Total likes from all products: $totalLikes');
+
+      // Get reviews count and average rating
       final reviewsSnapshot = await FirebaseFirestore.instance
           .collection('reviews')
           .where('sellerId', isEqualTo: sellerId)
@@ -154,35 +166,14 @@ class _SellerProfileScreenState extends State<SellerProfileScreen>
 
       // Calculate average rating
       double averageRating = 0;
-      int totalLikes = 0; // Count reviews with rating >= 4 as "likes"
 
       if (reviewsSnapshot.docs.isNotEmpty) {
         double totalRating = 0;
         for (var doc in reviewsSnapshot.docs) {
           final rating = (doc.data()['rating'] ?? 0).toDouble();
           totalRating += rating;
-          if (rating >= 4.0) {
-            totalLikes++; // Count 4 and 5 star reviews as "likes"
-          }
         }
         averageRating = totalRating / reviewsSnapshot.docs.length;
-      }
-
-      // Alternative: Check if there's a likes collection
-      QuerySnapshot? likesSnapshot;
-      try {
-        likesSnapshot = await FirebaseFirestore.instance
-            .collection('likes')
-            .where('sellerId', isEqualTo: sellerId)
-            .get();
-
-        if (likesSnapshot.docs.isNotEmpty) {
-          totalLikes =
-              likesSnapshot.docs.length; // Use actual likes if available
-        }
-      } catch (e) {
-        // If likes collection doesn't exist, use review-based likes
-        print('Likes collection not found, using review-based likes: $e');
       }
 
       final stats = {

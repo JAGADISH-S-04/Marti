@@ -22,11 +22,15 @@ class MainSellerScaffold extends StatefulWidget {
   /// An optional drawer widget for the screen.
   final Widget? drawer;
 
+  /// Whether to show the AppBar with actions (translate, search, notifications, profile)
+  final bool showAppBar;
+
   const MainSellerScaffold({
     Key? key,
     required this.body,
     this.currentIndex, // Default to Home
     this.drawer,
+    this.showAppBar = true, // Default to showing AppBar
   }) : super(key: key);
 
   @override
@@ -64,55 +68,57 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F7),
-      // --- Reusable AppBar ---
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9F7),
-        elevation: 0,
-        // This ensures the drawer icon is the correct color
-        iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
-        centerTitle: false,
-        actions: [
-          Consumer<LocaleService>(
-            builder: (context, localeService, child) {
-              return IconButton(
-                tooltip: 'Translate',
-                icon: Icon(
-                  localeService.currentLocale.languageCode == 'en'
-                      ? Icons.translate
-                      : Icons.g_translate,
-                  color: const Color(0xFF2C1810),
+      // --- Conditionally show AppBar ---
+      appBar: widget.showAppBar
+          ? AppBar(
+              backgroundColor: const Color(0xFFF9F9F7),
+              elevation: 0,
+              // This ensures the drawer icon is the correct color
+              iconTheme: const IconThemeData(color: Color(0xFF2C1810)),
+              centerTitle: false,
+              actions: [
+                Consumer<LocaleService>(
+                  builder: (context, localeService, child) {
+                    return IconButton(
+                      tooltip: 'Translate',
+                      icon: Icon(
+                        localeService.currentLocale.languageCode == 'en'
+                            ? Icons.translate
+                            : Icons.g_translate,
+                        color: const Color(0xFF2C1810),
+                      ),
+                      onPressed: () => _showLanguageSelector(context),
+                    );
+                  },
                 ),
-                onPressed: () => _showLanguageSelector(context),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SellerSearchScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon:
-                const Icon(Icons.notifications_none, color: Color(0xFF2C1810)),
-            onPressed: () {/* Handle notifications */},
-          ),
-          IconButton(
-            icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SellerProfileScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+                IconButton(
+                  icon: const Icon(Icons.search, color: Color(0xFF2C1810)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SellerSearchScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_none,
+                      color: Color(0xFF2C1810)),
+                  onPressed: () {/* Handle notifications */},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.person, color: Color(0xFF2C1810)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SellerProfileScreen()),
+                    );
+                  },
+                ),
+              ],
+            )
+          : null,
       // --- Use the drawer passed from the parent screen ---
       drawer: widget.drawer,
 
@@ -151,10 +157,12 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
             label: 'Home',
             index: 0,
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SellerScreen()),
-              );
+              if (widget.currentIndex != 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SellerScreen()),
+                );
+              }
             },
           ),
           _buildNavItem(
@@ -163,10 +171,12 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
             label: 'Forum',
             index: 1,
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ForumScreen()),
-              );
+              if (widget.currentIndex != 1) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ForumScreen()),
+                );
+              }
             },
           ),
           _buildNavItem(
@@ -175,12 +185,14 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
             label: 'Analytics',
             index: 2,
             onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SellerAnalyticsScreen(),
-                ),
-              );
+              if (widget.currentIndex != 2) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SellerAnalyticsScreen(),
+                  ),
+                );
+              }
             },
           ),
         ],
