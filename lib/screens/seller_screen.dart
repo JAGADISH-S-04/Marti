@@ -3,11 +3,15 @@
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
+import 'package:arti/services/admin_service.dart';
 import 'package:arti/models/product.dart';
 import 'package:arti/widgets/notification_app_bar_icon.dart';
 import 'package:arti/notifications/models/notification_type.dart';
 import 'package:arti/widgets/review_widgets.dart';
 import 'package:arti/screens/product_reviews_management_screen.dart';
+import 'package:arti/screens/faq/retailer_faq_screen.dart';
+import 'package:arti/screens/admin/faq_management_screen.dart';
+import 'package:arti/screens/admin/faq_data_initializer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,6 +43,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   final OrderService _orderService = OrderService();
   final ProductDatabaseService _productService = ProductDatabaseService();
   int _orderCount = 0;
+  bool _isAdmin = false; // Track admin status
 
   @override
   void initState() {
@@ -46,6 +51,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     _loadStoreData();
     _loadOrderCount();
     _saveCurrentScreen();
+    _checkAdminStatus(); // Check admin status on init
   }
 
   Future<void> _saveCurrentScreen() async {
@@ -111,6 +117,21 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
   }
 
   String get orderCountText => _orderCount.toString();
+
+  // Check if current user has admin privileges
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await AdminService.isCurrentUserAdmin();
+      if (mounted) {
+        setState(() {
+          _isAdmin = isAdmin;
+        });
+      }
+    } catch (e) {
+      print('Error checking admin status: $e');
+      // Keep _isAdmin as false if there's an error
+    }
+  }
 
   // Edit product functionality
   Future<void> _editProduct(Map<String, dynamic> productData) async {
@@ -295,7 +316,7 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
     try {
       // Convert Map to Product object
       final product = _mapToProduct(productData);
-      
+
       // Navigate to the Product Reviews Management screen
       Navigator.push(
         context,
@@ -960,7 +981,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Rating and Reviews Row
-                    if (product['rating'] != null && (product['rating'] as double) > 0) ...[
+                    if (product['rating'] != null &&
+                        (product['rating'] as double) > 0) ...[
                       Row(
                         children: [
                           StarRating(
@@ -993,7 +1015,8 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                     // Views and Likes Row
                     Row(
                       children: [
-                        Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.visibility,
+                            size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           '${product['views'] ?? 0} views',
@@ -1022,14 +1045,16 @@ class _MyStoreScreenState extends State<MyStoreScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // View Reviews button (only show if there are reviews)
-                  if (product['reviewCount'] != null && (product['reviewCount'] as int) > 0) ...[
+                  if (product['reviewCount'] != null &&
+                      (product['reviewCount'] as int) > 0) ...[
                     TextButton.icon(
                       onPressed: () => _viewProductReviews(product),
                       icon: const Icon(Icons.rate_review, size: 16),
                       label: Text('Reviews (${product['reviewCount']})'),
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFFD4AF37),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         minimumSize: const Size(60, 28),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
@@ -1940,12 +1965,14 @@ class SellerScreen extends StatefulWidget {
 class _SellerScreenState extends State<SellerScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _storeData;
+  bool _isAdmin = false; // Track admin status
 
   @override
   void initState() {
     super.initState();
     _saveCurrentScreen();
     _loadStoreData();
+    _checkAdminStatus(); // Check admin status on init
   }
 
   Future<void> _loadStoreData() async {
@@ -1979,6 +2006,21 @@ class _SellerScreenState extends State<SellerScreen> {
       await StorageService.saveCurrentScreen('seller');
     } catch (e) {
       print('Error saving current screen: $e');
+    }
+  }
+
+  // Check if current user has admin privileges
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await AdminService.isCurrentUserAdmin();
+      if (mounted) {
+        setState(() {
+          _isAdmin = isAdmin;
+        });
+      }
+    } catch (e) {
+      print('Error checking admin status: $e');
+      // Keep _isAdmin as false if there's an error
     }
   }
 
@@ -2077,6 +2119,62 @@ class _SellerScreenState extends State<SellerScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // Help/FAQ icon - direct navigation for non-admins, menu for admins
+                    _isAdmin
+                        ? PopupMenuButton<String>(
+                            icon: const Icon(Icons.help_outline,
+                                color: Colors.white, size: 28),
+                            tooltip: 'Help & FAQ',
+                            itemBuilder: (context) => _buildFAQMenuItems(),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'faq':
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RetailerFAQScreen(),
+                                    ),
+                                  );
+                                  break;
+                                case 'manage':
+                                  // Admin access already verified - menu item only shows for admins
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const FAQManagementScreen(),
+                                    ),
+                                  );
+                                  break;
+                                case 'setup':
+                                  // Admin access already verified - menu item only shows for admins
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const FAQDataInitializerScreen(),
+                                    ),
+                                  );
+                                  break;
+                              }
+                            },
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.help_outline,
+                                color: Colors.white, size: 28),
+                            tooltip: 'Help & FAQ',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const RetailerFAQScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                    const SizedBox(width: 8),
                     // Notification icon
                     const NotificationAppBarIcon(
                       iconColor: Colors.white,
@@ -2563,5 +2661,49 @@ class _SellerScreenState extends State<SellerScreen> {
     }
 
     return cardContent;
+  }
+
+  // Build FAQ menu items dynamically based on admin access
+  List<PopupMenuEntry<String>> _buildFAQMenuItems() {
+    List<PopupMenuEntry<String>> items = [
+      const PopupMenuItem(
+        value: 'faq',
+        child: Row(
+          children: [
+            Icon(Icons.help_center, size: 20),
+            SizedBox(width: 12),
+            Text('View FAQ'),
+          ],
+        ),
+      ),
+    ];
+
+    // Only add admin items if user is actually an admin
+    if (_isAdmin) {
+      items.addAll([
+        const PopupMenuItem(
+          value: 'manage',
+          child: Row(
+            children: [
+              Icon(Icons.admin_panel_settings, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('Manage FAQs', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'setup',
+          child: Row(
+            children: [
+              Icon(Icons.settings_suggest, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('FAQ Setup', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+      ]);
+    }
+
+    return items;
   }
 }

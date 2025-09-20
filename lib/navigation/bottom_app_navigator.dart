@@ -1,6 +1,7 @@
 import 'package:arti/screens/buyer_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/craft_it/craft_it_screen.dart';
+import 'package:arti/screens/more_screen.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/widgets/notification_app_bar_icon.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +73,7 @@ class _BottomAppNavigatorState extends State<BottomAppNavigator> {
       const BuyerScreen(),
       const CraftItScreen(),
       const ProfileScreen(),
-      const Center(child: Text('More Screen')), // Replace with actual screen
+      const MoreScreen(),
     ];
 
     // Show app bar only for screens that don't have their own app bars
