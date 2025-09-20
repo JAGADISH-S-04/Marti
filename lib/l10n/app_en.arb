@@ -235,8 +235,8 @@
   "@storeViews": {
     "description": "Analytics item for store views"
   },
-  "sales": "Sales",
-  "@sales": {
+  "monthlySales": "Monthly Sales",
+  "@monthlySales": {
     "description": "Analytics item for sales"
   },
   "monthlyOrders": "Monthly Orders",
