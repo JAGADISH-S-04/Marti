@@ -2,8 +2,9 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     // Buyer display structure: buyer_display/{sellerName}/{productName}/images/
+    // This path handles both original and AI-enhanced images in the same folder
     match /buyer_display/{sellerName}/{productName}/images/{imageId} {
-      allow read: if true; // Anyone can read product images
+      allow read: if true; // Anyone can read product images (original and AI-enhanced)
       allow write: if request.auth != null; // Only authenticated users can upload
     }
     

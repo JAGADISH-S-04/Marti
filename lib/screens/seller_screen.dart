@@ -199,6 +199,58 @@ class _MyStoreScreenState extends State<MyStoreScreen>
     }
   }
 
+  // Toggle between original and AI-enhanced image as main display
+  Future<void> _toggleAiImageDisplay(Map<String, dynamic> product) async {
+    try {
+      final Map<String, dynamic>? aiAnalysis = product['aiAnalysis'] as Map<String, dynamic>?;
+      final String? aiEnhancedImageUrl = aiAnalysis?['aiEnhancedImageUrl'] as String?;
+      final String? currentDisplayImage = product['imageUrl'] as String?;
+      final String? originalImageUrl = product['imageUrls']?.isNotEmpty == true 
+          ? product['imageUrls'][0] as String? 
+          : null;
+
+      if (aiEnhancedImageUrl == null || originalImageUrl == null) {
+        _showSnackBar('Unable to toggle images: Missing image data', isError: true);
+        return;
+      }
+
+      // Determine which image to switch to
+      final bool isCurrentlyShowingAi = currentDisplayImage == aiEnhancedImageUrl;
+      final String newDisplayImage = isCurrentlyShowingAi ? originalImageUrl : aiEnhancedImageUrl;
+
+      _showSnackBar('Updating image display...');
+
+      // Update the product document in Firestore
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(product['id'])
+          .update({
+        'imageUrl': newDisplayImage,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update the user's product reference as well
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('products')
+            .doc(product['id'])
+            .update({
+          'imageUrl': newDisplayImage,
+        });
+      }
+
+      final String imageType = isCurrentlyShowingAi ? 'original' : 'AI-enhanced';
+      _showSnackBar('Successfully switched to $imageType image!');
+
+    } catch (e) {
+      print('Error toggling AI image display: $e');
+      _showSnackBar('Failed to update image display', isError: true);
+    }
+  }
+
   Product _mapToProduct(Map<String, dynamic> data) {
     return Product(
       id: data['id'] ?? '',
@@ -544,6 +596,15 @@ class _MyStoreScreenState extends State<MyStoreScreen>
     final formattedPrice =
         NumberFormat.decimalPattern('en_IN').format(product['price'] ?? 0);
 
+    // Check if product has AI-enhanced image
+    final Map<String, dynamic>? aiAnalysis = product['aiAnalysis'] as Map<String, dynamic>?;
+    final String? aiEnhancedImageUrl = aiAnalysis?['aiEnhancedImageUrl'] as String?;
+    final bool hasAiImage = aiEnhancedImageUrl != null && aiEnhancedImageUrl.isNotEmpty;
+    
+    // Determine which image to display (main display image from imageUrl field)
+    final String? currentDisplayImage = product['imageUrl'] as String?;
+    final bool isShowingAiImage = hasAiImage && currentDisplayImage == aiEnhancedImageUrl;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -561,23 +622,44 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-              image: product['imageUrls'] != null &&
-                      product['imageUrls'].isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(product['imageUrls'][0]),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: product['imageUrls'] == null || product['imageUrls'].isEmpty
-                ? const Icon(Icons.image_not_supported, color: Colors.grey)
-                : null,
+          Stack(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(10),
+                  image: currentDisplayImage != null
+                      ? DecorationImage(
+                          image: NetworkImage(currentDisplayImage),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: currentDisplayImage == null
+                    ? const Icon(Icons.image_not_supported, color: Colors.grey)
+                    : null,
+              ),
+              // AI badge indicator
+              if (isShowingAiImage)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.purple,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -626,6 +708,19 @@ class _MyStoreScreenState extends State<MyStoreScreen>
             children: [
               Row(
                 children: [
+                  // AI image toggle button (only show if AI image exists)
+                  if (hasAiImage)
+                    IconButton(
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      icon: Icon(
+                        isShowingAiImage ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                        size: 20,
+                        color: isShowingAiImage ? Colors.purple : Colors.grey,
+                      ),
+                      onPressed: () => _toggleAiImageDisplay(product),
+                      tooltip: isShowingAiImage ? 'Switch to Original Image' : 'Switch to AI-Enhanced Image',
+                    ),
                   IconButton(
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.all(4),

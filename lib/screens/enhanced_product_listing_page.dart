@@ -1459,6 +1459,14 @@ class _EnhancedProductListingPageState
         videoUrl = null; // Clear video when using images
       }
 
+      // Add AI-enhanced image to imageUrls if it exists and is different from buyer display
+      if (_uploadedBuyerDisplayImageUrl != null && 
+          _uploadedBuyerDisplayImageUrl!.isNotEmpty &&
+          !imageUrls.contains(_uploadedBuyerDisplayImageUrl!)) {
+        imageUrls.add(_uploadedBuyerDisplayImageUrl!);
+        print('✅ Added AI-enhanced image to product imageUrls: ${_uploadedBuyerDisplayImageUrl!}');
+      }
+
       // Upload audio story if available
       String? audioStoryUrl = isEditMode ? widget.product!.audioStoryUrl : null;
       if (_audioStoryFile != null) {
@@ -1535,7 +1543,9 @@ class _EnhancedProductListingPageState
             : null,
         aiAnalysis: _aiAnalysis.isNotEmpty
             ? _sanitizeAiAnalysis(_aiAnalysis)
-            : null,
+            : _uploadedBuyerDisplayImageUrl != null
+                ? {'aiEnhancedImageUrl': _uploadedBuyerDisplayImageUrl}
+                : null,
         audioStoryUrl: audioStoryUrl,
         audioStoryTranscription: _audioStoryTranscription,
         audioStoryTranslations: _audioStoryTranslations.isNotEmpty
@@ -4695,6 +4705,11 @@ class _EnhancedProductListingPageState
   Map<String, dynamic> _sanitizeAiAnalysis(Map<String, dynamic> aiAnalysis) {
     final sanitized = <String, dynamic>{};
     
+    // Always preserve AI-enhanced image URL if available
+    if (_uploadedBuyerDisplayImageUrl != null && _uploadedBuyerDisplayImageUrl!.isNotEmpty) {
+      sanitized['aiEnhancedImageUrl'] = _uploadedBuyerDisplayImageUrl!;
+    }
+    
     for (final entry in aiAnalysis.entries) {
       final key = entry.key;
       final value = entry.value;
@@ -4820,7 +4835,12 @@ class _EnhancedProductListingPageState
       
       // Create Firebase Storage reference using organized structure
       final sanitizedSellerName = artisanName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-      final sanitizedProductName = _nameController.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      
+      // Handle empty product name by creating a temporary name
+      final productNameText = _nameController.text.trim();
+      final sanitizedProductName = productNameText.isNotEmpty 
+          ? productNameText.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+          : 'temp_product_${DateTime.now().millisecondsSinceEpoch}';
       
       final ref = FirebaseStorage.instance.ref()
           .child('buyer_display')
