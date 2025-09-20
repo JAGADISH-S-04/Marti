@@ -234,8 +234,8 @@
   "@storeViews": {
     "description": "Analytics item for store views"
   },
-  "sales": "बिक्री",
-  "@sales": {
+  "monthlySales": "मासिक बिक्री",
+  "@monthlySales": {
     "description": "Analytics item for sales"
   },
   "monthlyOrders": "मासिक ऑर्डर",

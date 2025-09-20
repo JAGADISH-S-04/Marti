@@ -1336,7 +1336,7 @@ class _SellerScreenState extends State<SellerScreen> {
             children: [
               _buildAnalyticsCard(
                 context, 
-                title: AppLocalizations.of(context)!.sales, 
+                title: AppLocalizations.of(context)!.monthlySales, 
                 value: '₹${_analyticsData['monthlyRevenue']?.toStringAsFixed(0) ?? '0'}',
                 icon: Icons.currency_rupee,
                 color: const Color(0xFF4CAF50),
@@ -1373,70 +1373,88 @@ class _SellerScreenState extends State<SellerScreen> {
   }
 
   Widget _buildAnalyticsCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Flexible(
-            flex: 2,
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF2C1810),
-              ),
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-              maxLines: 1,
-            ),
+  BuildContext context, {
+  required String title,
+  required String value,
+  required IconData icon,
+  required Color color,
+}) {
+  return Container(
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withOpacity(0.3)),
+    ),
+    child: Row(
+      children: [
+        // Icon
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
           ),
-          Flexible(
-            flex: 1,
-            child: Text(
-              value,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
-              ),
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-              maxLines: 1,
-              textAlign: TextAlign.end,
-            ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 20,
           ),
-          if (title.contains('Monthly'))
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'This Month',
+        ),
+        const SizedBox(width: 12),
+        
+        // Title and Value
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
                 style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2C1810),
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ),
+        
+        // Monthly badge (if applicable)
+        if (title.toLowerCase().contains(AppLocalizations.of(context)!.monthlySales.toLowerCase()) || 
+            title.toLowerCase().contains(AppLocalizations.of(context)!.monthlyOrders.toLowerCase()))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'This Month',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
   Widget _buildQuickActionsGrid(BuildContext context) {
     return GridView.count(
@@ -1451,7 +1469,7 @@ class _SellerScreenState extends State<SellerScreen> {
           context,
           title: AppLocalizations.of(context)!.collaborations,
           description: AppLocalizations.of(context)!.connectWithOthers,
-          icon: Icons.group_work,
+          icon: Icons.groups_2,
           onPressed: () {
             Navigator.push(
                 context,
@@ -1537,7 +1555,7 @@ class _SellerScreenState extends State<SellerScreen> {
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF2C1810),
                   ),
@@ -1547,11 +1565,11 @@ class _SellerScreenState extends State<SellerScreen> {
               ),
               const SizedBox(height: 2),
               SizedBox(
-                height: 24, // Fixed height for description (2 lines max)
+                height: 18, // Fixed height for description (2 lines max)
                 child: Text(
                   description,
                   style: GoogleFonts.inter(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: Colors.grey[600],
                   ),
                   maxLines: 2,
