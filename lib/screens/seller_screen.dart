@@ -2,9 +2,13 @@
 import 'package:arti/screens/enhanced_seller_orders_page.dart';
 import 'package:arti/services/storage_service.dart';
 import 'package:arti/services/product_database_service.dart';
+import 'package:arti/services/admin_service.dart';
 import 'package:arti/models/product.dart';
 import 'package:arti/widgets/review_widgets.dart';
 import 'package:arti/screens/product_reviews_management_screen.dart';
+import 'package:arti/screens/faq/retailer_faq_screen.dart';
+import 'package:arti/screens/admin/faq_management_screen.dart';
+import 'package:arti/screens/admin/faq_data_initializer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -35,6 +39,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   final OrderService _orderService = OrderService();
   final ProductDatabaseService _productService = ProductDatabaseService();
   int _orderCount = 0;
+  bool _isAdmin = false; // Track admin status
   late TabController _tabController;
 
   @override
@@ -44,6 +49,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
     _loadStoreData();
     _loadOrderCount();
     _saveCurrentScreen();
+    _checkAdminStatus(); // Check admin status on init
   }
 
   @override
@@ -112,6 +118,25 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       print('Error loading order count: $e');
     }
   }
+
+  String get orderCountText => _orderCount.toString();
+
+  // Check if current user has admin privileges
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await AdminService.isCurrentUserAdmin();
+      if (mounted) {
+        setState(() {
+          _isAdmin = isAdmin;
+        });
+      }
+    } catch (e) {
+      print('Error checking admin status: $e');
+      // Keep _isAdmin as false if there's an error
+    }
+  }
+
+  // Edit product functionality
 
   Future<void> _editProduct(Map<String, dynamic> productData) async {
     try {
@@ -202,6 +227,25 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         SnackBar(
           content: Text(message),
           backgroundColor: isError ? Colors.red : const Color(0xFFD4AF37),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // View product reviews
+  Future<void> _viewProductReviews(Map<String, dynamic> productData) async {
+    try {
+      // Convert Map to Product object
+      final product = _mapToProduct(productData);
+
+      // Navigate to the Product Reviews Management screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductReviewsManagementScreen(
+            product: product,
+          ),
         ),
       );
     }
@@ -635,12 +679,14 @@ class SellerScreen extends StatefulWidget {
 class _SellerScreenState extends State<SellerScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _storeData;
+  bool _isAdmin = false; // Track admin status
 
   @override
   void initState() {
     super.initState();
     _saveCurrentScreen();
     _loadStoreData();
+    _checkAdminStatus(); // Check admin status on init
   }
 
   Future<void> _loadStoreData() async {
@@ -674,6 +720,21 @@ class _SellerScreenState extends State<SellerScreen> {
       await StorageService.saveCurrentScreen('seller');
     } catch (e) {
       print('Error saving current screen: $e');
+    }
+  }
+
+  // Check if current user has admin privileges
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await AdminService.isCurrentUserAdmin();
+      if (mounted) {
+        setState(() {
+          _isAdmin = isAdmin;
+        });
+      }
+    } catch (e) {
+      print('Error checking admin status: $e');
+      // Keep _isAdmin as false if there's an error
     }
   }
 
@@ -736,7 +797,7 @@ class _SellerScreenState extends State<SellerScreen> {
       }
     }
   }
-
+              
   void _showArtisanLegacyDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -1192,5 +1253,49 @@ class _SellerScreenState extends State<SellerScreen> {
         ),
       ),
     );
+  }
+
+  // Build FAQ menu items dynamically based on admin access
+  List<PopupMenuEntry<String>> _buildFAQMenuItems() {
+    List<PopupMenuEntry<String>> items = [
+      const PopupMenuItem(
+        value: 'faq',
+        child: Row(
+          children: [
+            Icon(Icons.help_center, size: 20),
+            SizedBox(width: 12),
+            Text('View FAQ'),
+          ],
+        ),
+      ),
+    ];
+
+    // Only add admin items if user is actually an admin
+    if (_isAdmin) {
+      items.addAll([
+        const PopupMenuItem(
+          value: 'manage',
+          child: Row(
+            children: [
+              Icon(Icons.admin_panel_settings, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('Manage FAQs', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'setup',
+          child: Row(
+            children: [
+              Icon(Icons.settings_suggest, size: 20, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('FAQ Setup', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+      ]);
+    }
+
+    return items;
   }
 }
