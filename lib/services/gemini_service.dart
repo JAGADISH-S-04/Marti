@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'gcp_service.dart';
+import 'gemini/gcp_service.dart';
 
 class GeminiService {
   static const String _apiKey = 'AIzaSyCF2APtnqir7ZczemUN5vv0gxmm4911dSA';

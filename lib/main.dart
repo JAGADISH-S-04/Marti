@@ -12,6 +12,7 @@ import 'package:arti/screens/admin/product_migration_screen.dart';
 import 'package:arti/screens/product_migration_page.dart';
 import 'package:arti/services/cart_service.dart';
 import 'package:arti/services/gemini_service.dart';
+import 'package:arti/services/gemini/gemini_image_uploader.dart';
 import 'package:arti/services/CI_retailer_analytics_service.dart';
 import 'package:arti/screens/craft_it/seller_view.dart';
 import 'package:arti/notifications/services/push_notification_service.dart';
@@ -37,6 +38,8 @@ void main() async {
   GeminiService.initialize();
   // Initialize Retailer Analytics Service for AI recommendations
   RetailerAnalyticsService.initialize();
+  // Initialize Nano-Banana (Gemini Image Enhancement) Service
+  GeminiImageUploader.setApiKey('AIzaSyClh0fFyyJmwe5NAB_SM43vcaTOQfsn50E');
   // Initialize Push Notification Service
   await PushNotificationService.initialize();
 

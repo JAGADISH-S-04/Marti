@@ -37,15 +37,74 @@ service firebase.storage {
       allow write: if request.auth != null; // Only authenticated users can upload
     }
     
+    // Products images - fallback path for buyer display images
+    match /products/images/{imageId} {
+      allow read: if true; // Anyone can read product images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Products buyer_display - legacy fallback path
+    match /products/buyer_display/{imageId} {
+      allow read: if true; // Anyone can read buyer display images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
     // Legacy audio stories path for backward compatibility
     match /products/audio_stories/{fileName} {
       allow read: if true; // Anyone can read audio stories
       allow write: if request.auth != null; // Only authenticated users can upload
     }
-    
+
+    // Enhanced images with AI (Imagen 2)
+    match /enhanced_images/{allPaths=**} {
+      allow read: if true; // Anyone can read enhanced images
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+
     // User profile images
     match /users/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ============ LIVING WORKSHOPS MEDIA ============
+    // Workshop videos and photos for AI processing
+    match /workshops/{artisanId}/videos/{videoId} {
+      allow read: if true; // Public read for workshop experiences
+      allow write: if request.auth != null && 
+                   (request.auth.uid == artisanId || 
+                    resource == null); // Allow creation by artisan
+    }
+    
+    match /workshops/{artisanId}/photos/{photoId} {
+      allow read: if true; // Public read for workshop experiences
+      allow write: if request.auth != null && 
+                   (request.auth.uid == artisanId || 
+                    resource == null); // Allow creation by artisan
+    }
+    
+    match /workshops/{artisanId}/audio/{audioId} {
+      allow read: if true; // Public read for workshop experiences
+      allow write: if request.auth != null && 
+                   (request.auth.uid == artisanId || 
+                    resource == null); // Allow creation by artisan
+    }
+    
+    // AI-generated workshop images from Vertex AI
+    match /ai_generated/{artisanId}/workshop_images/{imageId} {
+      allow read: if true; // Public read for generated content
+      allow write: if request.auth != null && request.auth.uid == artisanId;
+    }
+    
+    // Workshop background and ambiance images
+    match /workshops/{artisanId}/generated/{mediaType}/{fileId} {
+      allow read: if true; // Public read for workshop content
+      allow write: if request.auth != null && request.auth.uid == artisanId;
+    }
+    
+    // Temporary upload staging area for workshop creation
+    match /temp_uploads/{userId}/workshops/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
     // Craft request images - allow authenticated users to upload reference images
@@ -104,6 +163,12 @@ service firebase.storage {
                    userProductName.matches('^' + request.auth.uid + '_.*');
     }
     
+    // Generic workshop uploads - backward compatibility for any workshop-related uploads
+    match /workshops/{allPaths=**} {
+      allow read: if true; // Public read access for workshop viewing
+      allow write: if request.auth != null; // Authenticated users can upload workshop content
+    }
+    
     // Living Workshop media uploads - allow authenticated users to upload workshop content
     match /living_workshops/{userId}/{workshopId}/{fileName} {
       allow read: if true; // Anyone can read workshop media for viewing experiences
@@ -114,6 +179,19 @@ service firebase.storage {
     match /living_workshops/{allPaths=**} {
       allow read: if true; // Public read access for workshop viewing
       allow write: if request.auth != null; // Authenticated users can create workshops
+    }
+    
+    // Living Workshop alternative structure - workshop ID as main identifier
+    match /living_workshops/{workshopId}/{mediaType}/{fileName} {
+      allow read: if true; // Public read access for workshop viewing
+      allow write: if request.auth != null; // Authenticated users can upload workshop media
+    }
+    
+    // Living Workshop with artisan prefix pattern - matches paths like "artisan_123_workshop456"
+    match /living_workshops/{artisanWorkshopId}/{fileName} {
+      allow read: if true; // Public read access
+      allow write: if request.auth != null && 
+                   artisanWorkshopId.matches('artisan_' + request.auth.uid + '_.*'); // Only matching artisan can upload
     }
     
     // Allow authenticated users to upload and read chat images
@@ -128,6 +206,13 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null 
         && (request.resource == null || request.resource.size < 10 * 1024 * 1024); // 10MB limit for voice messages
+    }
+    
+    // Allow artisans to upload voice responses to reviews and buyers to read them
+    match /review_voice_responses/{fileName} {
+      allow read: if request.auth != null; // Authenticated users can read voice responses
+      allow write: if request.auth != null 
+        && (request.resource == null || request.resource.size < 10 * 1024 * 1024); // 10MB limit for voice responses
     }
   }
 }

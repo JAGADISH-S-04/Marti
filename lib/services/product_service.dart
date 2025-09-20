@@ -150,10 +150,23 @@ class ProductService {
       final extension = path.extension(image.path);
       final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}_buyer_display$extension';
       
-      // Debug: Print the upload path
-      print('Uploading to path: products/buyer_display/$fileName');
-      
-      final ref = _storage.ref().child('products').child('buyer_display').child(fileName);
+      // Create organized storage path if seller info is provided
+      Reference ref;
+      if (sellerName != null && productName != null) {
+        final cleanSellerName = _cleanFileName(sellerName);
+        final cleanProductName = _cleanFileName(productName);
+        ref = _storage.ref()
+            .child('buyer_display')
+            .child(cleanSellerName)
+            .child(cleanProductName)
+            .child('images')
+            .child(fileName);
+        print('📊 Using organized path: buyer_display/$cleanSellerName/$cleanProductName/images/$fileName');
+      } else {
+        // Fallback to legacy products path for backward compatibility
+        ref = _storage.ref().child('products').child('images').child(fileName);
+        print('📊 Using fallback path: products/images/$fileName');
+      }
       
       // Create metadata
       final metadata = SettableMetadata(
@@ -174,10 +187,18 @@ class ProductService {
       print('File size: ${await image.length()} bytes');
 
       // Upload with metadata
+      print('📤 Starting Firebase Storage upload...');
       final uploadTask = await ref.putFile(image, metadata);
+      print('📤 Upload task completed, getting download URL...');
+      
       final downloadUrl = await uploadTask.ref.getDownloadURL();
       
-      print('Upload successful. Download URL: $downloadUrl');
+      if (downloadUrl.isEmpty) {
+        throw Exception('Upload succeeded but download URL is empty');
+      }
+      
+      print('✅ Upload successful. Download URL: $downloadUrl');
+      print('📊 URL length: ${downloadUrl.length} characters');
       return downloadUrl;
     } on FirebaseException catch (e) {
       print('Firebase Storage Error: ${e.code} - ${e.message}');
@@ -187,14 +208,17 @@ class ProductService {
       // Try alternative upload method on specific errors
       if (e.code == 'storage/object-not-found' || 
           e.code == 'storage/bucket-not-found' || 
-          e.code == 'storage/unknown') {
+          e.code == 'storage/unknown' ||
+          e.code == 'storage/unauthorized') {
         print('🔧 Trying alternative upload method...');
         try {
-          return await AlternativeUploadService.uploadImageAlternative(
+          final altUrl = await AlternativeUploadService.uploadImageAlternative(
             image,
             sellerName: sellerName ?? 'unknown',
             productName: productName ?? DateTime.now().millisecondsSinceEpoch.toString(),
           );
+          print('✅ Alternative upload successful: $altUrl');
+          return altUrl;
         } catch (altError) {
           print('❌ Alternative upload also failed: $altError');
         }
@@ -225,7 +249,33 @@ class ProductService {
     } catch (e) {
       print('General upload error: $e');
       
-      // Try alternative upload for any other error
+      // Try simple fallback to products/images path first
+      if (sellerName != null && productName != null) {
+        print('🔧 Trying fallback to simple products/images path...');
+        try {
+          final extension = path.extension(image.path);
+          final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}_buyer_display$extension';
+          final fallbackRef = _storage.ref().child('products').child('images').child(fileName);
+          
+          final metadata = SettableMetadata(
+            contentType: _getContentType(extension),
+            customMetadata: {
+              'uploadedBy': user.uid,
+              'uploadedAt': DateTime.now().toIso8601String(),
+              'type': 'buyer_display_image_fallback'
+            },
+          );
+          
+          final uploadTask = await fallbackRef.putFile(image, metadata);
+          final downloadUrl = await uploadTask.ref.getDownloadURL();
+          print('✅ Fallback upload successful: $downloadUrl');
+          return downloadUrl;
+        } catch (fallbackError) {
+          print('❌ Fallback upload also failed: $fallbackError');
+        }
+      }
+      
+      // Try alternative upload as final resort
       print('🔧 Trying alternative upload method as last resort...');
       try {
         return await AlternativeUploadService.uploadImageAlternative(
@@ -237,6 +287,132 @@ class ProductService {
         print('❌ Alternative upload also failed: $altError');
         throw Exception('Failed to upload buyer display image: $e');
       }
+    }
+  }
+
+  // Upload base64 image directly to Firebase Storage (for AI-generated images)
+  Future<String> uploadBase64Image(
+    String base64DataUrl, {
+    String? sellerName,
+    String? productName,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('❌ Authentication error: User not authenticated');
+        throw Exception('User not authenticated');
+      }
+
+      print('🔄 Uploading base64 image directly to Firebase Storage...');
+      print('📊 User ID: ${user.uid}');
+      print('📊 User email: ${user.email}');
+      
+      // Validate data URL format
+      if (!base64DataUrl.startsWith('data:image/')) {
+        throw Exception('Invalid base64 data URL format');
+      }
+
+      // Extract content type and base64 data
+      final parts = base64DataUrl.split(',');
+      if (parts.length != 2) {
+        throw Exception('Invalid data URL structure');
+      }
+      
+      final header = parts[0]; // e.g., "data:image/png;base64"
+      final base64Data = parts[1];
+      
+      // Extract image format
+      final contentTypeMatch = RegExp(r'data:image/(\w+);base64').firstMatch(header);
+      final imageFormat = contentTypeMatch?.group(1) ?? 'png';
+      final contentType = 'image/$imageFormat';
+
+      // Generate unique filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final sanitizedSellerName = (sellerName ?? 'unknown').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final sanitizedProductName = (productName ?? 'ai_image').replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final fileName = '${user.uid}_${sanitizedSellerName}_${sanitizedProductName}_ai_generated_$timestamp.$imageFormat';
+      
+      // Create Firebase Storage reference using organized structure
+      Reference ref;
+      if (sellerName != null && sellerName.isNotEmpty && productName != null && productName.isNotEmpty) {
+        ref = _storage.ref()
+            .child('buyer_display')
+            .child(sanitizedSellerName)
+            .child(sanitizedProductName)
+            .child('images')
+            .child(fileName);
+        print('📊 Using organized path: buyer_display/$sanitizedSellerName/$sanitizedProductName/images/$fileName');
+      } else {
+        // Fallback to products path
+        ref = _storage.ref().child('products').child('images').child(fileName);
+        print('📊 Using fallback path: products/images/$fileName');
+      }
+      
+      // Set metadata
+      final metadata = SettableMetadata(
+        contentType: contentType,
+        customMetadata: {
+          'uploadedBy': user.uid,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'sellerName': sellerName ?? 'unknown',
+          'productName': productName ?? 'unknown',
+          'source': 'ai_generated',
+          'imageFormat': imageFormat,
+        },
+      );
+
+      print('📊 Content type: $contentType');
+      print('📊 Base64 data length: ${base64Data.length}');
+      print('📊 Metadata: $metadata');
+
+      // Check authentication token is valid
+      try {
+        await user.reload();
+        final token = await user.getIdToken();
+        if (token != null) {
+          print('📊 Auth token length: ${token.length}');
+        } else {
+          throw Exception('Failed to get authentication token');
+        }
+      } catch (e) {
+        print('❌ Authentication token error: $e');
+        throw Exception('Authentication token is invalid: $e');
+      }
+
+      // Upload using putString method
+      final uploadTask = await ref.putString(
+        base64Data,
+        format: PutStringFormat.base64,
+        metadata: metadata,
+      );
+
+      // Get download URL
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      
+      print('✅ Base64 image uploaded successfully!');
+      print('📊 Download URL: $downloadUrl');
+      
+      return downloadUrl;
+    } on FirebaseException catch (e) {
+      print('❌ Firebase Storage Error: ${e.code} - ${e.message}');
+      print('❌ Stack trace: ${e.stackTrace}');
+      
+      // Provide more specific error messages
+      switch (e.code) {
+        case 'storage/invalid-format':
+          throw Exception('Invalid base64 format. Please ensure the AI-generated image is properly encoded.');
+        case 'storage/unauthorized':
+          throw Exception('Unauthorized to upload to Firebase Storage. Please check your permissions.');
+        case 'storage/quota-exceeded':
+          throw Exception('Storage quota exceeded. Please check your Firebase Storage limits.');
+        case 'storage/invalid-argument':
+          throw Exception('Invalid argument provided to Firebase Storage.');
+        default:
+          throw Exception('Firebase Storage error: ${e.code} - ${e.message}');
+      }
+    } catch (e) {
+      print('❌ General error uploading base64 image: $e');
+      throw Exception('Failed to upload AI-generated image: $e');
     }
   }
 

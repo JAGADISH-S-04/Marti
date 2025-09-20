@@ -33,8 +33,182 @@ class ChatService {
     return chatRoomId;
   }
 
+  Future<void> sendCollaborationMessage(
+  String chatRoomId, 
+  String message, 
+  String collaborationId, {
+  String? imageUrl,
+  String? voiceUrl,
+  String? transcription,
+  String messageType = 'text',
+  Duration? voiceDuration,
+  String? detectedLanguage,
+}) async {
+  final user = _auth.currentUser;
+  if (user == null) {
+    print('❌ No authenticated user for sending collaboration message');
+    return;
+  }
+
+  print('📤 Sending collaboration message to chatRoomId: $chatRoomId');
+
+  // Ensure collaboration chat room exists
+  await _ensureCollaborationChatRoomExists(chatRoomId, collaborationId);
+
+  // Get user info from retailers collection (since these are artisans)
+  String senderName = 'Unknown Artisan';
+  String senderType = 'artisan';
+
+  try {
+    final retailerDoc = await _firestore.collection('retailers').doc(user.uid).get();
+    if (retailerDoc.exists && retailerDoc.data() != null) {
+      final retailerData = retailerDoc.data()!;
+      senderName = retailerData['fullName'] ?? retailerData['name'] ?? user.email?.split('@')[0] ?? 'Unknown Artisan';
+    }
+  } catch (e) {
+    print('Error fetching artisan info: $e');
+    senderName = user.email?.split('@')[0] ?? 'Unknown Artisan';
+  }
+
+  // Detect language if needed
+  if (detectedLanguage == null && messageType == 'text' && message.isNotEmpty) {
+    try {
+      final languageDetection = await GeminiService.detectLanguage(message);
+      detectedLanguage = languageDetection['detectedLanguage'];
+    } catch (e) {
+      print('❌ Failed to detect language: $e');
+    }
+  }
+
+  final messageData = ChatMessage(
+    id: '',
+    senderId: user.uid,
+    senderName: senderName,
+    senderType: senderType,
+    message: message,
+    imageUrl: imageUrl,
+    voiceUrl: voiceUrl,
+    transcription: transcription,
+    voiceDuration: voiceDuration,
+    timestamp: DateTime.now(),
+    messageType: messageType,
+    detectedLanguage: detectedLanguage,
+  );
+
+  // Add message to subcollection
+  try {
+    await _firestore
+        .collection('collaboration_chats')
+        .doc(chatRoomId)
+        .collection('messages')
+        .add(messageData.toMap());
+
+    // Update chat room with last message
+    String lastMessagePreview;
+    if (messageType == 'voice') {
+      lastMessagePreview = '🎤 Voice message';
+    } else if (messageType == 'image') {
+      lastMessagePreview = '📷 Image';
+    } else {
+      lastMessagePreview = message;
+    }
+
+    await _firestore.collection('collaboration_chats').doc(chatRoomId).set({
+      'collaborationId': collaborationId,
+      'lastMessage': lastMessagePreview,
+      'lastMessageTime': Timestamp.now(),
+      'lastSender': senderName,
+    }, SetOptions(merge: true));
+
+    print('✅ Collaboration message sent successfully');
+  } catch (e) {
+    print('❌ Error sending collaboration message: $e');
+    rethrow;
+  }
+}
+
+Future<void> _ensureCollaborationChatRoomExists(String chatRoomId, String collaborationId) async {
+  final chatRoomRef = _firestore.collection('collaboration_chats').doc(chatRoomId);
+  final chatRoom = await chatRoomRef.get();
+  
+  if (!chatRoom.exists) {
+    print('🏗️ Creating new collaboration chat room: $chatRoomId');
+    try {
+      // Get collaboration details
+      final collaborationDoc = await _firestore
+          .collection('collaboration_projects')
+          .doc(collaborationId)
+          .get();
+      
+      List<String> participants = [];
+      String chatType = 'team';
+      
+      if (chatRoomId.startsWith('team_')) {
+        // For team chats, get all collaboration members
+        if (collaborationDoc.exists) {
+          final data = collaborationDoc.data()!;
+          participants = [
+            data['leadArtisanId'],
+            ...List<String>.from(data['collaboratorIds'] ?? [])
+          ];
+        }
+        chatType = 'team';
+      } else if (chatRoomId.startsWith('direct_')) {
+        // For direct chats, extract user IDs from chat room ID
+        // Format: direct_COLLABORATION_ID_USER1_USER2
+        final parts = chatRoomId.split('_');
+        if (parts.length >= 4) {
+          participants = [parts[2], parts[3]]; // USER1, USER2
+        }
+        chatType = 'direct';
+      }
+      
+      await chatRoomRef.set({
+        'collaborationId': collaborationId,
+        'chatType': chatType,
+        'participants': participants,
+        'createdAt': Timestamp.now(),
+        'lastMessage': '',
+        'lastMessageTime': Timestamp.now(),
+        'lastSender': '',
+      });
+      
+      print('✅ Collaboration chat room created successfully with ${participants.length} participants');
+    } catch (e) {
+      print('❌ Error creating collaboration chat room: $e');
+      rethrow;
+    }
+  }
+}
+
+// Get collaboration messages
+Stream<List<ChatMessage>> getCollaborationMessages(String chatRoomId) {
+  return _firestore
+      .collection('collaboration_chats')
+      .doc(chatRoomId)
+      .collection('messages')
+      .orderBy('timestamp', descending: true)
+      .snapshots()
+      .map((snapshot) {
+    return snapshot.docs
+        .map((doc) {
+          try {
+            return ChatMessage.fromMap(doc.data(), doc.id);
+          } catch (e) {
+            print('❌ Error parsing collaboration message ${doc.id}: $e');
+            return null;
+          }
+        })
+        .where((message) => message != null)
+        .cast<ChatMessage>()
+        .toList();
+  });
+}
+
   // Send message with voice support
   Future<void> sendMessage(String chatRoomId, String message, {
+    File? voiceFile,
+    Duration? duration,
   String? imageUrl, 
   String? voiceUrl,
   String? transcription,

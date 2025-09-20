@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/review.dart';
 import '../services/review_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'review_translation_widget.dart';
+import 'voice_response_player.dart';
+import 'artisan_voice_reply_recorder.dart';
 
 /// Star Rating Display Widget
 class StarRating extends StatelessWidget {
@@ -341,14 +344,15 @@ class _ReviewCardState extends State<ReviewCard> {
             const SizedBox(height: 12),
           ],
           
-          // Review comment
-          Text(
-            widget.review.comment,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.grey[800],
-              height: 1.5,
-            ),
+          // Review comment with translation support
+          ReviewTranslationWidget(
+            reviewId: widget.review.id,
+            originalText: widget.review.comment,
+            textType: 'comment',
+            existingTranslations: widget.review.commentTranslations,
+            detectedLanguage: widget.review.detectedLanguage,
+            primaryColor: const Color(0xFF8B4513),
+            lightBrown: const Color(0xFFF5F5DC),
           ),
           
           // Review images
@@ -376,58 +380,76 @@ class _ReviewCardState extends State<ReviewCard> {
             ),
           ],
           
-          // Artisan response
-          if (widget.review.artisanResponse != null) ...[
+          // Artisan response (text and/or voice)
+          if (widget.review.artisanResponse != null || widget.review.hasVoiceResponse) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[100]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.storefront,
-                        size: 16,
-                        color: Colors.blue[600],
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Artisan Response',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue[700],
+            
+            // Text response (if available)
+            if (widget.review.artisanResponse != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[100]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.storefront,
+                          size: 16,
+                          color: Colors.blue[600],
                         ),
-                      ),
-                      const Spacer(),
-                      if (widget.review.artisanResponseDate != null)
+                        const SizedBox(width: 6),
                         Text(
-                          _formatResponseDate(widget.review.artisanResponseDate!),
+                          'Artisan Response',
                           style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.blue[500],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[700],
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.review.artisanResponse!,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.blue[800],
-                      height: 1.4,
+                        const Spacer(),
+                        if (widget.review.artisanResponseDate != null)
+                          Text(
+                            _formatResponseDate(widget.review.artisanResponseDate!),
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.blue[500],
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    // Artisan response with translation support
+                    ReviewTranslationWidget(
+                      reviewId: widget.review.id,
+                      originalText: widget.review.artisanResponse!,
+                      textType: 'artisanResponse',
+                      existingTranslations: widget.review.artisanResponseTranslations,
+                      detectedLanguage: widget.review.artisanResponseLanguage,
+                      primaryColor: Colors.blue.shade600,
+                      lightBrown: Colors.blue.shade50,
+                    ),
+                  ],
+                ),
               ),
-            ),
+              
+              // Add spacing between text and voice if both exist
+              if (widget.review.hasVoiceResponse) const SizedBox(height: 12),
+            ],
+            
+            // Voice response (if available)
+            if (widget.review.hasVoiceResponse) ...[
+              VoiceResponsePlayer(
+                review: widget.review,
+                primaryColor: Colors.green.shade600,
+                lightColor: Colors.green.shade50,
+              ),
+            ],
           ],
           
           const SizedBox(height: 12),
@@ -556,73 +578,20 @@ class _ReviewCardState extends State<ReviewCard> {
   }
 
   void _showRespondDialog() {
-    final TextEditingController responseController = TextEditingController();
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Respond to Review',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Respond to ${widget.review.userName}\'s review:',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: responseController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Thank you for your feedback...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.inter()),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+            minHeight: 300,
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final response = responseController.text.trim();
-              if (response.isNotEmpty) {
-                try {
-                  await _reviewService.addArtisanResponse(widget.review.id, response);
-                  Navigator.pop(context);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Response added successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4AF37),
-            ),
-            child: Text('Respond', style: GoogleFonts.inter(color: Colors.white)),
+          child: ArtisanResponseDialog(
+            review: widget.review,
+            reviewService: _reviewService,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -638,6 +607,349 @@ class _ReviewCardState extends State<ReviewCard> {
     } else {
       return '${difference.inMinutes}m ago';
     }
+  }
+}
+
+/// Artisan Response Dialog Widget
+class ArtisanResponseDialog extends StatefulWidget {
+  final Review review;
+  final ReviewService reviewService;
+
+  const ArtisanResponseDialog({
+    super.key,
+    required this.review,
+    required this.reviewService,
+  });
+
+  @override
+  State<ArtisanResponseDialog> createState() => _ArtisanResponseDialogState();
+}
+
+class _ArtisanResponseDialogState extends State<ArtisanResponseDialog> {
+  bool _isVoiceMode = false;
+  final TextEditingController _textController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitTextResponse() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await widget.reviewService.addArtisanResponseWithTranslation(
+        widget.review.id,
+        text,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Response sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _onVoiceResponseSubmitted() {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Artisan response sent successfully!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Icon(
+                Icons.reply,
+                color: const Color(0xFFD4AF37),
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Respond to Review',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Reviewer info
+          Text(
+            'Responding to ${widget.review.userName}:',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Original review snippet
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Row(
+              children: [
+                StarRating(rating: widget.review.rating, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.review.comment.length > 100
+                        ? '${widget.review.comment.substring(0, 100)}...'
+                        : widget.review.comment,
+                    style: GoogleFonts.inter(fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Response mode toggle
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isVoiceMode = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: !_isVoiceMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: !_isVoiceMode
+                            ? [BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              )]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.text_fields,
+                            size: 18,
+                            color: !_isVoiceMode ? const Color(0xFFD4AF37) : Colors.grey[600],
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Text',
+                            style: GoogleFonts.inter(
+                              fontWeight: !_isVoiceMode ? FontWeight.w600 : FontWeight.w400,
+                              color: !_isVoiceMode ? const Color(0xFFD4AF37) : Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isVoiceMode = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _isVoiceMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _isVoiceMode
+                            ? [BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              )]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.mic,
+                            size: 18,
+                            color: _isVoiceMode ? const Color(0xFFD4AF37) : Colors.grey[600],
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Voice',
+                            style: GoogleFonts.inter(
+                              fontWeight: _isVoiceMode ? FontWeight.w600 : FontWeight.w400,
+                              color: _isVoiceMode ? const Color(0xFFD4AF37) : Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Response input
+          Expanded(
+            child: _isVoiceMode
+                ? ArtisanVoiceReplyRecorder(
+                    onVoiceRecorded: (audioFile, transcription, duration, detectedLanguage) async {
+                      try {
+                        await widget.reviewService.addArtisanVoiceResponse(
+                          widget.review.id,
+                          audioFile,
+                          transcription ?? '',
+                          duration,
+                          detectedLanguage ?? 'en',
+                        );
+                        _onVoiceResponseSubmitted();
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    onCancel: () => setState(() => _isVoiceMode = false),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Response:',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          decoration: InputDecoration(
+                            hintText: 'Thank you for your feedback...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+                            ),
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey[400]!),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: GoogleFonts.inter(color: Colors.grey[700]),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting ? null : _submitTextResponse,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD4AF37),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      'Send Response',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
