@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
+import 'package:arti/screens/forum/forum_screen.dart';
 
 import 'package:arti/screens/faq/retailer_faq_screen.dart';
 
@@ -118,17 +119,21 @@ class MainSellerScaffold extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const RetailerFAQScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const RetailerFAQScreen()),
               );
             },
           ),
           _buildNavItem(
             context: context,
-            icon: Icons.insert_chart_outlined,
-            label: 'Analytics',
+            icon: Icons.forum,
+            label: 'Forum',
             index: 2,
             onTap: () {
-              // TODO: Navigate to Analytics Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ForumScreen()),
+              );
             },
           ),
         ],
