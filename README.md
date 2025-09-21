@@ -3,15 +3,17 @@
   <img src="assets/images/marti_16_9.png" alt="Marti Logo" width="420" />
 
   <h1>Marti</h1>
-	<p>Connecting artisans with customers through modern, localized, and AI-assisted commerce.</p>
+  <p>Connecting artisans with customers through modern, localized, and AI-assisted commerce.</p>
 
-	<!-- Featured Screenshot -->
-	<p align="center">
-		<img src="images/Screenshot_2025-09-21-21-32-32-968_com.local.artsisans.jpg" alt="Marti Buyer Home Screen" width="360" />
-		<br />
-		<em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em>
-	</p>
+</div>
 
+<div align="center">
+  <img src="images/Screenshot_2025-09-21-21-32-32-968_com.local.artsisans.jpg" alt="Marti Buyer Home Screen" width="360" />
+  <br />
+  <em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em>
+</div>
+
+<div align="center">
   <p>
 	 <a href="#-features">Features</a> ·
 	 <a href="#-quickstart">Quickstart</a> ·
