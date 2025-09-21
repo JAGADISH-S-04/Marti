@@ -51,6 +51,7 @@ class _CreateCollaborationScreenState extends State<CreateCollaborationScreen>
     'Glasswork',
     'Paintings',
     'Sculptures',
+    'Paper Crafts',
     'Other'
   ];
 
