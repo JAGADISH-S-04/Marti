@@ -15,7 +15,6 @@ import 'package:arti/services/gemini_service.dart';
 import 'package:arti/services/gemini/gemini_image_uploader.dart';
 import 'package:arti/services/CI_retailer_analytics_service.dart';
 import 'package:arti/screens/craft_it/seller_view.dart';
-import 'package:arti/navigation/Sellerside_navbar.dart';
 import 'package:arti/notifications/services/push_notification_service.dart';
 import 'package:arti/notifications/providers/notification_provider.dart';
 import 'package:arti/notifications/screens/notification_screen.dart';
@@ -194,10 +193,7 @@ class MyApp extends StatelessWidget {
             '/signup': (context) => const SignUpPage(),
             '/home': (context) => const BottomAppNavigator(),
             // Add the enhanced seller view route
-            '/enhanced-seller': (context) => const MainSellerScaffold(
-                  showAppBar: false,
-                  body: SellerRequestsScreen(),
-                ),
+            '/enhanced-seller': (context) => const SellerRequestsScreen(),
             // Add notification routes
             '/notifications': (context) => const NotificationScreen(),
           },
