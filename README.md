@@ -8,9 +8,9 @@
 </div>
 
 <div align="center">
-  <img src="images/Screenshot_2025-09-21-21-32-32-968_com.local.artsisans.jpg" alt="Marti Buyer Home Screen" width="360" />
+  <img src="images/Screenshot_2025-09-21-21-35-43-857_com.local.artsisans.jpg" alt="Marti Product Showcase - Madhan's Collection" width="360" />
   <br />
-  <em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em>
+  <em>Featured: Product Collection — Browse curated artisan products including potted plants, home decor, and handcrafted items with real-time inventory tracking and instant shopping cart access.</em>
 </div>
 
 <div align="center">
