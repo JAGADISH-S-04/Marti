@@ -394,13 +394,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const EnhancedProductListingPage()),
-                );
-              },
+              onPressed: () => _createStore(),
               icon: const Icon(Icons.add_business),
               label: Text(AppLocalizations.of(context)!.createMyStore),
               style: ElevatedButton.styleFrom(
@@ -416,6 +410,168 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           ],
         ),
       ),
+    );
+  }
+
+  // Add store creation function
+  Future<void> _createStore() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showSnackBar('User not authenticated', isError: true);
+      return;
+    }
+
+    // Show store creation dialog
+    String? storeName = await _showStoreCreationDialog();
+    if (storeName == null || storeName.trim().isEmpty) {
+      return; // User cancelled or didn't enter a name
+    }
+
+    try {
+      _showSnackBar('Creating your store...');
+
+      // Create store document in Firestore
+      final storeData = {
+        'storeName': storeName.trim(),
+        'artisanId': user.uid,
+        'artisanFullName': user.displayName ?? 'Artisan',
+        'email': user.email ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+        'description': 'Welcome to my handcrafted store!',
+        'totalProducts': 0,
+        'totalOrders': 0,
+        'rating': 0.0,
+        'reviewCount': 0,
+      };
+
+      await FirebaseFirestore.instance
+          .collection('stores')
+          .doc(user.uid)
+          .set(storeData);
+
+      // Update local state
+      setState(() {
+        _storeData = storeData;
+      });
+
+      _showSnackBar('Store created successfully! Now you can add products.');
+
+      // Navigate to add product after store creation
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const EnhancedProductListingPage(),
+        ),
+      );
+    } catch (e) {
+      _showSnackBar('Error creating store: $e', isError: true);
+    }
+  }
+
+  // Show store creation dialog
+  Future<String?> _showStoreCreationDialog() async {
+    final TextEditingController storeNameController = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.storefront, color: Colors.black),
+              const SizedBox(width: 8),
+              Text(
+                'Create Your Store',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose a name for your store:',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: storeNameController,
+                decoration: InputDecoration(
+                  labelText: 'Store Name',
+                  hintText: 'e.g., "Artisan\'s Craft Corner"',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.black, width: 2),
+                  ),
+                ),
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue.shade600, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You can change this name later in your store settings.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final storeName = storeNameController.text.trim();
+                if (storeName.isNotEmpty) {
+                  Navigator.of(context).pop(storeName);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Create Store'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -621,30 +777,173 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       stream: FirebaseFirestore.instance
           .collection('products')
           .where('artisanId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
+        if (snapshot.hasError) {
+          print('Error loading products: ${snapshot.error}');
+          // Fallback: Try without ordering
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('products')
+                .where('artisanId', isEqualTo: user.uid)
+                .snapshots(),
+            builder: (context, fallbackSnapshot) {
+              if (fallbackSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (fallbackSnapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading products',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please try refreshing the page',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              if (!fallbackSnapshot.hasData ||
+                  fallbackSnapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined,
+                          size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.noProductsYet,
+                        textAlign: TextAlign.center,
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const EnhancedProductListingPage(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Your First Product'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Sort products by creation date in memory since Firestore ordering might fail
+              final docs = fallbackSnapshot.data!.docs.toList();
+              docs.sort((a, b) {
+                final aData = a.data() as Map<String, dynamic>;
+                final bData = b.data() as Map<String, dynamic>;
+                final aTime = aData['createdAt'] as Timestamp?;
+                final bTime = bData['createdAt'] as Timestamp?;
+                if (aTime == null && bTime == null) return 0;
+                if (aTime == null) return 1;
+                if (bTime == null) return -1;
+                return bTime
+                    .compareTo(aTime); // Descending order (newest first)
+              });
+
+              return ListView.builder(
+                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final product = docs[index].data() as Map<String, dynamic>;
+                  product['id'] = docs[index].id;
+                  return _buildNewProductCard(product);
+                },
+              );
+            },
+          );
+        }
+
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(
-            child: Text(
-              AppLocalizations.of(context)!.noProductsYet,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined,
+                    size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  AppLocalizations.of(context)!.noProductsYet,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const EnhancedProductListingPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Your First Product'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.only(top: 16, bottom: 16),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            final product =
-                snapshot.data!.docs[index].data() as Map<String, dynamic>;
-            product['id'] = snapshot.data!.docs[index].id;
-            return _buildNewProductCard(product);
+
+        // Sort products by creation date in memory to avoid Firestore composite index issues
+        final docs = snapshot.data!.docs.toList();
+        docs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['createdAt'] as Timestamp?;
+          final bTime = bData['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime); // Descending order (newest first)
+        });
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Force refresh by rebuilding the stream
+            setState(() {});
           },
+          child: ListView.builder(
+            padding: const EdgeInsets.only(top: 16, bottom: 16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final product = docs[index].data() as Map<String, dynamic>;
+              product['id'] = docs[index].id;
+              return _buildNewProductCard(product);
+            },
+          ),
         );
       },
     );
