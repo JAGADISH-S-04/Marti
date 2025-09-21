@@ -39,7 +39,7 @@ Marti is a Flutter app that helps artisans showcase products, tell their stories
 
   <br />
 
-  <p><sub><strong>Craft It:</strong> Custom request form for pottery and handmade items | <strong>Browse:</strong> Product discovery | <strong>Details:</strong> Item specifications | <strong>Cart:</strong> Shopping experience</sub></p>
+  <p><sub><strong>Craft It:</strong> Custom request form for pottery and handmade items | <strong>Browse:</strong> Google Nano Banana | <strong>Details:</strong> Used to generate production level product photography less than 10 secs | <strong>Cart:</strong> Shopping experience</sub></p>
   <p><sub>UI evolves rapidly; see <code>lib/scripts/</code> for current pages.</sub></p>
 
 </div>
