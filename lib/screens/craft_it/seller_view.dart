@@ -542,7 +542,6 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           ),
                         ),
                       ],
-
                     ),
                   ),
                 ],
@@ -1698,62 +1697,90 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
               // Action buttons based on status and quotation state
               if (isMyQuotationAccepted) ...[
-                // For accepted quotations - show chat, collaboration, and status buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _openChat(context, requestId, data),
-                        icon: const Icon(Icons.chat, size: 16, color: Colors.white,),
-                        label: Text(AppLocalizations.of(context)!.openChat),
-
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 44, 131, 203),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
+                // For accepted quotations - show different buttons based on status
+                if (status == 'completed') ...[
+                  // For completed requests - only show chat button (no collaboration)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openChat(context, requestId, data),
+                      icon: const Icon(
+                        Icons.chat,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: Text(AppLocalizations.of(context)!.openChat),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color.fromARGB(255, 44, 131, 203),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _showCollaborationDialog(context, requestId, data),
-
-                        icon: Icon(
-                            // Change icon based on collaboration status
-                            (data['isOpenForCollaboration'] ?? false) &&
-                                    data['collaborationProjectId'] != null
-                                ? Icons.manage_accounts
-                                : Icons.group_work_outlined,
-                                color: Colors.white,
-                            size: 16),
-                        label: Text(
-                            // Check if collaboration exists
-                            (data['isOpenForCollaboration'] ?? false) &&
-                                    data['collaborationProjectId'] != null
-                                ? 'Manage Collaboration'
-                                : 'Collaborate'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 221, 122, 60),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ] else ...[
+                  // For in-progress requests - show chat, collaboration, and mark completed buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openChat(context, requestId, data),
+                          icon: const Icon(
+                            Icons.chat,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          label: Text(AppLocalizations.of(context)!.openChat),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 44, 131, 203),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Second row for the completed button
-                if (status != 'completed') ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showCollaborationDialog(
+                              context, requestId, data),
+                          icon: Icon(
+                              // Change icon based on collaboration status
+                              (data['isOpenForCollaboration'] ?? false) &&
+                                      data['collaborationProjectId'] != null
+                                  ? Icons.manage_accounts
+                                  : Icons.group_work_outlined,
+                              color: Colors.white,
+                              size: 16),
+                          label: Text(
+                              // Check if collaboration exists
+                              (data['isOpenForCollaboration'] ?? false) &&
+                                      data['collaborationProjectId'] != null
+                                  ? 'Manage Collaboration'
+                                  : 'Collaborate'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 221, 122, 60),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Mark completed button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () =>
                           _markAsCompleted(context, requestId, data),
-                      icon: const Icon(Icons.check_circle, size: 16, color: Colors.white,),
+                      icon: const Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: Colors.white,
+                      ),
                       label: Text(AppLocalizations.of(context)!.markCompleted),
-
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -1826,7 +1853,6 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-
                                 AppLocalizations.of(context)!
                                     .deadlinePassedCannotSubmit,
                                 style: TextStyle(
