@@ -1291,10 +1291,7 @@ class _SellerScreenState extends State<SellerScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const MainSellerScaffold(
-                      showAppBar: false,
-                      body: SellerRequestsScreen(),
-                    ),
+                    builder: (context) => const SellerRequestsScreen(),
                   ),
                 );
               },
@@ -1548,10 +1545,7 @@ class _SellerScreenState extends State<SellerScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const MainSellerScaffold(
-                  showAppBar: false,
-                  body: SellerRequestsScreen(),
-                ),
+                builder: (context) => const SellerRequestsScreen(),
               ),
             );
           },
