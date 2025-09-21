@@ -57,6 +57,8 @@ class NotificationRepository {
       // CRITICAL: Filter by targetRole to ensure role-based notification targeting
       if (userRole != null) {
         query = query.where('targetRole', isEqualTo: userRole.value);
+        print(
+            '📂 LIST DEBUG: Filtering notifications by targetRole: ${userRole.value}');
       }
 
       // Add filters
@@ -92,11 +94,16 @@ class NotificationRepository {
 
       final snapshot = await query.get();
 
-      return snapshot.docs
+      final filteredNotifications = snapshot.docs
           .map((doc) =>
               NotificationModel.fromMap(doc.data() as Map<String, dynamic>))
           .where((notification) => !notification.isExpired)
           .toList();
+
+      print(
+          '📂 LIST DEBUG: Found ${snapshot.docs.length} raw notifications, ${filteredNotifications.length} after expiry filter');
+
+      return filteredNotifications;
     } catch (e) {
       throw Exception('Failed to get user notifications: $e');
     }
@@ -287,9 +294,12 @@ class NotificationRepository {
       // CRITICAL: Filter by targetRole for accurate stats per role
       if (userRole != null) {
         query = query.where('targetRole', isEqualTo: userRole.value);
+        print('🔢 REPO DEBUG: Filtering by targetRole: ${userRole.value}');
       }
 
       final notifications = await query.get();
+      print(
+          '🔢 REPO DEBUG: Found ${notifications.docs.length} notifications for user $userId');
 
       int total = 0;
       int unread = 0;
@@ -301,6 +311,12 @@ class NotificationRepository {
       for (final doc in notifications.docs) {
         final data = doc.data() as Map<String, dynamic>;
         total++;
+
+        // Debug: Check if notification has targetRole field
+        final hasTargetRole = data.containsKey('targetRole');
+        final targetRoleValue = data['targetRole'] as String?;
+        print(
+            '🔢 REPO DEBUG: Notification ${doc.id} - hasTargetRole: $hasTargetRole, targetRole: $targetRoleValue, type: ${data['type']}');
 
         // Count unread
         if (!(data['isRead'] ?? true)) {
@@ -325,9 +341,11 @@ class NotificationRepository {
         // Count by type
         final type = data['type'] as String? ?? 'general';
         typeCount[type] = (typeCount[type] ?? 0) + 1;
+        print(
+            '🔢 REPO DEBUG: Notification type: $type, current count: ${typeCount[type]}');
       }
 
-      return {
+      final finalStats = {
         'total': total,
         'unread': unread,
         'high': high,
@@ -335,7 +353,11 @@ class NotificationRepository {
         'low': low,
         ...typeCount,
       };
+
+      print('🔢 REPO DEBUG: Final stats: $finalStats');
+      return finalStats;
     } catch (e) {
+      print('🔢 REPO ERROR: Failed to get stats: $e');
       throw Exception('Failed to get notification statistics: $e');
     }
   }

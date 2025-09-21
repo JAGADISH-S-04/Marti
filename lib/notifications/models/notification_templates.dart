@@ -306,3 +306,66 @@ class ChatNotificationTemplate {
     }
   }
 }
+
+/// Template for creating review-related notifications
+class ReviewNotificationTemplate {
+  static Map<String, String> getNotificationContent({
+    required NotificationType type,
+    required String productId,
+    required String productName,
+    required String customerName,
+    required String sellerName,
+    required double rating,
+    required String comment,
+    Map<String, dynamic> additionalData = const {},
+  }) {
+    final isVerifiedPurchase = additionalData['isVerifiedPurchase'] ?? false;
+    final verificationBadge = isVerifiedPurchase ? '✅ Verified Purchase' : '';
+    final ratingStars = '⭐' * rating.toInt();
+
+    switch (type) {
+      case NotificationType.newReview:
+        return {
+          'title': 'New Review Received! $ratingStars',
+          'message':
+              '$customerName left a ${rating.toStringAsFixed(1)}-star review for "$productName".\n'
+                  '$verificationBadge\n'
+                  '${comment.length > 100 ? comment.substring(0, 100) + '...' : comment}\n'
+                  'Tap to view the full review and respond.',
+        };
+
+      default:
+        return {
+          'title': 'Review Update',
+          'message': 'You have an update about reviews for "$productName".',
+        };
+    }
+  }
+}
+
+/// Template for creating forum-related notifications
+class ForumNotificationTemplate {
+  static Map<String, String> getNotificationContent({
+    required NotificationType type,
+    required String postTitle,
+    required String replierName,
+    required String replyContent,
+    Map<String, dynamic> additionalData = const {},
+  }) {
+    switch (type) {
+      case NotificationType.forumReply:
+        return {
+          'title': 'New Reply to Your Post 💬',
+          'message': '$replierName replied to your forum post "$postTitle".\n'
+              '${replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent}\n'
+              'Tap to view the full discussion.',
+        };
+
+      default:
+        return {
+          'title': 'Forum Update',
+          'message': 'You have an update in the forum.',
+        };
+    }
+  }
+}
