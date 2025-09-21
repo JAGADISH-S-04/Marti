@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/forum_models.dart';
 import '../services/firebase_storage_service.dart';
 import '../services/firestore_service.dart';
+import '../notifications/services/notification_service.dart';
+import '../notifications/models/notification_type.dart';
 
 /// Forum service for artisan/seller community discussions
 /// This service handles questions, answers, and knowledge sharing among sellers
@@ -491,6 +493,9 @@ class ForumService {
         'lastActivity': Timestamp.fromDate(DateTime.now()),
       });
 
+      // Send notification to the original post author
+      await _sendForumReplyNotification(postId, userProfile, content);
+
       return docRef.id;
     } catch (e) {
       print('Error adding comment: $e');
@@ -755,6 +760,55 @@ class ForumService {
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       throw Exception('Failed to upload forum voice: $e');
+    }
+  }
+
+  /// Send notification to original post author when someone replies
+  Future<void> _sendForumReplyNotification(String postId,
+      Map<String, dynamic> replierProfile, String replyContent) async {
+    try {
+      // Get the original post to find the author
+      final postDoc =
+          await _firestore.collection(forumPostsCollection).doc(postId).get();
+      if (!postDoc.exists) {
+        print('Post not found for forum reply notification');
+        return;
+      }
+
+      final postData = postDoc.data() as Map<String, dynamic>;
+      final originalAuthorId = postData['authorId'];
+      final postTitle = postData['title'] ?? 'Forum Post';
+
+      if (originalAuthorId == null ||
+          originalAuthorId == FirebaseAuth.instance.currentUser?.uid) {
+        // Don't send notification if replying to own post
+        return;
+      }
+
+      final replierName = replierProfile['fullName'] ??
+          replierProfile['displayName'] ??
+          replierProfile['name'] ??
+          'A seller';
+
+      // Send notification using the standardized service
+      await NotificationService.sendForumNotification(
+        userId: originalAuthorId,
+        type: NotificationType.forumReply,
+        postTitle: postTitle,
+        replierName: replierName,
+        replyContent: replyContent,
+        targetRole: UserRole.seller,
+        priority: NotificationPriority.low,
+        additionalData: {
+          'postId': postId,
+          'replierId': FirebaseAuth.instance.currentUser?.uid,
+        },
+      );
+
+      print('Forum reply notification sent to: $originalAuthorId');
+    } catch (e) {
+      print('Error sending forum reply notification: $e');
+      // Don't throw error - notification failure shouldn't prevent reply creation
     }
   }
 }

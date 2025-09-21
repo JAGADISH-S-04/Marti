@@ -56,7 +56,8 @@ class NotificationEmptyState extends StatelessWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Refresh'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.brown.shade600,
+                  backgroundColor:
+                      const Color(0xFF2C1810), // Match seller screen color
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -86,7 +87,8 @@ class NotificationLoadingState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.brown.shade600),
+            valueColor: AlwaysStoppedAnimation<Color>(
+                const Color(0xFF2C1810)), // Match seller screen color
           ),
           const SizedBox(height: 16),
           Text(
@@ -183,19 +185,44 @@ class NotificationStatsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug: Print the stats to see what's actually available
+    print('🔢 STATS DEBUG: Available stats: $stats');
+
+    // Calculate order counts more robustly
+    final int orderCount = (stats['order_placed'] ?? 0) +
+        (stats['order_confirmed'] ?? 0) +
+        (stats['order_shipped'] ?? 0) +
+        (stats['order_delivered'] ?? 0) +
+        (stats['order_cancelled'] ?? 0);
+
+    // Calculate quotation counts
+    final int quotationCount = (stats['quotation_submitted'] ?? 0) +
+        (stats['quotation_accepted'] ?? 0) +
+        (stats['quotation_rejected'] ?? 0) +
+        (stats['quotation_updated'] ?? 0);
+
+    print('🔢 STATS DEBUG: Calculated order count: $orderCount');
+    print('🔢 STATS DEBUG: Calculated quotation count: $quotationCount');
+    print(
+        '🔢 UI DEBUG: Displaying - Total: ${stats['total'] ?? 0}, Unread: ${stats['unread'] ?? 0}, Orders: $orderCount, Quotations: $quotationCount');
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.brown.shade600, Colors.brown.shade800],
+          colors: [
+            const Color(0xFF2C1810),
+            const Color(0xFF1A0F0A)
+          ], // Match seller screen colors
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.brown.withOpacity(0.3),
+            color: const Color(0xFF2C1810)
+                .withOpacity(0.3), // Match seller screen colors
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -238,21 +265,18 @@ class NotificationStatsWidget extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildStatItem(
-                  'High Priority',
-                  stats['high'] ?? 0,
-                  Icons.priority_high,
-                  Colors.red.shade300,
+                  'Orders',
+                  orderCount,
+                  Icons.shopping_bag,
+                  Colors.green.shade300,
                 ),
               ),
               Expanded(
                 child: _buildStatItem(
-                  'Orders',
-                  (stats['order_placed'] ?? 0) +
-                      (stats['order_confirmed'] ?? 0) +
-                      (stats['order_shipped'] ?? 0) +
-                      (stats['order_delivered'] ?? 0),
-                  Icons.shopping_bag,
-                  Colors.green.shade300,
+                  'Quotations',
+                  quotationCount,
+                  Icons.request_quote,
+                  Colors.blue.shade300,
                 ),
               ),
             ],
@@ -318,9 +342,11 @@ class NotificationBulkActionsWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.brown.shade50,
+        color: const Color(0xFFF9F9F7), // Match seller screen background
         border: Border(
-          bottom: BorderSide(color: Colors.brown.shade200),
+          bottom: BorderSide(
+              color: const Color(0xFF2C1810)
+                  .withOpacity(0.2)), // Match seller screen colors
         ),
       ),
       child: Row(
@@ -330,7 +356,7 @@ class NotificationBulkActionsWidget extends StatelessWidget {
             style: GoogleFonts.openSans(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.brown.shade800,
+              color: const Color(0xFF2C1810), // Match seller screen colors
             ),
           ),
           const SizedBox(width: 16),
@@ -339,7 +365,8 @@ class NotificationBulkActionsWidget extends StatelessWidget {
             icon: const Icon(Icons.select_all, size: 18),
             label: const Text('All'),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.brown.shade600,
+              foregroundColor:
+                  const Color(0xFF2C1810), // Match seller screen colors
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
@@ -348,7 +375,8 @@ class NotificationBulkActionsWidget extends StatelessWidget {
             icon: const Icon(Icons.deselect, size: 18),
             label: const Text('None'),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.brown.shade600,
+              foregroundColor:
+                  const Color(0xFF2C1810), // Match seller screen colors
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
@@ -357,7 +385,7 @@ class NotificationBulkActionsWidget extends StatelessWidget {
             onPressed: onMarkAllAsRead,
             icon: const Icon(Icons.mark_email_read),
             tooltip: 'Mark as read',
-            color: Colors.brown.shade600,
+            color: const Color(0xFF2C1810), // Match seller screen colors
           ),
           IconButton(
             onPressed: onDeleteSelected,

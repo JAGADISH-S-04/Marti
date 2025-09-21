@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'notification_service.dart';
+import '../../notifications/services/enhanced_notification_service.dart';
 import '../../utils/deadline_utils.dart';
 
 class RequestDetailScreen extends StatefulWidget {
@@ -161,6 +161,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
         final requestData = requestDoc.data() as Map<String, dynamic>;
         final allQuotations = requestData['quotations'] as List? ?? [];
         final requestTitle = requestData['title'] ?? 'Untitled Request';
+        final customerName = requestData['customerName'] ??
+            requestData['userName'] ??
+            'Customer';
 
         // Update the request with accepted quotation
         await FirebaseFirestore.instance
@@ -175,18 +178,21 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
         // Send notifications to all artisans
         await Future.wait([
           // Send acceptance notification to the selected artisan
-          NotificationService.sendQuotationAcceptedNotification(
+          EnhancedNotificationService.sendQuotationAcceptedNotification(
             acceptedArtisanId: quotation['artisanId'],
             requestTitle: requestTitle,
             requestId: widget.requestId,
             acceptedPrice: quotation['price'].toDouble(),
+            customerName: customerName,
+            artisanName: quotation['artisanName'],
           ),
           // Send rejection notifications to other artisans
-          NotificationService.sendQuotationRejectedNotifications(
+          EnhancedNotificationService.sendQuotationRejectedNotifications(
             requestId: widget.requestId,
             requestTitle: requestTitle,
             acceptedArtisanId: quotation['artisanId'],
             allQuotations: allQuotations,
+            customerName: customerName,
           ),
         ]);
 

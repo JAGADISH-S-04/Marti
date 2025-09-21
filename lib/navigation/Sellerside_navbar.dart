@@ -5,11 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:arti/services/locale_service.dart';
 import 'package:arti/widgets/l10n_language_selector.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:arti/screens/seller_analytics_screen.dart';
 import 'package:arti/screens/seller_screen.dart';
 import 'package:arti/screens/seller_profile_screen.dart';
 import 'package:arti/screens/Seller_search_screen.dart';
 import 'package:arti/screens/forum/forum_screen.dart';
+import 'package:arti/notifications/services/enhanced_notification_service.dart';
+import 'package:arti/notifications/screens/seller_notification_screen.dart';
 
 class MainSellerScaffold extends StatefulWidget {
   /// The main content of the screen.
@@ -101,10 +104,65 @@ class _MainSellerScaffoldState extends State<MainSellerScaffold> {
                     );
                   },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_none,
-                      color: Color(0xFF2C1810)),
-                  onPressed: () {/* Handle notifications */},
+                // Notification bell with badge
+                StreamBuilder<int>(
+                  stream: FirebaseAuth.instance.currentUser != null
+                      ? EnhancedNotificationService.getUnreadNotificationCount(
+                          FirebaseAuth.instance.currentUser!.uid)
+                      : Stream.value(0),
+                  builder: (context, snapshot) {
+                    final unreadCount = snapshot.data ?? 0;
+                    print('🔔 NAVBAR: Unread count: $unreadCount');
+
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none,
+                              color: Color(0xFF2C1810)),
+                          onPressed: () {
+                            print('🔔 NAVBAR: Notification icon tapped!');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const SellerNotificationScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: IgnorePointer(
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  unreadCount > 99
+                                      ? '99+'
+                                      : unreadCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.person, color: Color(0xFF2C1810)),

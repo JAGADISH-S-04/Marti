@@ -37,24 +37,25 @@ class NotificationProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
 
   /// Initialize the provider for a specific user with role-based filtering
-  Future<void> initializeForUser(String userId) async {
+  Future<void> initializeForUser(String userId, {UserRole? userRole}) async {
     try {
       _setLoading(true);
       _clearError();
 
       // Get user role for proper notification filtering
-      final userRole = await UserRoleDetector.getUserRoleForScreen();
+      final targetRole =
+          userRole ?? await UserRoleDetector.getUserRoleForScreen();
       print(
-          '🔐 Initializing notifications for user $userId as ${userRole.value}');
+          '🔐 Initializing notifications for user $userId as ${targetRole.value}');
 
       // Load initial notifications with role filtering
-      await loadNotifications(userId, userRole: userRole);
+      await loadNotifications(userId, userRole: targetRole);
 
       // Load notification stats with role filtering
-      await loadNotificationStats(userId, userRole: userRole);
+      await loadNotificationStats(userId, userRole: targetRole);
 
       // Setup real-time listeners with role filtering
-      _setupUnreadCountListener(userId, userRole: userRole);
+      _setupUnreadCountListener(userId, userRole: targetRole);
     } catch (e) {
       _setError('Failed to initialize notifications: $e');
     } finally {
@@ -273,10 +274,17 @@ class NotificationProvider extends ChangeNotifier {
       final targetRole =
           userRole ?? await UserRoleDetector.getUserRoleForScreen();
 
+      print(
+          '🔢 PROVIDER DEBUG: Loading stats for user $userId with role $targetRole');
+
       _notificationStats =
           await _repository.getNotificationStats(userId, userRole: targetRole);
+
+      print('🔢 PROVIDER DEBUG: Loaded stats: $_notificationStats');
+
       notifyListeners();
     } catch (e) {
+      print('🔢 PROVIDER ERROR: Failed to load stats: $e');
       _setError('Failed to load notification stats: $e');
     }
   }

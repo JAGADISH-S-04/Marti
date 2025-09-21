@@ -47,8 +47,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Pass the userRole to ensure proper role-based filtering
-        context.read<NotificationProvider>().initializeForUser(user.uid);
+        // Pass the userRole to ensure proper role-based filtering for both notifications and stats
+        context
+            .read<NotificationProvider>()
+            .initializeForUser(user.uid, userRole: widget.userRole);
         _loadNotificationsWithRole(user.uid);
       });
     }
@@ -88,7 +90,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 240, 235),
+      backgroundColor:
+          const Color(0xFFF9F9F7), // Match seller screen background
       appBar: _buildAppBar(),
       body: Consumer<NotificationProvider>(
         builder: (context, provider, child) {
@@ -135,39 +138,43 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color.fromARGB(255, 93, 64, 55),
+      backgroundColor:
+          const Color(0xFF2C1810), // Match seller screen AppBar color
+      foregroundColor: Colors.white, // Ensure text and icons are white
       title: Text(
         'Notifications',
         style: GoogleFonts.playfairDisplay(
           fontWeight: FontWeight.bold,
           fontSize: 20,
+          color: Colors.white,
         ),
       ),
       actions: [
         if (_isSelectionMode) ...[
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, color: Colors.white),
             onPressed: _exitSelectionMode,
             tooltip: 'Exit selection mode',
           ),
         ] else ...[
           IconButton(
-            icon: const Icon(Icons.checklist),
+            icon: const Icon(Icons.checklist, color: Colors.white),
             onPressed: _enterSelectionMode,
             tooltip: 'Select notifications',
           ),
           IconButton(
-            icon: const Icon(Icons.filter_alt),
+            icon: const Icon(Icons.filter_alt, color: Colors.white),
             onPressed: _showFilterBottomSheet,
             tooltip: 'Filter notifications',
           ),
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'mark_all_read',
                 child: Row(
                   children: [
-                    Icon(Icons.mark_email_read),
+                    Icon(Icons.mark_email_read, color: Color(0xFF2C1810)),
                     SizedBox(width: 8),
                     Text('Mark all as read'),
                   ],
@@ -177,7 +184,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 value: 'refresh',
                 child: Row(
                   children: [
-                    Icon(Icons.refresh),
+                    Icon(Icons.refresh, color: Color(0xFF2C1810)),
                     SizedBox(width: 8),
                     Text('Refresh'),
                   ],
@@ -243,7 +250,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildNotificationList(NotificationProvider provider) {
     return RefreshIndicator(
-      color: Colors.brown.shade600,
+      color: const Color(0xFF2C1810), // Match seller screen color scheme
       onRefresh: () => _refreshNotifications(),
       child: ListView.builder(
         controller: _scrollController,
@@ -271,9 +278,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
             child: Container(
               decoration: _isSelectionMode && isSelected
                   ? BoxDecoration(
-                      color: Colors.brown.withOpacity(0.1),
+                      color: const Color(0xFF2C1810)
+                          .withOpacity(0.1), // Match seller screen colors
                       border:
-                          Border.all(color: Colors.brown.shade600, width: 2),
+                          Border.all(color: const Color(0xFF2C1810), width: 2),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
@@ -298,7 +306,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
         return FloatingActionButton.extended(
           onPressed: _markAllAsRead,
-          backgroundColor: Colors.brown.shade600,
+          backgroundColor:
+              const Color(0xFF2C1810), // Match seller screen color scheme
+          foregroundColor: Colors.white,
           icon: const Icon(Icons.mark_email_read),
           label: Text(
             'Mark ${provider.unreadCount} as read',
@@ -311,14 +321,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildAuthRequiredScreen() {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 240, 235),
+      backgroundColor:
+          const Color(0xFFF9F9F7), // Match seller screen background
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 93, 64, 55),
+        backgroundColor:
+            const Color(0xFF2C1810), // Match seller screen AppBar color
+        foregroundColor: Colors.white,
         title: Text(
           'Notifications',
           style: GoogleFonts.playfairDisplay(
             fontWeight: FontWeight.bold,
             fontSize: 20,
+            color: Colors.white,
           ),
         ),
       ),
@@ -396,7 +410,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Navigate to ${notification.type.value} details'),
-        backgroundColor: Colors.brown.shade600,
+        backgroundColor:
+            const Color(0xFF2C1810), // Match seller screen color scheme
       ),
     );
   }

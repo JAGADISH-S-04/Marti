@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'notification_service.dart';
+import '../../notifications/services/enhanced_notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -89,8 +89,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: _useSimpleQuery
-              ? NotificationService.getUserNotificationsSimple(currentUser.uid)
-              : NotificationService.getUserNotifications(currentUser.uid),
+              ? EnhancedNotificationService.getUserNotificationsSimple(
+                  currentUser.uid)
+              : EnhancedNotificationService.getUserNotifications(
+                  currentUser.uid),
           builder: (context, snapshot) {
             print(
                 'NotificationsScreen: StreamBuilder state = ${snapshot.connectionState}');
@@ -300,7 +302,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             try {
               print('NotificationsScreen: Notification tapped');
               if (!isRead) {
-                NotificationService.markAsRead(notification['id']);
+                EnhancedNotificationService.markAsRead(notification['id']);
               }
               _handleNotificationTap(notification);
             } catch (e) {

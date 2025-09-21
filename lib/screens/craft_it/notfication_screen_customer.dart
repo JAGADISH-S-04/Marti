@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'notification_service.dart';
+import '../../notifications/services/enhanced_notification_service.dart';
 
 class CustomerNotificationsScreen extends StatefulWidget {
   const CustomerNotificationsScreen({super.key});
@@ -160,7 +160,8 @@ class _CustomerNotificationsScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                  Icon(Icons.notifications_none,
+                      size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   const Text(
                     'No notifications yet',
@@ -241,13 +242,15 @@ class _CustomerNotificationsScreenState
       color: isRead ? Colors.white : cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: isRead ? BorderSide.none : BorderSide(color: iconColor.withOpacity(0.3), width: 1),
+        side: isRead
+            ? BorderSide.none
+            : BorderSide(color: iconColor.withOpacity(0.3), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           if (!isRead) {
-            NotificationService.markAsRead(notification['id']);
+            EnhancedNotificationService.markAsRead(notification['id']);
           }
           _handleNotificationTap(notification);
         },
@@ -280,8 +283,10 @@ class _CustomerNotificationsScreenState
                             notification['title'] ?? 'Notification',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                              color: isRead ? Colors.grey.shade700 : primaryBrown,
+                              fontWeight:
+                                  isRead ? FontWeight.w500 : FontWeight.bold,
+                              color:
+                                  isRead ? Colors.grey.shade700 : primaryBrown,
                             ),
                           ),
                         ),
