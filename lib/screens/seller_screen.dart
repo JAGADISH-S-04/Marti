@@ -422,9 +422,9 @@ class _MyStoreScreenState extends State<MyStoreScreen>
     }
 
     // Show store creation dialog
-    String? storeName = await _showStoreCreationDialog();
-    if (storeName == null || storeName.trim().isEmpty) {
-      return; // User cancelled or didn't enter a name
+    Map<String, String>? storeDetails = await _showStoreCreationDialog();
+    if (storeDetails == null) {
+      return; // User cancelled
     }
 
     try {
@@ -432,14 +432,18 @@ class _MyStoreScreenState extends State<MyStoreScreen>
 
       // Create store document in Firestore
       final storeData = {
-        'storeName': storeName.trim(),
+        'storeName': storeDetails['storeName']!.trim(),
+        'contactNumber': storeDetails['contactNumber']!.trim(),
+        'description': storeDetails['description']!.trim(),
+        'upiId': storeDetails['upiId']!.trim(),
+        'imageUrl': '',
+        'isActive': true,
+        'ownerId': user.uid,
         'artisanId': user.uid,
         'artisanFullName': user.displayName ?? 'Artisan',
         'email': user.email ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'isActive': true,
-        'description': 'Welcome to my handcrafted store!',
         'totalProducts': 0,
         'totalOrders': 0,
         'rating': 0.0,
@@ -471,10 +475,14 @@ class _MyStoreScreenState extends State<MyStoreScreen>
   }
 
   // Show store creation dialog
-  Future<String?> _showStoreCreationDialog() async {
+  Future<Map<String, String>?> _showStoreCreationDialog() async {
     final TextEditingController storeNameController = TextEditingController();
+    final TextEditingController contactNumberController =
+        TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
+    final TextEditingController upiIdController = TextEditingController();
 
-    return showDialog<String>(
+    return showDialog<Map<String, String>>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
@@ -495,58 +503,113 @@ class _MyStoreScreenState extends State<MyStoreScreen>
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose a name for your store:',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: storeNameController,
-                decoration: InputDecoration(
-                  labelText: 'Store Name',
-                  hintText: 'e.g., "Artisan\'s Craft Corner"',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.black, width: 2),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Fill in your store details:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
                   ),
                 ),
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: storeNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Store Name *',
+                    hintText: 'e.g., "Artisan\'s Craft Corner"',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: Colors.black, width: 2),
+                    ),
+                  ),
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue.shade600, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'You can change this name later in your store settings.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade700,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contactNumberController,
+                  decoration: InputDecoration(
+                    labelText: 'Contact Number *',
+                    hintText: 'e.g., "9988776655"',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: Colors.black, width: 2),
+                    ),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Store Description *',
+                    hintText: 'e.g., "Handcrafted items with love"',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: Colors.black, width: 2),
+                    ),
+                  ),
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: upiIdController,
+                  decoration: InputDecoration(
+                    labelText: 'UPI ID (Optional)',
+                    hintText: 'e.g., "yourname@paytm"',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: Colors.black, width: 2),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Store name, contact number, and description are required. UPI ID is optional.',
+                          style: TextStyle(
+                            color: Colors.blue[700],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -559,8 +622,27 @@ class _MyStoreScreenState extends State<MyStoreScreen>
             ElevatedButton(
               onPressed: () {
                 final storeName = storeNameController.text.trim();
-                if (storeName.isNotEmpty) {
-                  Navigator.of(context).pop(storeName);
+                final contactNumber = contactNumberController.text.trim();
+                final description = descriptionController.text.trim();
+                final upiId = upiIdController.text.trim();
+
+                if (storeName.isNotEmpty &&
+                    contactNumber.isNotEmpty &&
+                    description.isNotEmpty) {
+                  Navigator.of(context).pop({
+                    'storeName': storeName,
+                    'contactNumber': contactNumber,
+                    'description': description,
+                    'upiId': upiId, // Can be empty since it's optional
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Please fill in all required fields (Store Name, Contact Number, Description)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(
