@@ -526,7 +526,7 @@ Future<void> _navigateToHome() async {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'Arti',
+                        'Marti',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,

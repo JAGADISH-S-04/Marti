@@ -167,7 +167,7 @@ class _SplashScreenState extends State<SplashScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Arti',
+                  'Marti',
                   style: TextStyle(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
