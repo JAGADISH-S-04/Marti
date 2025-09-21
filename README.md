@@ -8,7 +8,7 @@
 </div>
 
 <div align="center">
-  <img src="images/Screenshot_2025-09-21-21-35-43-857_com.local.artsisans.jpg" alt="Marti Product Showcase - Madhan's Collection" width="360" />
+  <img src="images/Screenshot_2025-09-21-21-35-43-857_com.local.artsisans.jpg" alt="Marti Product Showcase" width="360" />
   <br />
   <em>Featured: Product Collection — Browse curated artisan products including potted plants, home decor, and handcrafted items with real-time inventory tracking and instant shopping cart access.</em>
 </div>
@@ -32,12 +32,15 @@ Marti is a Flutter app that helps artisans showcase products, tell their stories
 
 <div align="center">
 
-  <img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Preview 1" width="220" />
-  <img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Preview 2" width="220" />
-  <img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Preview 3" width="220" />
-  <img src="images/Screenshot_2025-09-21-21-34-43-369_com.local.artsisans.jpg" alt="Preview 4" width="220" />
+  <img src="images/Screenshot_2025-09-21-22-22-56-294_com.local.artsisans.jpg" alt="Craft It - Custom Request Form" width="200" />
+  <img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Product Browse" width="200" />
+  <img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Product Details" width="200" />
+  <img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Shopping Cart" width="200" />
 
-  <p><sub>In-app previews (home, product details, cart, orders). UI evolves rapidly; see <code>lib/screens/</code> for current pages.</sub></p>
+  <br />
+
+  <p><sub><strong>Craft It:</strong> Custom request form for pottery and handmade items | <strong>Browse:</strong> Product discovery | <strong>Details:</strong> Item specifications | <strong>Cart:</strong> Shopping experience</sub></p>
+  <p><sub>UI evolves rapidly; see <code>lib/scripts/</code> for current pages.</sub></p>
 
 </div>
 
