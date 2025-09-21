@@ -55,10 +55,16 @@ dependencies:
   image: ^4.1.7  # Added for image processing in Gemini services
   
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.0
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^2.0.0
+
+flutter_launcher_icons:
+    android: "launcher_icon"
+    ios: true
+    image_path: "assets/images/Marti-icon1.png"
 
 flutter:
   generate: true
