@@ -13,6 +13,7 @@ import '../../services/collab_service.dart';
 import '../collaboration/create_collaboration_screen.dart';
 import '../collaboration/collaboration_details_screen.dart';
 import '../../models/collab_model.dart';
+import '../../navigation/Sellerside_navbar.dart';
 
 import '../../utils/deadline_utils.dart';
 
@@ -100,6 +101,33 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     }
   }
 
+  Future<void> _markRequestAsCompleted(BuildContext context, String requestId,
+      Map<String, dynamic> requestData) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('craft_requests')
+          .doc(requestId)
+          .update({
+        'status': 'completed',
+        'updatedAt': FieldValue.serverTimestamp()
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Request marked as completed successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error marking request as completed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // Simplified stream - always get all requests and filter in the widget
   Stream<QuerySnapshot> _getRequestsStream() {
     return FirebaseFirestore.instance
@@ -170,7 +198,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.errorOpeningChat(e.toString())),
+          content: Text(
+              AppLocalizations.of(context)!.errorOpeningChat(e.toString())),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -180,98 +209,65 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundBrown,
-      appBar: AppBar(
-        backgroundColor: primaryBrown,
-        foregroundColor: Colors.white,
-        title: Text(
-          AppLocalizations.of(context)!.aiPoweredCraftRequests,
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          // Notification bell with badge
-          StreamBuilder<int>(
-            stream: FirebaseAuth.instance.currentUser != null
-                ? NotificationService.getUnreadNotificationCount(
-                    FirebaseAuth.instance.currentUser!.uid)
-                : Stream.value(0),
-            builder: (context, snapshot) {
-              final unreadCount = snapshot.data ?? 0;
-
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationsScreen(),
-                        ),
-                      );
-                    },
-                    tooltip: AppLocalizations.of(context)!.notifications,
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          unreadCount > 99 ? '99+' : unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {}); // Force refresh
-              _loadRecommendations(); // Refresh AI recommendations too
-            },
-            tooltip: AppLocalizations.of(context)!.refresh,
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: [
-            Tab(text: AppLocalizations.of(context)!.aiPicks, icon: const Icon(Icons.auto_awesome)),
-            Tab(text: AppLocalizations.of(context)!.allRequests, icon: const Icon(Icons.list_alt)),
-            Tab(text: AppLocalizations.of(context)!.insights, icon: const Icon(Icons.analytics)),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+    return MainSellerScaffold(
+      currentIndex: 0, // Home tab
+      showAppBar: true,
+      body: Column(
         children: [
-          _buildRecommendationsTab(),
-          _buildAllRequestsTab(),
-          _buildInsightsTab(),
+          // Title section
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            color: const Color(0xFFF9F9F7),
+            child: Row(
+              children: [
+                Text(
+                  'Requests',
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Tab Bar
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: primaryBrown,
+              unselectedLabelColor: Colors.grey.shade600,
+              indicatorColor: primaryBrown,
+              indicatorWeight: 3,
+              labelStyle: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: [
+                Tab(text: 'AI Picks'),
+                Tab(text: 'All Requests'),
+                Tab(text: 'Insights'),
+              ],
+            ),
+          ),
+
+          // Tab Views
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildRecommendationsTab(),
+                _buildAllRequestsTab(),
+                _buildInsightsTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -335,7 +331,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               label: Text(AppLocalizations.of(context)!.refreshRecommendations),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryBrown,
-                foregroundColor: Colors.white,
+                foregroundColor: const Color.fromARGB(255, 231, 193, 144),
               ),
             ),
           ],
@@ -383,7 +379,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
       return const SizedBox.shrink();
     }
 
-    // Rest of the existing card code...
+    // Get AI recommendation data
     final recommendationScore = () {
       final score = aiRecommendation?['recommendationScore'];
       if (score is num) return score.toDouble();
@@ -396,28 +392,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     final tags =
         (aiRecommendation?['recommendationTags'] as List?)?.cast<String>() ??
             [];
-    final strategicAdvice = aiRecommendation?['strategicAdvice'] ?? '';
-
-    final winChance = () {
-      final chance = aiRecommendation?['estimatedWinChance'];
-      if (chance is num) return chance.toDouble();
-      if (chance is String) return double.tryParse(chance) ?? 0.0;
-      return 0.0;
-    }();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Color.fromARGB(255, 254, 250, 244).withOpacity(0.98),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _getScoreColor(recommendationScore).withOpacity(0.3),
-          width: 2,
-        ),
         boxShadow: [
           BoxShadow(
-            color: _getScoreColor(recommendationScore).withOpacity(0.1),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -425,363 +409,295 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
       child: InkWell(
         onTap: () => _showRequestDetails(context, request['id'], request),
         borderRadius: BorderRadius.circular(16),
-        child: Column(
-          children: [
-            // AI Score Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getScoreColor(recommendationScore).withOpacity(0.1),
-                    _getScoreColor(recommendationScore).withOpacity(0.05),
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with match percentage and category
+              Row(
                 children: [
-                  // First row: Match score and win rate badges
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getScoreColor(recommendationScore),
-                          borderRadius: BorderRadius.circular(12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _getScoreColor(recommendationScore),
+                          _getScoreColor(recommendationScore).withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome,
+                            size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${recommendationScore.round()}% match',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      request['category'] ?? 'Unknown',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Title
+              Text(
+                request['title'] ?? 'Untitled Request',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+
+              // Description
+              Text(
+                request['description'] ?? 'No description provided',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+
+              // Budget and deadline info
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: primaryBrown.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.attach_money, size: 16, color: primaryBrown),
+                        Text(
+                          '₹${request['budget']?.toString() ?? '0'}',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: primaryBrown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people_outline,
+                            size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${quotations.length} quotes',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Tags if available
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: tags
+                      .take(3)
+                      .map((tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Text(
+                              tag,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ],
+
+              // Match reasons
+              if (matchReasons.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline,
+                              size: 16, color: Colors.blue.shade700),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Why this is perfect for you:',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...matchReasons
+                          .take(2)
+                          .map((reason) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      margin: const EdgeInsets.only(
+                                          top: 6, right: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade600,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        reason,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.blue.shade800,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              // Action button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: hasQuoted
+                      ? null
+                      : () =>
+                          _showQuotationDialog(context, request['id'], request),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: hasQuoted
+                        ? Colors.grey.shade300
+                        : _getScoreColor(recommendationScore),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: hasQuoted
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.auto_awesome,
-                                size: 14, color: Colors.white),
-                            const SizedBox(width: 4),
+                            Icon(Icons.check_circle,
+                                size: 18, color: Colors.grey.shade600),
+                            const SizedBox(width: 8),
                             Text(
-                              AppLocalizations.of(context)!.percentMatch(recommendationScore.round()),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                              'Quote Submitted',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.send_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Submit Quotation',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      if (winChance > 0) ...[
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.green),
-                            ),
-                            child: Text(
-                              AppLocalizations.of(context)!.percentWin(winChance.round()),
-                              style: TextStyle(
-                                color: Colors.green.shade800,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  // Tags row
-                  if (tags.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4.0,
-                      runSpacing: 4.0,
-                      children: tags
-                          .take(3)
-                          .map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: primaryBrown.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: TextStyle(
-                                    color: primaryBrown,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
-
-            // Request Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title and Status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          request['title'] ?? AppLocalizations.of(context)!.untitledRequest,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: primaryBrown,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildStatusChip(request['status'] ?? 'open'),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Description
-                  Text(
-                    request['description'] ?? AppLocalizations.of(context)!.noDescriptionProvided,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Request Details
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 4,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.category,
-                              size: 16, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            request['category'] ?? AppLocalizations.of(context)!.unknown,
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.currency_rupee,
-                              size: 16, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            '₹${request['budget']?.toString() ?? '0'}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // AI Match Reasons
-                  if (matchReasons.isNotEmpty) ...[
-                    Text(
-                      AppLocalizations.of(context)!.whyPerfectForYou,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: primaryBrown,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    ...matchReasons
-                        .take(3)
-                        .map((reason) => Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.check_circle,
-                                      size: 12, color: Colors.green),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      reason,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ))
-                        .toList(),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Strategic Advice
-                  if (strategicAdvice.isNotEmpty) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.lightbulb,
-                                  size: 14, color: Colors.blue.shade700),
-                              const SizedBox(width: 4),
-                              Text(
-                                AppLocalizations.of(context)!.aiStrategyTip,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            strategicAdvice,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.blue.shade800,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Show quotation status if already quoted
-                  if (hasQuoted) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check,
-                              size: 16, color: Colors.blue.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              AppLocalizations.of(context)!.quotationSubmittedAwaiting,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Action Button
-                  if (!hasQuoted)
-                    // Quote button for open requests
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showQuotationDialog(
-                          context,
-                          request['id'],
-                          request,
-                        ),
-                        icon: const Icon(Icons.send, size: 16),
-                        label: Text(AppLocalizations.of(context)!.submitQuotation),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _getScoreColor(recommendationScore),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    // Waiting status for submitted quotations
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.hourglass_empty,
-                              size: 16, color: Colors.grey.shade600),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocalizations.of(context)!.awaitingCustomerResponse,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Tap to view details hint
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      AppLocalizations.of(context)!.tapViewFullDetails,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -809,16 +725,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   child: Row(
                     children: [
                       _buildFilterChip(
-                          AppLocalizations.of(context)!.available, 'all'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(AppLocalizations.of(context)!.open, 'open'),
+                          AppLocalizations.of(context)!.open, 'open'),
                       const SizedBox(width: 8),
                       _buildFilterChip(
                           AppLocalizations.of(context)!.quoted, 'quoted'),
                       const SizedBox(width: 8),
-                      _buildFilterChip(AppLocalizations.of(context)!.inProgress, 'in_progress'),
+                      _buildFilterChip(AppLocalizations.of(context)!.inProgress,
+                          'in_progress'),
                       const SizedBox(width: 8),
-                      _buildFilterChip(AppLocalizations.of(context)!.completed, 'completed'),
+                      _buildFilterChip(
+                          AppLocalizations.of(context)!.completed, 'completed'),
                     ],
                   ),
                 ),
@@ -858,7 +774,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       const SizedBox(height: 8),
                       Text(
                         AppLocalizations.of(context)!.checkInternetRetry,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -953,28 +870,40 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 String emptySubMessage;
                 switch (selectedFilter) {
                   case 'all':
-                    emptyMessage = AppLocalizations.of(context)!.noActiveRequestsAvailable;
-                    emptySubMessage = AppLocalizations.of(context)!.newOpenRequestsMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noActiveRequestsAvailable;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.newOpenRequestsMessage;
                     break;
                   case 'open':
-                    emptyMessage = AppLocalizations.of(context)!.noOpenRequestsAvailable;
-                    emptySubMessage = AppLocalizations.of(context)!.newRequestsQuoteMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noOpenRequestsAvailable;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.newRequestsQuoteMessage;
                     break;
                   case 'quoted':
-                    emptyMessage = AppLocalizations.of(context)!.noPendingQuotations;
-                    emptySubMessage = AppLocalizations.of(context)!.quotationsAwaitingMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noPendingQuotations;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.quotationsAwaitingMessage;
                     break;
                   case 'in_progress':
-                    emptyMessage = AppLocalizations.of(context)!.noRequestsInProgress;
-                    emptySubMessage = AppLocalizations.of(context)!.acceptedRequestsMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noRequestsInProgress;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.acceptedRequestsMessage;
                     break;
                   case 'completed':
-                    emptyMessage = AppLocalizations.of(context)!.noCompletedRequests;
-                    emptySubMessage = AppLocalizations.of(context)!.completedWorkMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noCompletedRequests;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.completedWorkMessage;
                     break;
                   default:
-                    emptyMessage = AppLocalizations.of(context)!.noRequestsFound;
-                    emptySubMessage = AppLocalizations.of(context)!.checkBackLaterMessage;
+                    emptyMessage =
+                        AppLocalizations.of(context)!.noRequestsFound;
+                    emptySubMessage =
+                        AppLocalizations.of(context)!.checkBackLaterMessage;
                 }
 
                 return Center(
@@ -1132,7 +1061,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        AppLocalizations.of(context)!.noPerformanceDataAvailable,
+                        AppLocalizations.of(context)!
+                            .noPerformanceDataAvailable,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontStyle: FontStyle.italic,
@@ -1324,8 +1254,10 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
   Widget _buildOpportunityItem(Map<String, dynamic> opportunity) {
     final potential = opportunity['potential']?.toString() ?? 'medium';
-    final category = opportunity['category']?.toString() ?? AppLocalizations.of(context)!.unknown;
-    final reason = opportunity['reason']?.toString() ?? AppLocalizations.of(context)!.noReasonProvided;
+    final category = opportunity['category']?.toString() ??
+        AppLocalizations.of(context)!.unknown;
+    final reason = opportunity['reason']?.toString() ??
+        AppLocalizations.of(context)!.noReasonProvided;
     final action = opportunity['action']?.toString() ?? '';
 
     Color potentialColor = potential == 'high'
@@ -1364,8 +1296,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 ),
                 child: Text(
                   _getLocalizedPotential(potential),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Color.fromARGB(255, 254, 250, 244).withOpacity(0.98),
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1521,10 +1453,73 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     final isMyQuotationAccepted =
         isAccepted && acceptedQuotation['artisanId'] == userId;
 
+    // Extract deadline information
+    final deadline = data['deadline'];
+    String deadlineText = '';
+    bool isDeadlinePassed = false;
+
+    if (deadline != null) {
+      DateTime? deadlineDate;
+      if (deadline is Timestamp) {
+        deadlineDate = deadline.toDate();
+      } else if (deadline is String) {
+        try {
+          deadlineDate = DateTime.parse(deadline);
+        } catch (e) {
+          print('Error parsing deadline: $e');
+        }
+      }
+
+      if (deadlineDate != null) {
+        final now = DateTime.now();
+        final difference = deadlineDate.difference(now);
+        isDeadlinePassed = difference.isNegative;
+
+        if (isDeadlinePassed) {
+          final daysPast = (-difference.inDays);
+          if (daysPast == 0) {
+            deadlineText = 'Deadline was today';
+          } else if (daysPast == 1) {
+            deadlineText = 'Deadline was yesterday';
+          } else {
+            deadlineText = 'Deadline was $daysPast days ago';
+          }
+        } else {
+          final daysLeft = difference.inDays;
+          if (daysLeft == 0) {
+            deadlineText = 'Deadline is today';
+          } else if (daysLeft == 1) {
+            deadlineText = 'Deadline is tomorrow';
+          } else {
+            deadlineText = 'Deadline in $daysLeft days';
+          }
+        }
+
+        // Format the actual date
+        final months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec'
+        ];
+        deadlineText +=
+            ' (${deadlineDate.day} ${months[deadlineDate.month - 1]} ${deadlineDate.year})';
+      }
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Color.fromARGB(255, 254, 250, 244).withOpacity(0.98),
       child: InkWell(
         // Make the entire card clickable
         onTap: () => _showRequestDetails(context, requestId, data),
@@ -1539,7 +1534,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 children: [
                   Expanded(
                     child: Text(
-                      data['title'] ?? AppLocalizations.of(context)!.untitledRequest,
+                      data['title'] ??
+                          AppLocalizations.of(context)!.untitledRequest,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1554,7 +1550,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
 
               // Request Details
               Text(
-                data['description'] ?? AppLocalizations.of(context)!.noDescriptionProvided,
+                data['description'] ??
+                    AppLocalizations.of(context)!.noDescriptionProvided,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade700,
@@ -1565,7 +1562,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
               ),
               const SizedBox(height: 12),
 
-              // Category and Budget
+              // Category, Budget, and Deadline
               Row(
                 children: [
                   Icon(Icons.category, size: 16, color: Colors.grey.shade600),
@@ -1588,6 +1585,53 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ],
               ),
+
+              // Deadline information
+              if (deadlineText.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDeadlinePassed
+                        ? Colors.red.shade50
+                        : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDeadlinePassed
+                          ? Colors.red.shade300
+                          : Colors.blue.shade300,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isDeadlinePassed
+                            ? Icons.schedule
+                            : Icons.schedule_outlined,
+                        size: 16,
+                        color: isDeadlinePassed
+                            ? Colors.red.shade700
+                            : Colors.blue.shade700,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          deadlineText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDeadlinePassed
+                                ? Colors.red.shade700
+                                : Colors.blue.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 12),
 
               // Images (if any) - Show preview
@@ -1613,43 +1657,17 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
+                          color: Colors.grey.shade200,
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Stack(
-                            children: [
-                              Image.network(
-                                images[index],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey.shade200,
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: Colors.grey.shade400,
-                                      size: 20,
-                                    ),
-                                  );
-                                },
-                              ),
-                              if (index == 2 && images.length > 3)
-                                Container(
-                                  color: Colors.black.withOpacity(0.6),
-                                  child: Center(
-                                    child: Text(
-                                      '+${images.length - 3}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          child: Image.network(
+                            images[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(Icons.image,
+                                  color: Colors.grey);
+                            },
                           ),
                         ),
                       );
@@ -1664,7 +1682,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   Icon(Icons.format_quote, size: 16, color: primaryBrown),
                   const SizedBox(width: 4),
                   Text(
-                    quotations.length == 1 
+                    quotations.length == 1
                         ? '1 ${AppLocalizations.of(context)!.quotation}'
                         : '${quotations.length} ${AppLocalizations.of(context)!.quotations}',
                     style: TextStyle(
@@ -1683,155 +1701,43 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 Row(
                   children: [
                     Expanded(
-                      flex: 2,
                       child: ElevatedButton.icon(
                         onPressed: () => _openChat(context, requestId, data),
-                        icon: const Icon(Icons.chat, size: 16),
-                        label:
-                            Text(AppLocalizations.of(context)!.openChat, style: const TextStyle(fontSize: 12)),
+                        icon: const Icon(Icons.chat, size: 16, color: Colors.white,),
+                        label: Text(AppLocalizations.of(context)!.openChat),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: const Color.fromARGB(255, 44, 131, 203),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      flex: 3,
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          // Check if collaboration already exists
-                          final isOpenForCollaboration =
-                              data['isOpenForCollaboration'] ?? false;
-                          final collaborationProjectId =
-                              data['collaborationProjectId'];
-
-                          if (isOpenForCollaboration &&
-                              collaborationProjectId != null) {
-                            // Navigate to project management screen
-                            try {
-                              final collaborationDoc = await FirebaseFirestore
-                                  .instance
-                                  .collection('collaboration_projects')
-                                  .doc(collaborationProjectId)
-                                  .get();
-
-                              if (collaborationDoc.exists) {
-                                final collaboration =
-                                    CollaborationRequest.fromMap({
-                                  ...collaborationDoc.data()!,
-                                  'id': collaborationDoc.id,
-                                });
-
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        CollaborationDetailsScreen(
-                                      collaboration: collaboration,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                // Collaboration project doesn't exist, reset the flag
-                                await FirebaseFirestore.instance
-                                    .collection('craft_requests')
-                                    .doc(requestId)
-                                    .update({
-                                  'isOpenForCollaboration': false,
-                                  'collaborationProjectId': FieldValue.delete(),
-                                  'collaborationStatus': FieldValue.delete(),
-                                });
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        AppLocalizations.of(context)!.collaborationProjectNotFound),
-                                    backgroundColor: Colors.orange,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content:
-                                      Text(AppLocalizations.of(context)!.errorAccessingCollaboration(e.toString())),
-                                  backgroundColor: Colors.red,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          } else {
-                            // Check if user can create collaboration from this request
-                            final canCreate = await _collaborationService
-                                .canCreateCollaboration(requestId);
-
-                            if (canCreate) {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      CreateCollaborationScreen(
-                                    craftRequest: {
-                                      'id': requestId,
-                                      ...data,
-                                    },
-                                  ),
-                                ),
-                              );
-
-                              if (result == true) {
-                                // Collaboration was created successfully
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        AppLocalizations.of(context)!.collaborationProjectCreatedSuccessfully),
-                                    backgroundColor: Colors.green,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      AppLocalizations.of(context)!.cannotCreateCollaboration),
-                                  backgroundColor: Colors.orange,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                        onPressed: () =>
+                            _showCollaborationDialog(context, requestId, data),
                         icon: Icon(
-                            data['isOpenForCollaboration'] == true
+                            // Change icon based on collaboration status
+                            (data['isOpenForCollaboration'] ?? false) &&
+                                    data['collaborationProjectId'] != null
                                 ? Icons.manage_accounts
-                                : Icons.group_add,
+                                : Icons.group_work_outlined,
+                                color: Colors.white,
                             size: 16),
                         label: Text(
-                            data['isOpenForCollaboration'] == true
-                                ? AppLocalizations.of(context)!.manageCollaboration
-                                : AppLocalizations.of(context)!.openForCollaboration,
-                            style: const TextStyle(fontSize: 12)),
+                            // Check if collaboration exists
+                            (data['isOpenForCollaboration'] ?? false) &&
+                                    data['collaborationProjectId'] != null
+                                ? 'Manage Collaboration'
+                                : 'Collaborate'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              data['isOpenForCollaboration'] == true
-                                  ? Colors.purple
-                                  : const Color(0xFFD4AF37),
+                          backgroundColor: const Color.fromARGB(255, 221, 122, 60),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1840,49 +1746,20 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('craft_requests')
-                              .doc(requestId)
-                              .update({
-                            'status': 'completed',
-                            'completedAt': Timestamp.now(),
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(AppLocalizations.of(context)!.requestMarkedCompleted),
-                              backgroundColor: Colors.green,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Error marking completed: ${e.toString()}'),
-                              backgroundColor: Colors.red,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.done_all, size: 16),
-                      label: Text(AppLocalizations.of(context)!.markCompleted,
-                          style: const TextStyle(fontSize: 12)),
+                      onPressed: () =>
+                          _markAsCompleted(context, requestId, data),
+                      icon: const Icon(Icons.check_circle, size: 16, color: Colors.white,),
+                      label: Text(AppLocalizations.of(context)!.markCompleted),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
+                        backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                     ),
                   ),
                 ],
               ] else if (hasQuoted) ...[
-                // For submitted but not accepted quotations - show edit button
+                // For submitted but not accepted quotations - show edit button only (no chat)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -1893,15 +1770,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check, size: 16, color: Colors.blue.shade700),
+                      Icon(Icons.check_circle,
+                          color: Colors.blue.shade700, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Quotation submitted - awaiting response',
+                          AppLocalizations.of(context)!
+                              .quotationSubmittedAwaiting,
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
                             color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -1909,39 +1787,17 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _showEditQuotationDialog(context, requestId, data),
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: Text(AppLocalizations.of(context)!.editQuotation),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryBrown,
-                          side: BorderSide(color: primaryBrown),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-              ] else if (status == 'open') ...[
-                // For open requests where user hasn't quoted - show submit quotation button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () =>
-                        _showQuotationDialog(context, requestId, data),
-                    icon: const Icon(Icons.add_business, size: 16),
-                    label: Text(AppLocalizations.of(context)!.submitQuotation),
+                        _showEditQuotationDialog(context, requestId, data),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: Text(AppLocalizations.of(context)!.editQuotation),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBrown,
+                      backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
                     ),
                   ),
                 ),
@@ -1950,30 +1806,26 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                 // Check if deadline has passed
                 Builder(
                   builder: (context) {
-                    final deadlinePassed =
-                        DeadlineUtils.isDeadlinePassed(data['deadline']);
-
-                    if (deadlinePassed) {
+                    if (isDeadlinePassed) {
                       return Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade200),
+                          border: Border.all(color: Colors.red.shade300),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.access_time,
-                                color: Colors.red.shade600, size: 16),
+                            Icon(Icons.access_time_filled,
+                                color: Colors.red.shade700, size: 16),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                AppLocalizations.of(context)!.deadlinePassedCannotSubmit,
+                                'Deadline has passed for this request',
                                 style: TextStyle(
                                   color: Colors.red.shade700,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1988,14 +1840,12 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         onPressed: () =>
                             _showQuotationDialog(context, requestId, data),
                         icon: const Icon(Icons.add_business, size: 16),
-                        label: Text(AppLocalizations.of(context)!.submitQuotation),
+                        label:
+                            Text(AppLocalizations.of(context)!.submitQuotation),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryBrown,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
                       ),
                     );
@@ -2329,7 +2179,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
     String newNotes,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception(AppLocalizations.of(context)!.userNotAuthenticated);
+    if (user == null)
+      throw Exception(AppLocalizations.of(context)!.userNotAuthenticated);
 
     try {
       // Get current quotations
@@ -2509,7 +2360,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                     children: [
                       // Title and Status
                       Text(
-                        data['title'] ?? AppLocalizations.of(context)!.untitledRequest,
+                        data['title'] ??
+                            AppLocalizations.of(context)!.untitledRequest,
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -2547,7 +2399,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             child: _buildDetailItem(
                               Icons.category,
                               'Category',
-                              data['category'] ?? AppLocalizations.of(context)!.unknown,
+                              data['category'] ??
+                                  AppLocalizations.of(context)!.unknown,
                             ),
                           ),
                           Expanded(
@@ -2681,7 +2534,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          AppLocalizations.of(context)!.deliveryTime,
+                                          AppLocalizations.of(context)!
+                                              .deliveryTime,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey.shade600,
@@ -2689,7 +2543,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                                         ),
                                         Text(
                                           myQuotation['deliveryTime'] ??
-                                              AppLocalizations.of(context)!.notSpecified,
+                                              AppLocalizations.of(context)!
+                                                  .notSpecified,
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
@@ -3032,8 +2887,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           setState(() => isSubmitting = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                  AppLocalizations.of(context)!.deadlinePassedCannotSubmit),
+                              content: Text(AppLocalizations.of(context)!
+                                  .deadlinePassedCannotSubmit),
                               backgroundColor: Colors.red,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
@@ -3050,7 +2905,8 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         }
 
                         // Get seller info from retailers collection
-                        String sellerName = AppLocalizations.of(context)!.anonymousArtisan;
+                        String sellerName =
+                            AppLocalizations.of(context)!.anonymousArtisan;
                         try {
                           final sellerDoc = await FirebaseFirestore.instance
                               .collection('retailers')
@@ -3621,6 +3477,131 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
         return AppLocalizations.of(context)!.mediumPriority;
       default:
         return potential.toUpperCase();
+    }
+  }
+
+  // Add missing methods that are referenced but not defined
+  void _showCollaborationDialog(
+      BuildContext context, String requestId, Map<String, dynamic> data) async {
+    // Check if collaboration already exists
+    final isOpenForCollaboration = data['isOpenForCollaboration'] ?? false;
+    final collaborationProjectId = data['collaborationProjectId'];
+
+    if (isOpenForCollaboration && collaborationProjectId != null) {
+      // Navigate to project management screen
+      try {
+        final collaborationDoc = await FirebaseFirestore.instance
+            .collection('collaboration_projects')
+            .doc(collaborationProjectId)
+            .get();
+
+        if (collaborationDoc.exists) {
+          final collaboration = CollaborationRequest.fromMap({
+            ...collaborationDoc.data()!,
+            'id': collaborationDoc.id,
+          });
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CollaborationDetailsScreen(
+                collaboration: collaboration,
+              ),
+            ),
+          );
+        } else {
+          // Collaboration project doesn't exist, reset the flag
+          await FirebaseFirestore.instance
+              .collection('craft_requests')
+              .doc(requestId)
+              .update({
+            'isOpenForCollaboration': false,
+            'collaborationProjectId': FieldValue.delete(),
+            'collaborationStatus': FieldValue.delete(),
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.collaborationProjectNotFound),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                .errorAccessingCollaboration(e.toString())),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      // Check if user can create collaboration from this request
+      final canCreate =
+          await _collaborationService.canCreateCollaboration(requestId);
+
+      if (canCreate) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateCollaborationScreen(
+              craftRequest: {
+                'id': requestId,
+                ...data,
+              },
+            ),
+          ),
+        );
+
+        if (result == true) {
+          // Collaboration was created successfully
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .collaborationProjectCreatedSuccessfully),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.cannotCreateCollaboration),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _markAsCompleted(
+      BuildContext context, String requestId, Map<String, dynamic> data) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('craft_requests')
+          .doc(requestId)
+          .update({'status': 'completed'});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Request marked as completed successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error marking request as completed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }
