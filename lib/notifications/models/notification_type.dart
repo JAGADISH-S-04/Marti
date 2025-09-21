@@ -19,10 +19,16 @@ enum NotificationType {
   newMessage('new_message'),
   chatStarted('chat_started'),
 
+  // Forum related notifications
+  forumReply('forum_reply'),
+
   // Product related notifications
   productListed('product_listed'),
   productSold('product_sold'),
   productLowStock('product_low_stock'),
+
+  // Review related notifications
+  newReview('new_review'),
 
   // Payment related notifications
   paymentReceived('payment_received'),

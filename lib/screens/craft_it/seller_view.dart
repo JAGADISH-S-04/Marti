@@ -5,8 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'notification_service.dart';
-import 'notification_screen.dart';
+import '../../notifications/services/enhanced_notification_service.dart';
+import '../../notifications/screens/seller_notification_screen.dart';
 import 'chat_screen.dart';
 import '../../services/CI_retailer_analytics_service.dart';
 import '../../services/collab_service.dart';
@@ -542,6 +542,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           ),
                         ),
                       ],
+
                     ),
                   ),
                 ],
@@ -1705,6 +1706,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                         onPressed: () => _openChat(context, requestId, data),
                         icon: const Icon(Icons.chat, size: 16, color: Colors.white,),
                         label: Text(AppLocalizations.of(context)!.openChat),
+
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(255, 44, 131, 203),
                           foregroundColor: Colors.white,
@@ -1717,6 +1719,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                       child: ElevatedButton.icon(
                         onPressed: () =>
                             _showCollaborationDialog(context, requestId, data),
+
                         icon: Icon(
                             // Change icon based on collaboration status
                             (data['isOpenForCollaboration'] ?? false) &&
@@ -1750,6 +1753,7 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                           _markAsCompleted(context, requestId, data),
                       icon: const Icon(Icons.check_circle, size: 16, color: Colors.white,),
                       label: Text(AppLocalizations.of(context)!.markCompleted),
+
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -1822,7 +1826,9 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Deadline has passed for this request',
+
+                                AppLocalizations.of(context)!
+                                    .deadlinePassedCannotSubmit,
                                 style: TextStyle(
                                   color: Colors.red.shade700,
                                   fontWeight: FontWeight.w600,
@@ -2241,22 +2247,16 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
       // Create notification for the buyer about the updated quotation
       final buyerId = requestData['userId'] ?? requestData['buyerId'];
       if (buyerId != null && buyerId != user.uid) {
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'userId': buyerId,
-          'title': 'Quotation Updated',
-          'message':
-              '$artisanName updated their quotation for "${requestData['title']}"',
-          'type': 'quotation_updated',
-          'data': {
-            'requestId': requestId,
-            'artisanId': user.uid,
-            'artisanName': artisanName,
-            'newQuotationAmount': newPrice,
-            'newDeliveryDate': Timestamp.fromDate(newDeliveryDate),
-          },
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        await EnhancedNotificationService.sendQuotationUpdatedNotification(
+          customerId: buyerId,
+          quotationId: requestId,
+          requestTitle: requestData['title'] ?? 'Untitled',
+          artisanName: artisanName,
+          newPrice: newPrice,
+          customerName: requestData['customerName'] ??
+              requestData['userName'] ??
+              'Customer',
+        );
       }
     } catch (e) {
       print('Error updating quotation: $e');
@@ -2959,24 +2959,17 @@ class _SellerRequestsScreenState extends State<SellerRequestsScreen>
                             requestData['userId'] ?? requestData['buyerId'];
                         if (buyerId != null && buyerId != user.uid) {
                           try {
-                            await FirebaseFirestore.instance
-                                .collection('notifications')
-                                .add({
-                              'userId': buyerId,
-                              'title': 'New Quotation Received',
-                              'message':
-                                  '$sellerName submitted a quotation for "${requestData['title']}"',
-                              'type': 'quotation_received',
-                              'data': {
-                                'requestId': requestId,
-                                'artisanId': user.uid,
-                                'artisanName': sellerName,
-                                'quotationAmount': price,
-                                'deliveryTime': '$deliveryDays days',
-                              },
-                              'isRead': false,
-                              'createdAt': Timestamp.now(),
-                            });
+                            await EnhancedNotificationService
+                                .sendQuotationSubmittedNotification(
+                              customerId: buyerId,
+                              quotationId: requestId,
+                              requestTitle: requestData['title'] ?? 'Untitled',
+                              artisanName: sellerName,
+                              quotedPrice: price,
+                              customerName: requestData['customerName'] ??
+                                  requestData['userName'] ??
+                                  'Customer',
+                            );
                           } catch (e) {
                             print('Error creating notification: $e');
                             // Don't fail the quotation submission for notification errors

@@ -94,7 +94,9 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           _isLoading = false;
         });
       }
-      _showSnackBar(AppLocalizations.of(context)!.errorLoadingStore(e.toString()), isError: true);
+      _showSnackBar(
+          AppLocalizations.of(context)!.errorLoadingStore(e.toString()),
+          isError: true);
     }
   }
 
@@ -149,7 +151,9 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         _showSnackBar(AppLocalizations.of(context)!.productUpdatedSuccessfully);
       }
     } catch (e) {
-      _showSnackBar(AppLocalizations.of(context)!.errorEditingProduct(e.toString()), isError: true);
+      _showSnackBar(
+          AppLocalizations.of(context)!.errorEditingProduct(e.toString()),
+          isError: true);
     }
   }
 
@@ -162,8 +166,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
                 borderRadius: BorderRadius.circular(16),
               ),
               title: Text(AppLocalizations.of(context)!.deleteProduct),
-              content: Text(
-                  AppLocalizations.of(context)!.areYouSureDelete(productData['name'] ?? '')),
+              content: Text(AppLocalizations.of(context)!
+                  .areYouSureDelete(productData['name'] ?? '')),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -188,33 +192,42 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       _showSnackBar(AppLocalizations.of(context)!.deletingProduct);
       final success = await _productService.deleteProduct(productData['id']);
       if (success) {
-        _showSnackBar(AppLocalizations.of(context)!.productDeletedSuccessfully(productData['name'] ?? ''));
+        _showSnackBar(AppLocalizations.of(context)!
+            .productDeletedSuccessfully(productData['name'] ?? ''));
       } else {
-        _showSnackBar(AppLocalizations.of(context)!.failedToDeleteProduct, isError: true);
+        _showSnackBar(AppLocalizations.of(context)!.failedToDeleteProduct,
+            isError: true);
       }
     } catch (e) {
-      _showSnackBar(AppLocalizations.of(context)!.errorDeletingProduct(e.toString()), isError: true);
+      _showSnackBar(
+          AppLocalizations.of(context)!.errorDeletingProduct(e.toString()),
+          isError: true);
     }
   }
 
   // Toggle between original and AI-enhanced image as main display
   Future<void> _toggleAiImageDisplay(Map<String, dynamic> product) async {
     try {
-      final Map<String, dynamic>? aiAnalysis = product['aiAnalysis'] as Map<String, dynamic>?;
-      final String? aiEnhancedImageUrl = aiAnalysis?['aiEnhancedImageUrl'] as String?;
+      final Map<String, dynamic>? aiAnalysis =
+          product['aiAnalysis'] as Map<String, dynamic>?;
+      final String? aiEnhancedImageUrl =
+          aiAnalysis?['aiEnhancedImageUrl'] as String?;
       final String? currentDisplayImage = product['imageUrl'] as String?;
-      final String? originalImageUrl = product['imageUrls']?.isNotEmpty == true 
-          ? product['imageUrls'][0] as String? 
+      final String? originalImageUrl = product['imageUrls']?.isNotEmpty == true
+          ? product['imageUrls'][0] as String?
           : null;
 
       if (aiEnhancedImageUrl == null || originalImageUrl == null) {
-        _showSnackBar(AppLocalizations.of(context)!.unableToToggleImages, isError: true);
+        _showSnackBar(AppLocalizations.of(context)!.unableToToggleImages,
+            isError: true);
         return;
       }
 
       // Determine which image to switch to
-      final bool isCurrentlyShowingAi = currentDisplayImage == aiEnhancedImageUrl;
-      final String newDisplayImage = isCurrentlyShowingAi ? originalImageUrl : aiEnhancedImageUrl;
+      final bool isCurrentlyShowingAi =
+          currentDisplayImage == aiEnhancedImageUrl;
+      final String newDisplayImage =
+          isCurrentlyShowingAi ? originalImageUrl : aiEnhancedImageUrl;
 
       _showSnackBar(AppLocalizations.of(context)!.updatingImageDisplay);
 
@@ -240,14 +253,15 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         });
       }
 
-      final String imageType = isCurrentlyShowingAi 
-          ? AppLocalizations.of(context)!.originalImage 
+      final String imageType = isCurrentlyShowingAi
+          ? AppLocalizations.of(context)!.originalImage
           : AppLocalizations.of(context)!.aiEnhanced;
-      _showSnackBar(AppLocalizations.of(context)!.successfullySwitchedToImage(imageType));
-
+      _showSnackBar(
+          AppLocalizations.of(context)!.successfullySwitchedToImage(imageType));
     } catch (e) {
       print('Error toggling AI image display: $e');
-      _showSnackBar(AppLocalizations.of(context)!.failedToUpdateImageDisplay, isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.failedToUpdateImageDisplay,
+          isError: true);
     }
   }
 
@@ -271,7 +285,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       );
     } catch (e) {
       print('Error opening product management: $e');
-      _showSnackBar(AppLocalizations.of(context)!.errorOpeningProductManagement, isError: true);
+      _showSnackBar(AppLocalizations.of(context)!.errorOpeningProductManagement,
+          isError: true);
     }
   }
 
@@ -448,7 +463,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
           _buildStoreInfoCard(),
           const SizedBox(height: 20),
@@ -500,7 +515,8 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           // pushing the edit button to the far right.
           Expanded(
             child: Text(
-              _storeData?['storeName'] ?? AppLocalizations.of(context)!.defaultStoreName,
+              _storeData?['storeName'] ??
+                  AppLocalizations.of(context)!.defaultStoreName,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -519,37 +535,32 @@ class _MyStoreScreenState extends State<MyStoreScreen>
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _buildCircularButton(
-          Icons.add, 
-          AppLocalizations.of(context)!.addProducts,
-          const Color(0xFFE4F5E9),
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const EnhancedProductListingPage(),
-              ),
-            );
-          }
-        ),
+            Icons.add,
+            AppLocalizations.of(context)!.addProducts,
+            const Color(0xFFE4F5E9), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const EnhancedProductListingPage(),
+            ),
+          );
+        }),
         _buildCircularButton(
-          Icons.remove, 
-          AppLocalizations.of(context)!.removeProducts,
-          const Color(0xFFFFF1D8), 
-          () {
-            _showSnackBar(AppLocalizations.of(context)!.selectProductBelowToRemove);
-          }
-        ),
+            Icons.remove,
+            AppLocalizations.of(context)!.removeProducts,
+            const Color(0xFFFFF1D8), () {
+          _showSnackBar(
+              AppLocalizations.of(context)!.selectProductBelowToRemove);
+        }),
         _buildCircularButton(
-          Icons.currency_rupee, 
-          AppLocalizations.of(context)!.earnings,
-          const Color(0xFFE3EDFC), 
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SellerOrdersPage()),
-            );
-          }
-        ),
+            Icons.currency_rupee,
+            AppLocalizations.of(context)!.earnings,
+            const Color(0xFFE3EDFC), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SellerOrdersPage()),
+          );
+        }),
       ],
     );
   }
@@ -574,7 +585,7 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           SizedBox(
             height: 32, // Fixed height to prevent layout shifts
             child: Text(
-              label, 
+              label,
               style: const TextStyle(fontSize: 12),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
@@ -671,13 +682,17 @@ class _MyStoreScreenState extends State<MyStoreScreen>
         NumberFormat.decimalPattern('en_IN').format(product['price'] ?? 0);
 
     // Check if product has AI-enhanced image
-    final Map<String, dynamic>? aiAnalysis = product['aiAnalysis'] as Map<String, dynamic>?;
-    final String? aiEnhancedImageUrl = aiAnalysis?['aiEnhancedImageUrl'] as String?;
-    final bool hasAiImage = aiEnhancedImageUrl != null && aiEnhancedImageUrl.isNotEmpty;
-    
+    final Map<String, dynamic>? aiAnalysis =
+        product['aiAnalysis'] as Map<String, dynamic>?;
+    final String? aiEnhancedImageUrl =
+        aiAnalysis?['aiEnhancedImageUrl'] as String?;
+    final bool hasAiImage =
+        aiEnhancedImageUrl != null && aiEnhancedImageUrl.isNotEmpty;
+
     // Determine which image to display (main display image from imageUrl field)
     final String? currentDisplayImage = product['imageUrl'] as String?;
-    final bool isShowingAiImage = hasAiImage && currentDisplayImage == aiEnhancedImageUrl;
+    final bool isShowingAiImage =
+        hasAiImage && currentDisplayImage == aiEnhancedImageUrl;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -700,173 +715,187 @@ class _MyStoreScreenState extends State<MyStoreScreen>
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(10),
-                  image: currentDisplayImage != null
-                      ? DecorationImage(
-                          image: NetworkImage(currentDisplayImage),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: currentDisplayImage == null
-                    ? const Icon(Icons.image_not_supported, color: Colors.grey)
-                    : null,
-              ),
-              // AI badge indicator
-              if (isShowingAiImage)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.purple,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      size: 12,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product['name'] ?? AppLocalizations.of(context)!.noName,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 2,
-                ),
-                Text(
-                  product['category'] ?? AppLocalizations.of(context)!.uncategorized,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '₹$formattedPrice',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 4),
-                Row(
+                Stack(
                   children: [
-                    const Icon(Icons.visibility_outlined,
-                        size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text('${product['views'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          overflow: TextOverflow.ellipsis),
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(10),
+                        image: currentDisplayImage != null
+                            ? DecorationImage(
+                                image: NetworkImage(currentDisplayImage),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: currentDisplayImage == null
+                          ? const Icon(Icons.image_not_supported,
+                              color: Colors.grey)
+                          : null,
                     ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.favorite_outline,
-                        size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text('${product['likes'] ?? 0}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          overflow: TextOverflow.ellipsis),
-                    ),
+                    // AI badge indicator
+                    if (isShowingAiImage)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                // Tap hint
-                Row(
-                  children: [
-                    const Icon(Icons.touch_app, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        AppLocalizations.of(context)!.tapToManage,
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product['name'] ?? AppLocalizations.of(context)!.noName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                         overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        maxLines: 2,
+                      ),
+                      Text(
+                        product['category'] ??
+                            AppLocalizations.of(context)!.uncategorized,
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                         maxLines: 1,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  // AI image toggle button (only show if AI image exists)
-                  if (hasAiImage)
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      icon: Icon(
-                        isShowingAiImage ? Icons.auto_awesome : Icons.auto_awesome_outlined,
-                        size: 20,
-                        color: isShowingAiImage ? Colors.purple : Colors.grey,
+                      const SizedBox(height: 4),
+                      Text(
+                        '₹$formattedPrice',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        maxLines: 1,
                       ),
-                      onPressed: () => _toggleAiImageDisplay(product),
-                      tooltip: isShowingAiImage ? 'Switch to Original Image' : 'Switch to AI-Enhanced Image',
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.visibility_outlined,
+                              size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text('${product['views'] ?? 0}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.favorite_outline,
+                              size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text('${product['likes'] ?? 0}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Tap hint
+                      Row(
+                        children: [
+                          const Icon(Icons.touch_app,
+                              size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              AppLocalizations.of(context)!.tapToManage,
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: [
+                        // AI image toggle button (only show if AI image exists)
+                        if (hasAiImage)
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                            icon: Icon(
+                              isShowingAiImage
+                                  ? Icons.auto_awesome
+                                  : Icons.auto_awesome_outlined,
+                              size: 20,
+                              color: isShowingAiImage
+                                  ? Colors.purple
+                                  : Colors.grey,
+                            ),
+                            onPressed: () => _toggleAiImageDisplay(product),
+                            tooltip: isShowingAiImage
+                                ? 'Switch to Original Image'
+                                : 'Switch to AI-Enhanced Image',
+                          ),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.edit_outlined,
+                              size: 20, color: Colors.grey),
+                          onPressed: () => _editProduct(product),
+                        ),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
+                          icon: const Icon(Icons.delete_outline,
+                              size: 20, color: Colors.grey),
+                          onPressed: () => _deleteProduct(product),
+                        ),
+                      ],
                     ),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    icon: const Icon(Icons.edit_outlined,
-                        size: 20, color: Colors.grey),
-                    onPressed: () => _editProduct(product),
-                  ),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                    icon: const Icon(Icons.delete_outline,
-                        size: 20, color: Colors.grey),
-                    onPressed: () => _deleteProduct(product),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.stock(product['stockQuantity'] ?? 0),
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                  if (isLowStock)
-                    Text(
-                      AppLocalizations.of(context)!.lowStock,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold),
+                    const SizedBox(height: 15),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!
+                              .stock(product['stockQuantity'] ?? 0),
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        if (isLowStock)
+                          Text(
+                            AppLocalizations.of(context)!.lowStock,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold),
+                          )
+                      ],
                     )
-                ],
-              )
-            ],
-          )
-        ],
+                  ],
+                )
+              ],
             ),
           ),
         ),
@@ -1021,7 +1050,8 @@ class _SellerScreenState extends State<SellerScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!.errorLoggingOut(e.toString())),
+            content: Text(
+                AppLocalizations.of(context)!.errorLoggingOut(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -1101,7 +1131,9 @@ class _SellerScreenState extends State<SellerScreen> {
                     style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    hasStory ? AppLocalizations.of(context)!.storyAlreadyCreated : AppLocalizations.of(context)!.noStoryYet,
+                    hasStory
+                        ? AppLocalizations.of(context)!.storyAlreadyCreated
+                        : AppLocalizations.of(context)!.noStoryYet,
                     style: TextStyle(
                       color: hasStory ? Colors.green : Colors.orange,
                       fontSize: 12,
@@ -1135,7 +1167,9 @@ class _SellerScreenState extends State<SellerScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.errorLoadingProducts(e.toString()))),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                .errorLoadingProducts(e.toString()))),
       );
     }
   }
@@ -1257,7 +1291,11 @@ class _SellerScreenState extends State<SellerScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const SellerRequestsScreen()),
+                    builder: (context) => const MainSellerScaffold(
+                      showAppBar: false,
+                      body: SellerRequestsScreen(),
+                    ),
+                  ),
                 );
               },
             ),
@@ -1353,128 +1391,132 @@ class _SellerScreenState extends State<SellerScreen> {
                   ),
                 )
               : Column(
-            children: [
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.monthlySales, 
-                value: '₹${_analyticsData['monthlyRevenue']?.toStringAsFixed(0) ?? '0'}',
-                icon: Icons.currency_rupee,
-                color: const Color(0xFF4CAF50),
-              ),
-              const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.monthlyOrders,
-                value: '${_analyticsData['monthlyOrders'] ?? 0}',
-                icon: Icons.shopping_cart,
-                color: const Color(0xFF2196F3),
-              ),
-              const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context, 
-                title: AppLocalizations.of(context)!.totalOrders,
-                value: '${_analyticsData['totalOrders'] ?? 0}',
-                icon: Icons.assignment,
-                color: const Color(0xFFFF9800),
-              ),
-              const SizedBox(height: 12),
-              _buildAnalyticsCard(
-                context,
-                title: AppLocalizations.of(context)!.totalRevenue,
-                value: '₹${_analyticsData['totalRevenue']?.toStringAsFixed(0) ?? '0'}',
-                icon: Icons.account_balance_wallet,
-                color: const Color(0xFF9C27B0),
-              ),
-            ],
-          ),
+                  children: [
+                    _buildAnalyticsCard(
+                      context,
+                      title: AppLocalizations.of(context)!.monthlySales,
+                      value:
+                          '₹${_analyticsData['monthlyRevenue']?.toStringAsFixed(0) ?? '0'}',
+                      icon: Icons.currency_rupee,
+                      color: const Color(0xFF4CAF50),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      title: AppLocalizations.of(context)!.monthlyOrders,
+                      value: '${_analyticsData['monthlyOrders'] ?? 0}',
+                      icon: Icons.shopping_cart,
+                      color: const Color(0xFF2196F3),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      title: AppLocalizations.of(context)!.totalOrders,
+                      value: '${_analyticsData['totalOrders'] ?? 0}',
+                      icon: Icons.assignment,
+                      color: const Color(0xFFFF9800),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAnalyticsCard(
+                      context,
+                      title: AppLocalizations.of(context)!.totalRevenue,
+                      value:
+                          '₹${_analyticsData['totalRevenue']?.toStringAsFixed(0) ?? '0'}',
+                      icon: Icons.account_balance_wallet,
+                      color: const Color(0xFF9C27B0),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
   }
 
   Widget _buildAnalyticsCard(
-  BuildContext context, {
-  required String title,
-  required String value,
-  required IconData icon,
-  required Color color,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withOpacity(0.3)),
-    ),
-    child: Row(
-      children: [
-        // Icon
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        
-        // Title and Value
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-        
-        // Monthly badge (if applicable)
-        if (title.toLowerCase().contains(AppLocalizations.of(context)!.monthlySales.toLowerCase()) || 
-            title.toLowerCase().contains(AppLocalizations.of(context)!.monthlyOrders.toLowerCase()))
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          // Icon
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(12),
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              'This Month',
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
             ),
           ),
-      ],
-    ),
-  );
-}
+          const SizedBox(width: 12),
+
+          // Title and Value
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2C1810),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+
+          // Monthly badge (if applicable)
+          if (title.toLowerCase().contains(
+                  AppLocalizations.of(context)!.monthlySales.toLowerCase()) ||
+              title.toLowerCase().contains(
+                  AppLocalizations.of(context)!.monthlyOrders.toLowerCase()))
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'This Month',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildQuickActionsGrid(BuildContext context) {
     return GridView.count(
@@ -1504,9 +1546,14 @@ class _SellerScreenState extends State<SellerScreen> {
           icon: Icons.assignment_turned_in,
           onPressed: () {
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SellerRequestsScreen()));
+              context,
+              MaterialPageRoute(
+                builder: (context) => const MainSellerScaffold(
+                  showAppBar: false,
+                  body: SellerRequestsScreen(),
+                ),
+              ),
+            );
           },
         ),
         _buildQuickActionButton(
@@ -1625,9 +1672,11 @@ class _SellerScreenState extends State<SellerScreen> {
           value: 'manage',
           child: Row(
             children: [
-              const Icon(Icons.admin_panel_settings, size: 20, color: Colors.orange),
+              const Icon(Icons.admin_panel_settings,
+                  size: 20, color: Colors.orange),
               const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.manageFAQs, style: const TextStyle(color: Colors.orange)),
+              Text(AppLocalizations.of(context)!.manageFAQs,
+                  style: const TextStyle(color: Colors.orange)),
             ],
           ),
         ),
@@ -1635,9 +1684,11 @@ class _SellerScreenState extends State<SellerScreen> {
           value: 'setup',
           child: Row(
             children: [
-              const Icon(Icons.settings_suggest, size: 20, color: Colors.orange),
+              const Icon(Icons.settings_suggest,
+                  size: 20, color: Colors.orange),
               const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.faqSetup, style: const TextStyle(color: Colors.orange)),
+              Text(AppLocalizations.of(context)!.faqSetup,
+                  style: const TextStyle(color: Colors.orange)),
             ],
           ),
         ),
@@ -1646,5 +1697,4 @@ class _SellerScreenState extends State<SellerScreen> {
 
     return items;
   }
-
 }

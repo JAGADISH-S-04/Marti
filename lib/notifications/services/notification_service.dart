@@ -255,6 +255,109 @@ class NotificationService {
     }
   }
 
+  /// Send a review-related notification
+  static Future<void> sendReviewNotification({
+    required String userId,
+    required NotificationType type,
+    required String productId,
+    required String productName,
+    required String customerName,
+    required String sellerName,
+    required double rating,
+    required String comment,
+    UserRole targetRole = UserRole.seller,
+    NotificationPriority priority = NotificationPriority.medium,
+    Map<String, dynamic> additionalData = const {},
+  }) async {
+    try {
+      final content = ReviewNotificationTemplate.getNotificationContent(
+        type: type,
+        productId: productId,
+        productName: productName,
+        customerName: customerName,
+        sellerName: sellerName,
+        rating: rating,
+        comment: comment,
+        additionalData: additionalData,
+      );
+
+      final notificationRef = _notificationsCollection.doc();
+      final notification = NotificationModel(
+        id: notificationRef.id,
+        userId: userId,
+        type: type,
+        title: content['title']!,
+        message: content['message']!,
+        data: {
+          'productId': productId,
+          'productName': productName,
+          'customerName': customerName,
+          'sellerName': sellerName,
+          'rating': rating,
+          'comment': comment,
+          ...additionalData,
+        },
+        priority: priority,
+        targetRole: targetRole,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await notificationRef.set(notification.toMap());
+      print('Review notification sent successfully: ${notification.id}');
+    } catch (e) {
+      print('Error sending review notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Send a forum-related notification
+  static Future<void> sendForumNotification({
+    required String userId,
+    required NotificationType type,
+    required String postTitle,
+    required String replierName,
+    required String replyContent,
+    UserRole targetRole = UserRole.seller,
+    NotificationPriority priority = NotificationPriority.low,
+    Map<String, dynamic> additionalData = const {},
+  }) async {
+    try {
+      final content = ForumNotificationTemplate.getNotificationContent(
+        type: type,
+        postTitle: postTitle,
+        replierName: replierName,
+        replyContent: replyContent,
+        additionalData: additionalData,
+      );
+
+      final notificationRef = _notificationsCollection.doc();
+      final notification = NotificationModel(
+        id: notificationRef.id,
+        userId: userId,
+        type: type,
+        title: content['title']!,
+        message: content['message']!,
+        data: {
+          'postTitle': postTitle,
+          'replierName': replierName,
+          'replyContent': replyContent,
+          ...additionalData,
+        },
+        priority: priority,
+        targetRole: targetRole,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await notificationRef.set(notification.toMap());
+      print('Forum notification sent successfully: ${notification.id}');
+    } catch (e) {
+      print('Error sending forum notification: $e');
+      rethrow;
+    }
+  }
+
   /// Send a system/general notification
   static Future<void> sendSystemNotification({
     required String userId,

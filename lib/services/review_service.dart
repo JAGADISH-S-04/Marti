@@ -5,6 +5,8 @@ import 'dart:io';
 import '../models/review.dart';
 import '../models/product.dart';
 import 'gemini_service.dart';
+import '../notifications/services/notification_service.dart';
+import '../notifications/models/notification_type.dart';
 
 class ReviewService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -34,11 +36,13 @@ class ReviewService {
         .get();
 
     if (existingReview.docs.isNotEmpty) {
-      throw Exception('You have already reviewed this product. You can edit your existing review.');
+      throw Exception(
+          'You have already reviewed this product. You can edit your existing review.');
     }
 
     // Check if user has purchased this product (optional verification)
-    final isVerifiedPurchase = await _hasUserPurchasedProduct(user.uid, productId);
+    final isVerifiedPurchase =
+        await _hasUserPurchasedProduct(user.uid, productId);
 
     final reviewId = _reviewsRef.doc().id;
     final now = DateTime.now();
@@ -49,11 +53,13 @@ class ReviewService {
 
     // Try to get more complete user info from customers collection
     try {
-      final customerDoc = await _firestore.collection('customers').doc(user.uid).get();
+      final customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
       if (customerDoc.exists) {
         final customerData = customerDoc.data() as Map<String, dynamic>;
         userName = customerData['name'] ?? userName;
-        userProfilePicture = customerData['profilePicture'] ?? userProfilePicture;
+        userProfilePicture =
+            customerData['profilePicture'] ?? userProfilePicture;
       }
     } catch (e) {
       print('Could not fetch customer details: $e');
@@ -76,7 +82,8 @@ class ReviewService {
 
     // Validate review
     if (!review.isValid) {
-      throw Exception('Review is invalid. Please check rating (1-5) and comment (min 10 characters).');
+      throw Exception(
+          'Review is invalid. Please check rating (1-5) and comment (min 10 characters).');
     }
 
     // Add review to Firestore
@@ -84,6 +91,9 @@ class ReviewService {
 
     // Update product rating statistics
     await _updateProductRatingStatistics(productId);
+
+    // Send notification to the seller about the new review
+    await _sendReviewNotificationToSeller(productId, review);
 
     return reviewId;
   }
@@ -96,7 +106,8 @@ class ReviewService {
     List<String>? images,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('User must be logged in to update a review');
+    if (user == null)
+      throw Exception('User must be logged in to update a review');
 
     final reviewDoc = await _reviewsRef.doc(reviewId).get();
     if (!reviewDoc.exists) {
@@ -104,7 +115,7 @@ class ReviewService {
     }
 
     final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
-    
+
     // Check if user owns this review
     if (review.userId != user.uid) {
       throw Exception('You can only edit your own reviews');
@@ -119,7 +130,8 @@ class ReviewService {
 
     // Validate updated review
     if (!updatedReview.isValid) {
-      throw Exception('Updated review is invalid. Please check rating (1-5) and comment (min 10 characters).');
+      throw Exception(
+          'Updated review is invalid. Please check rating (1-5) and comment (min 10 characters).');
     }
 
     await _reviewsRef.doc(reviewId).update(updatedReview.toMap());
@@ -131,7 +143,8 @@ class ReviewService {
   /// Delete a review
   Future<void> deleteReview(String reviewId) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('User must be logged in to delete a review');
+    if (user == null)
+      throw Exception('User must be logged in to delete a review');
 
     final reviewDoc = await _reviewsRef.doc(reviewId).get();
     if (!reviewDoc.exists) {
@@ -139,7 +152,7 @@ class ReviewService {
     }
 
     final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
-    
+
     // Check if user owns this review
     if (review.userId != user.uid) {
       throw Exception('You can only delete your own reviews');
@@ -152,13 +165,14 @@ class ReviewService {
   }
 
   /// Get all reviews for a product
-  Future<List<Review>> getProductReviews(String productId, {
+  Future<List<Review>> getProductReviews(
+    String productId, {
     int limit = 20,
     String? sortBy = 'createdAt', // 'createdAt', 'rating', 'helpfulCount'
     bool descending = true,
   }) async {
     print('DEBUG ReviewService: Getting reviews for product $productId');
-    
+
     Query query = _reviewsRef.where('productId', isEqualTo: productId);
 
     // Apply sorting
@@ -174,13 +188,15 @@ class ReviewService {
     }
 
     final snapshot = await query.limit(limit).get();
-    print('DEBUG ReviewService: Found ${snapshot.docs.length} reviews from Firestore');
-    
+    print(
+        'DEBUG ReviewService: Found ${snapshot.docs.length} reviews from Firestore');
+
     final reviews = snapshot.docs
         .map((doc) => Review.fromMap(doc.data() as Map<String, dynamic>))
         .toList();
-        
-    print('DEBUG ReviewService: Converted ${reviews.length} reviews successfully');
+
+    print(
+        'DEBUG ReviewService: Converted ${reviews.length} reviews successfully');
     return reviews;
   }
 
@@ -198,11 +214,11 @@ class ReviewService {
   }
 
   /// Get reviews for products owned by a specific artisan
-  Future<List<Review>> getArtisanProductReviews(String artisanId, {int limit = 100}) async {
+  Future<List<Review>> getArtisanProductReviews(String artisanId,
+      {int limit = 100}) async {
     // First get all products by this artisan
-    final productsSnapshot = await _productsRef
-        .where('artisanId', isEqualTo: artisanId)
-        .get();
+    final productsSnapshot =
+        await _productsRef.where('artisanId', isEqualTo: artisanId).get();
 
     if (productsSnapshot.docs.isEmpty) {
       return [];
@@ -212,11 +228,11 @@ class ReviewService {
 
     // Get reviews for these products (Firestore limitation: max 10 items in 'in' array)
     final List<Review> allReviews = [];
-    
+
     // Process in batches of 10
     for (int i = 0; i < productIds.length; i += 10) {
       final batch = productIds.skip(i).take(10).toList();
-      
+
       final reviewsSnapshot = await _reviewsRef
           .where('productId', whereIn: batch)
           .orderBy('createdAt', descending: true)
@@ -237,7 +253,8 @@ class ReviewService {
 
   /// Get review statistics for a product
   Future<ReviewStatistics> getProductReviewStatistics(String productId) async {
-    final reviews = await getProductReviews(productId, limit: 1000); // Get all reviews
+    final reviews =
+        await getProductReviews(productId, limit: 1000); // Get all reviews
     return ReviewStatistics.fromReviews(reviews);
   }
 
@@ -319,7 +336,8 @@ class ReviewService {
       return false;
     }
 
-    print('DEBUG ReviewService: Checking if user ${user.uid} can review product $productId');
+    print(
+        'DEBUG ReviewService: Checking if user ${user.uid} can review product $productId');
 
     // Check if user has already reviewed this product
     final existingReview = await _reviewsRef
@@ -333,7 +351,7 @@ class ReviewService {
     // For now, allow any authenticated user to review (remove purchase requirement)
     final canReview = !hasExistingReview;
     print('DEBUG ReviewService: User can review: $canReview');
-    
+
     return canReview;
   }
 
@@ -357,13 +375,12 @@ class ReviewService {
     try {
       final ordersSnapshot = await _ordersRef
           .where('buyerId', isEqualTo: userId)
-          .where('status', whereIn: ['delivered', 'completed'])
-          .get();
+          .where('status', whereIn: ['delivered', 'completed']).get();
 
       for (final orderDoc in ordersSnapshot.docs) {
         final orderData = orderDoc.data() as Map<String, dynamic>;
         final items = orderData['items'] as List<dynamic>? ?? [];
-        
+
         for (final item in items) {
           if (item['productId'] == productId) {
             return true;
@@ -389,7 +406,8 @@ class ReviewService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
 
-      print('Updated product $productId: rating=${statistics.averageRating}, reviews=${statistics.totalReviews}');
+      print(
+          'Updated product $productId: rating=${statistics.averageRating}, reviews=${statistics.totalReviews}');
     } catch (e) {
       print('Error updating product rating statistics: $e');
       // Don't throw - this is a non-critical update
@@ -412,7 +430,8 @@ class ReviewService {
   Future<List<String>> getTopRatedProductIds({int limit = 10}) async {
     final snapshot = await _productsRef
         .where('reviewCount', isGreaterThan: 0)
-        .orderBy('reviewCount', descending: false) // Start with this to enable composite queries
+        .orderBy('reviewCount',
+            descending: false) // Start with this to enable composite queries
         .orderBy('rating', descending: true)
         .limit(limit)
         .get();
@@ -423,13 +442,13 @@ class ReviewService {
   /// Clean up old reviews (for maintenance)
   Future<void> cleanupOldReviews({int daysOld = 365}) async {
     final cutoffDate = DateTime.now().subtract(Duration(days: daysOld));
-    
+
     final oldReviewsSnapshot = await _reviewsRef
         .where('createdAt', isLessThan: Timestamp.fromDate(cutoffDate))
         .get();
 
     final batch = _firestore.batch();
-    
+
     for (final doc in oldReviewsSnapshot.docs) {
       batch.delete(doc.reference);
     }
@@ -441,14 +460,15 @@ class ReviewService {
   // ======================== TRANSLATION METHODS ========================
 
   /// Translate a review comment to target language
-  Future<String> translateReviewComment(String reviewId, String targetLanguageCode) async {
+  Future<String> translateReviewComment(
+      String reviewId, String targetLanguageCode) async {
     final reviewDoc = await _reviewsRef.doc(reviewId).get();
     if (!reviewDoc.exists) {
       throw Exception('Review not found');
     }
 
     final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
-    
+
     // Check if translation already exists in cache
     if (review.hasCommentTranslation(targetLanguageCode)) {
       return review.commentTranslations[targetLanguageCode]!;
@@ -458,7 +478,8 @@ class ReviewService {
     String sourceLanguage = review.detectedLanguage ?? 'auto';
     if (sourceLanguage == 'auto') {
       try {
-        final languageResult = await GeminiService.detectLanguage(review.comment);
+        final languageResult =
+            await GeminiService.detectLanguage(review.comment);
         sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
       } catch (e) {
         print('Language detection failed: $e');
@@ -477,11 +498,13 @@ class ReviewService {
       targetLanguageCode,
       sourceLanguage: sourceLanguage,
     );
-    
-    final translatedText = translationResult['translatedText']?.toString() ?? review.comment;
+
+    final translatedText =
+        translationResult['translatedText']?.toString() ?? review.comment;
 
     // Update review with translation and detected language
-    final updatedTranslations = Map<String, String>.from(review.commentTranslations);
+    final updatedTranslations =
+        Map<String, String>.from(review.commentTranslations);
     updatedTranslations[targetLanguageCode] = translatedText;
 
     await _reviewsRef.doc(reviewId).update({
@@ -494,14 +517,15 @@ class ReviewService {
   }
 
   /// Translate an artisan response to target language
-  Future<String?> translateArtisanResponse(String reviewId, String targetLanguageCode) async {
+  Future<String?> translateArtisanResponse(
+      String reviewId, String targetLanguageCode) async {
     final reviewDoc = await _reviewsRef.doc(reviewId).get();
     if (!reviewDoc.exists) {
       throw Exception('Review not found');
     }
 
     final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
-    
+
     if (review.artisanResponse == null) {
       return null;
     }
@@ -515,7 +539,8 @@ class ReviewService {
     String sourceLanguage = review.artisanResponseLanguage ?? 'auto';
     if (sourceLanguage == 'auto') {
       try {
-        final languageResult = await GeminiService.detectLanguage(review.artisanResponse!);
+        final languageResult =
+            await GeminiService.detectLanguage(review.artisanResponse!);
         sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
       } catch (e) {
         print('Language detection failed: $e');
@@ -534,11 +559,13 @@ class ReviewService {
       targetLanguageCode,
       sourceLanguage: sourceLanguage,
     );
-    
-    final translatedText = translationResult['translatedText']?.toString() ?? review.artisanResponse!;
+
+    final translatedText = translationResult['translatedText']?.toString() ??
+        review.artisanResponse!;
 
     // Update review with translation and detected language
-    final updatedTranslations = Map<String, String>.from(review.artisanResponseTranslations);
+    final updatedTranslations =
+        Map<String, String>.from(review.artisanResponseTranslations);
     updatedTranslations[targetLanguageCode] = translatedText;
 
     await _reviewsRef.doc(reviewId).update({
@@ -578,11 +605,13 @@ class ReviewService {
         .get();
 
     if (existingReview.docs.isNotEmpty) {
-      throw Exception('You have already reviewed this product. You can edit your existing review.');
+      throw Exception(
+          'You have already reviewed this product. You can edit your existing review.');
     }
 
     // Check if user has purchased this product (optional verification)
-    final isVerifiedPurchase = await _hasUserPurchasedProduct(user.uid, productId);
+    final isVerifiedPurchase =
+        await _hasUserPurchasedProduct(user.uid, productId);
 
     final reviewId = _reviewsRef.doc().id;
     final now = DateTime.now();
@@ -593,11 +622,13 @@ class ReviewService {
 
     // Try to get more complete user info from customers collection
     try {
-      final customerDoc = await _firestore.collection('customers').doc(user.uid).get();
+      final customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
       if (customerDoc.exists) {
         final customerData = customerDoc.data() as Map<String, dynamic>;
         userName = customerData['name'] ?? userName;
-        userProfilePicture = customerData['profilePicture'] ?? userProfilePicture;
+        userProfilePicture =
+            customerData['profilePicture'] ?? userProfilePicture;
       }
     } catch (e) {
       print('Could not fetch customer details: $e');
@@ -622,7 +653,8 @@ class ReviewService {
 
     // Validate review
     if (!review.isValid) {
-      throw Exception('Review is invalid. Please check rating (1-5) and comment (min 10 characters).');
+      throw Exception(
+          'Review is invalid. Please check rating (1-5) and comment (min 10 characters).');
     }
 
     // Add review to Firestore
@@ -635,7 +667,8 @@ class ReviewService {
   }
 
   /// Enhanced addArtisanResponse with automatic language detection
-  Future<void> addArtisanResponseWithTranslation(String reviewId, String response) async {
+  Future<void> addArtisanResponseWithTranslation(
+      String reviewId, String response) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User must be logged in to respond');
 
@@ -677,12 +710,14 @@ class ReviewService {
   /// Upload voice response file to Firebase Storage
   Future<String> _uploadVoiceResponse(String reviewId, File voiceFile) async {
     try {
-      final fileName = 'review_voice_response_${reviewId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      final ref = _storage.ref().child('review_voice_responses').child(fileName);
-      
+      final fileName =
+          'review_voice_response_${reviewId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final ref =
+          _storage.ref().child('review_voice_responses').child(fileName);
+
       final uploadTask = ref.putFile(voiceFile);
       final snapshot = await uploadTask;
-      
+
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       print('Error uploading voice response: $e');
@@ -692,9 +727,9 @@ class ReviewService {
 
   /// Add voice response to a review with transcription and translation
   Future<void> addArtisanVoiceResponse(
-    String reviewId, 
-    File voiceFile, 
-    String? transcription, 
+    String reviewId,
+    File voiceFile,
+    String? transcription,
     Duration duration,
     String? detectedLanguage,
   ) async {
@@ -722,14 +757,15 @@ class ReviewService {
     try {
       // Upload voice file to Firebase Storage
       final voiceUrl = await _uploadVoiceResponse(reviewId, voiceFile);
-      
+
       // Process transcription if not provided
       String? finalTranscription = transcription;
       String? finalDetectedLanguage = detectedLanguage;
-      
+
       if (finalTranscription == null || finalTranscription.isEmpty) {
         try {
-          final transcriptionResult = await GeminiService.transcribeAudio(voiceFile);
+          final transcriptionResult =
+              await GeminiService.transcribeAudio(voiceFile);
           finalTranscription = transcriptionResult['transcription'];
           finalDetectedLanguage = transcriptionResult['detectedLanguage'];
         } catch (e) {
@@ -739,9 +775,12 @@ class ReviewService {
       }
 
       // Detect language if not provided
-      if (finalDetectedLanguage == null && finalTranscription != null && finalTranscription.isNotEmpty) {
+      if (finalDetectedLanguage == null &&
+          finalTranscription != null &&
+          finalTranscription.isNotEmpty) {
         try {
-          final languageResult = await GeminiService.detectLanguage(finalTranscription);
+          final languageResult =
+              await GeminiService.detectLanguage(finalTranscription);
           finalDetectedLanguage = languageResult['detectedLanguage'];
         } catch (e) {
           print('Language detection failed: $e');
@@ -763,15 +802,17 @@ class ReviewService {
   }
 
   /// Translate voice transcription to target language
-  Future<String> translateVoiceTranscription(String reviewId, String targetLanguageCode) async {
+  Future<String> translateVoiceTranscription(
+      String reviewId, String targetLanguageCode) async {
     final reviewDoc = await _reviewsRef.doc(reviewId).get();
     if (!reviewDoc.exists) {
       throw Exception('Review not found');
     }
 
     final review = Review.fromMap(reviewDoc.data() as Map<String, dynamic>);
-    
-    if (review.artisanVoiceTranscription == null || review.artisanVoiceTranscription!.isEmpty) {
+
+    if (review.artisanVoiceTranscription == null ||
+        review.artisanVoiceTranscription!.isEmpty) {
       throw Exception('No voice transcription available');
     }
 
@@ -783,7 +824,8 @@ class ReviewService {
     // Detect source language if not already detected
     String sourceLanguage = 'auto';
     try {
-      final languageResult = await GeminiService.detectLanguage(review.artisanVoiceTranscription!);
+      final languageResult =
+          await GeminiService.detectLanguage(review.artisanVoiceTranscription!);
       sourceLanguage = languageResult['detectedLanguage'] ?? 'en';
     } catch (e) {
       print('Language detection failed: $e');
@@ -801,11 +843,13 @@ class ReviewService {
       targetLanguageCode,
       sourceLanguage: sourceLanguage,
     );
-    
-    final translatedText = translationResult['translatedText']?.toString() ?? review.artisanVoiceTranscription!;
+
+    final translatedText = translationResult['translatedText']?.toString() ??
+        review.artisanVoiceTranscription!;
 
     // Update review with translation
-    final updatedTranslations = Map<String, String>.from(review.artisanVoiceTranslations);
+    final updatedTranslations =
+        Map<String, String>.from(review.artisanVoiceTranslations);
     updatedTranslations[targetLanguageCode] = translatedText;
 
     await _reviewsRef.doc(reviewId).update({
@@ -822,7 +866,8 @@ class ReviewService {
     if (user == null) return 'en';
 
     try {
-      final customerDoc = await _firestore.collection('customers').doc(user.uid).get();
+      final customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
       if (customerDoc.exists) {
         final customerData = customerDoc.data() as Map<String, dynamic>;
         return customerData['preferredLanguage'] ?? 'en';
@@ -830,7 +875,67 @@ class ReviewService {
     } catch (e) {
       print('Could not fetch user preferred language: $e');
     }
-    
+
     return 'en'; // Default to English
+  }
+
+  /// Send notification to seller when a new review is added
+  Future<void> _sendReviewNotificationToSeller(
+      String productId, Review review) async {
+    try {
+      // Get product information to find the seller
+      final productDoc = await _productsRef.doc(productId).get();
+      if (!productDoc.exists) {
+        print('Product not found for review notification');
+        return;
+      }
+
+      final productData = productDoc.data() as Map<String, dynamic>;
+      final sellerId = productData['sellerId'] ?? productData['userId'];
+
+      if (sellerId == null || sellerId == review.userId) {
+        // Don't send notification if seller is the same as reviewer
+        return;
+      }
+
+      // Get seller information
+      String sellerName = 'Seller';
+      try {
+        final sellerDoc =
+            await _firestore.collection('sellers').doc(sellerId).get();
+        if (sellerDoc.exists) {
+          final sellerData = sellerDoc.data() as Map<String, dynamic>;
+          sellerName = sellerData['name'] ?? sellerName;
+        }
+      } catch (e) {
+        print('Could not fetch seller details: $e');
+      }
+
+      // Send notification using the standardized service
+      await NotificationService.sendReviewNotification(
+        userId: sellerId,
+        type: NotificationType.newReview,
+        productId: productId,
+        productName: review.productName,
+        customerName: review.userName,
+        sellerName: sellerName,
+        rating: review.rating,
+        comment: review.comment,
+        targetRole: UserRole.seller,
+        priority: review.rating >= 4.0
+            ? NotificationPriority.medium
+            : NotificationPriority.high,
+        additionalData: {
+          'reviewId': review.id,
+          'isVerifiedPurchase': review.isVerifiedPurchase,
+          'reviewDate': review.createdAt.toIso8601String(),
+        },
+      );
+
+      print('Review notification sent to seller: $sellerId');
+    } catch (e) {
+      print('Error sending review notification to seller: $e');
+      // Don't throw error - notification failure shouldn't prevent review creation
+    }
   }
 }
