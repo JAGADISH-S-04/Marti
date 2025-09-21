@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -166,6 +167,10 @@ class _ChatScreenState extends State<ChatScreen> {
           SnackBar(
             content: Text('Failed to send voice message: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -239,6 +244,10 @@ class _ChatScreenState extends State<ChatScreen> {
           SnackBar(
             content: Text('Failed to play voice message: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -292,6 +301,10 @@ class _ChatScreenState extends State<ChatScreen> {
           SnackBar(
             content: Text('Failed to send image: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -343,6 +356,10 @@ class _ChatScreenState extends State<ChatScreen> {
             SnackBar(
               content: Text('Failed to send progress update: ${e.toString()}'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           );
         }
@@ -390,72 +407,143 @@ class _ChatScreenState extends State<ChatScreen> {
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: widget.backgroundBrown,
+      backgroundColor: const Color(0xFFF9F9F7),
       appBar: AppBar(
-        backgroundColor: widget.primaryBrown,
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF2C1810),
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back, size: 20),
+          ),
+        ),
+        title: Row(
           children: [
-            Text(
-              _currentUserType == 'artisan'
-                  ? widget.customerName
-                  : widget.artisanName,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: widget.primaryBrown,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  (_currentUserType == 'artisan'
+                          ? widget.customerName
+                          : widget.artisanName)
+                      .isNotEmpty
+                      ? (_currentUserType == 'artisan'
+                              ? widget.customerName
+                              : widget.artisanName)[0]
+                          .toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
-            const Text(
-              'Order Chat',
-              style: TextStyle(fontSize: 12, color: Colors.white70),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _currentUserType == 'artisan'
+                        ? widget.customerName
+                        : widget.artisanName,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C1810),
+                    ),
+                  ),
+                  Text(
+                    'Order Chat',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _showLanguageSelector = !_showLanguageSelector;
-              });
-            },
-            icon: Icon(
-              Icons.translate,
-              color: _selectedLanguage != 'auto' ? Colors.yellow : Colors.white,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
             ),
-            tooltip: 'Select Language',
+            child: IconButton(
+              onPressed: () {
+                setState(() {
+                  _showLanguageSelector = !_showLanguageSelector;
+                });
+              },
+              icon: Icon(
+                Icons.translate,
+                color: _selectedLanguage != 'auto' 
+                    ? Colors.orange 
+                    : const Color(0xFF2C1810),
+                size: 20,
+              ),
+              tooltip: 'Select Language',
+            ),
           ),
           if (_currentUserType == 'artisan')
-            IconButton(
-              onPressed: _sendProgressUpdate,
-              icon: const Icon(Icons.update),
-              tooltip: 'Send Progress Update',
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                onPressed: _sendProgressUpdate,
+                icon: const Icon(Icons.update, size: 20),
+                tooltip: 'Send Progress Update',
+              ),
             ),
         ],
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
       body: Column(
         children: [
           if (_showLanguageSelector)
             Container(
               width: double.infinity,
-              padding: EdgeInsets.all(screenSize.width * 0.04),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300),
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info, color: widget.primaryBrown, size: 16),
-                      const SizedBox(width: 6),
+                      Icon(Icons.info_outline, color: widget.primaryBrown, size: 16),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Select your preferred language. Messages will be automatically translated for you.',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.grey.shade600,
                             fontSize: 12,
                           ),
@@ -463,7 +551,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   LanguageSelector(
                     selectedLanguage: _selectedLanguage,
                     primaryColor: widget.primaryBrown,
@@ -481,6 +569,10 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? 'Language set to Auto (Original Language)'
                               : 'Language set to $languageName'),
                           duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       );
                     },
@@ -494,14 +586,48 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
-                    child:
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         CircularProgressIndicator(color: widget.primaryBrown),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading messages...',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text('Error loading messages: ${snapshot.error}'),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading messages',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${snapshot.error}',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   );
                 }
 
@@ -512,16 +638,25 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey.shade400,
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            size: 40,
+                            color: Colors.grey.shade400,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Text(
                           'Start your conversation!',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -530,7 +665,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           _currentUserType == 'artisan'
                               ? 'Share progress updates with your customer'
                               : 'Ask questions about your custom order',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 14,
                             color: Colors.grey.shade500,
                           ),
@@ -544,7 +679,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
-                  padding: EdgeInsets.all(screenSize.width * 0.04),
+                  padding: const EdgeInsets.all(20),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
@@ -569,61 +704,108 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           if (_isLoading)
             Container(
-              padding: const EdgeInsets.all(8),
-              child: CircularProgressIndicator(color: widget.primaryBrown),
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: widget.primaryBrown,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Sending...',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           Container(
-            padding: EdgeInsets.all(screenSize.width * 0.04),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
                 ),
               ],
             ),
             child: SafeArea(
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: _sendImage,
-                    icon: Icon(Icons.image, color: widget.primaryBrown),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      onPressed: _sendImage,
+                      icon: Icon(
+                        Icons.image,
+                        color: widget.primaryBrown,
+                        size: 20,
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 12),
                   ChatVoiceRecorder(
                     onVoiceRecorded: _sendVoiceMessage,
                     primaryColor: widget.primaryBrown,
                     accentColor: widget.lightBrown,
                     targetLanguage: _selectedLanguage,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: widget.backgroundBrown,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9F9F7),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
                         ),
                       ),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle: GoogleFonts.inter(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: widget.primaryBrown,
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: widget.primaryBrown,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: IconButton(
                       onPressed: _sendMessage,
-                      icon: const Icon(Icons.send, color: Colors.white),
+                      icon: const Icon(
+                        Icons.send,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -734,30 +916,42 @@ class _MessageBubbleState extends State<_MessageBubble> {
         supportedLanguages[widget.targetLanguage] ?? widget.targetLanguage;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment:
             widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!widget.isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: widget.lightBrown,
-              child: Text(
-                widget.message.senderName.isNotEmpty
-                    ? widget.message.senderName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: widget.lightBrown,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  widget.message.senderName.isNotEmpty
+                      ? widget.message.senderName[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: widget.isMe ? widget.primaryBrown : Colors.white,
+                color: widget.isMe 
+                    ? widget.primaryBrown 
+                    : Color.fromARGB(255, 254, 250, 244).withOpacity(0.98),
                 borderRadius: BorderRadius.circular(16).copyWith(
                   bottomLeft: widget.isMe
                       ? const Radius.circular(16)
@@ -768,8 +962,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -781,28 +975,28 @@ class _MessageBubbleState extends State<_MessageBubble> {
                       (_translatedMessage != null ||
                           _translatedTranscription != null))
                     Container(
-                      margin: const EdgeInsets.only(bottom: 6),
+                      margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: widget.isMe
                             ? Colors.white.withOpacity(0.2)
                             : Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.translate,
-                              size: 10,
+                              size: 12,
                               color: widget.isMe
                                   ? Colors.white70
                                   : Colors.blue.shade600),
-                          const SizedBox(width: 2),
+                          const SizedBox(width: 4),
                           Text(
                             'Translated to $targetLanguageName',
-                            style: TextStyle(
-                              fontSize: 8,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
                               color: widget.isMe
                                   ? Colors.white70
                                   : Colors.blue.shade600,
@@ -815,27 +1009,39 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   if (widget.message.messageType == 'voice' &&
                       widget.message.voiceUrl != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: widget.isMe
                             ? Colors.white.withOpacity(0.1)
                             : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            onPressed: widget.onVoicePlay,
-                            icon: Icon(
-                              widget.isPlayingVoice
-                                  ? Icons.pause
-                                  : Icons.play_arrow,
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
                               color: widget.isMe
-                                  ? Colors.white
+                                  ? Colors.white.withOpacity(0.2)
                                   : widget.primaryBrown,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: IconButton(
+                              onPressed: widget.onVoicePlay,
+                              icon: Icon(
+                                widget.isPlayingVoice
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: widget.isMe
+                                    ? Colors.white
+                                    : Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -846,17 +1052,18 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                     size: 16,
                                     color: widget.isMe
                                         ? Colors.white70
-                                        : Colors.grey,
+                                        : Colors.grey.shade600,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.formatDuration(
                                         widget.message.voiceDuration),
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       color: widget.isMe
                                           ? Colors.white70
                                           : Colors.grey.shade600,
                                       fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -864,7 +1071,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                               if (widget.isPlayingVoice)
                                 Text(
                                   'Playing...',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     color: widget.isMe
                                         ? Colors.white70
                                         : widget.primaryBrown,
@@ -881,19 +1088,19 @@ class _MessageBubbleState extends State<_MessageBubble> {
                         displayTranscription.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: widget.isMe
                               ? Colors.white.withOpacity(0.1)
                               : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Transcription:',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: widget.isMe
                                     ? Colors.white70
                                     : Colors.grey.shade600,
@@ -901,7 +1108,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             if (_isTranslating)
                               Row(
                                 children: [
@@ -918,10 +1125,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Text(
                                     'Translating...',
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       color: widget.isMe
                                           ? Colors.white70
                                           : Colors.grey.shade600,
@@ -934,7 +1141,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                             else
                               Text(
                                 displayTranscription,
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   color: widget.isMe
                                       ? Colors.white
                                       : Colors.black87,
@@ -950,7 +1157,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                   if (widget.message.imageUrl != null &&
                       widget.message.messageType != 'voice') ...[
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       child: Image.network(
                         widget.message.imageUrl!,
                         width: 200,
@@ -960,7 +1167,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           return Container(
                             width: 200,
                             height: 150,
-                            color: Colors.grey.shade200,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: Center(
                               child: CircularProgressIndicator(
                                 color: widget.primaryBrown,
@@ -977,8 +1187,11 @@ class _MessageBubbleState extends State<_MessageBubble> {
                           return Container(
                             width: 200,
                             height: 150,
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.error),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.error, color: Colors.grey),
                           );
                         },
                       ),
@@ -1008,10 +1221,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Text(
                                 'Translating...',
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   color: widget.isMe
                                       ? Colors.white70
                                       : Colors.grey.shade600,
@@ -1024,21 +1237,21 @@ class _MessageBubbleState extends State<_MessageBubble> {
                         else
                           Text(
                             displayMessage,
-                            style: TextStyle(
-                              color:
-                                  widget.isMe ? Colors.white : Colors.black87,
+                            style: GoogleFonts.inter(
+                              color: widget.isMe ? Colors.white : Colors.black87,
                               fontSize: 14,
+                              height: 1.4,
                             ),
                           ),
                       ],
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
                     widget.formatTime(widget.message.timestamp),
-                    style: TextStyle(
-                      color:
-                          widget.isMe ? Colors.white70 : Colors.grey.shade600,
-                      fontSize: 12,
+                    style: GoogleFonts.inter(
+                      color: widget.isMe ? Colors.white70 : Colors.grey.shade500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -1047,15 +1260,24 @@ class _MessageBubbleState extends State<_MessageBubble> {
           ),
           if (widget.isMe) ...[
             const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: widget.primaryBrown,
-              child: Text(
-                widget.message.senderName.isNotEmpty
-                    ? widget.message.senderName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: widget.primaryBrown,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  widget.message.senderName.isNotEmpty
+                      ? widget.message.senderName[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1086,26 +1308,41 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         'Send Progress Update',
-        style:
-            TextStyle(color: widget.primaryBrown, fontWeight: FontWeight.bold),
+        style: GoogleFonts.inter(
+          color: widget.primaryBrown,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: widget.controller,
-            decoration: const InputDecoration(
-              hintText: 'Describe the progress...',
-              border: OutlineInputBorder(),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
             ),
-            maxLines: 3,
+            child: TextField(
+              controller: widget.controller,
+              decoration: InputDecoration(
+                hintText: 'Describe the progress...',
+                hintStyle: GoogleFonts.inter(
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(16),
+              ),
+              maxLines: 3,
+            ),
           ),
           const SizedBox(height: 16),
           if (_selectedImage != null) ...[
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: Image.file(
                 _selectedImage!,
                 height: 100,
@@ -1113,22 +1350,34 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
                 fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
           ],
-          ElevatedButton.icon(
-            onPressed: () async {
-              final image = await widget.onImagePicked();
-              if (mounted) {
-                setState(() {
-                  _selectedImage = image;
-                });
-              }
-            },
-            icon: const Icon(Icons.camera_alt),
-            label: Text(_selectedImage == null ? 'Add Photo' : 'Change Photo'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.primaryBrown,
-              foregroundColor: Colors.white,
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final image = await widget.onImagePicked();
+                if (mounted) {
+                  setState(() {
+                    _selectedImage = image;
+                  });
+                }
+              },
+              icon: const Icon(Icons.camera_alt, size: 20),
+              label: Text(
+                _selectedImage == null ? 'Add Photo' : 'Change Photo',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.primaryBrown,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],
@@ -1136,7 +1385,13 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.grey.shade600,
+          ),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
         ),
         ElevatedButton(
           onPressed: () {
@@ -1150,8 +1405,14 @@ class _ProgressUpdateDialogState extends State<_ProgressUpdateDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: widget.primaryBrown,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: const Text('Send'),
+          child: Text(
+            'Send',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
