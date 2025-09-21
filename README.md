@@ -5,6 +5,12 @@
   <h1>Marti</h1>
   <p>Connecting artisans with customers through modern, localized, and AI-assisted commerce.</p>
 
+	<!-- Featured Screenshot -->
+	<p>
+		<img src="images/Screenshot_2025-09-21-21-32-32-968_com.local.artsisans.jpg" alt="Marti Buyer Home Screen" width="360" />
+	</p>
+	<p><em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em></p>
+
   <p>
 	 <a href="#-features">Features</a> ·
 	 <a href="#-quickstart">Quickstart</a> ·
@@ -19,12 +25,18 @@
 
 Marti is a Flutter app that helps artisans showcase products, tell their stories, and sell to customers seamlessly. It features localized UX, chat, reviews with voice replies, order tracking, notifications, and AI-powered assistance (Firebase AI/Gemini) for rich experiences.
 
-## Screenshots (Dev)
-- Buyer home, product detail, cart, orders
-- Seller dashboard, product management, analytics, orders
-- Chatbot and chat with artisans/customers
+## Screenshots
 
-Note: UI evolves rapidly; see `lib/screens/` for the current set of pages.
+<div align="center">
+
+	<img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Preview 1" width="220" />
+	<img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Preview 2" width="220" />
+	<img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Preview 3" width="220" />
+	<img src="images/Screenshot_2025-09-21-21-34-43-369_com.local.artsisans.jpg" alt="Preview 4" width="220" />
+
+	<p><sub>In-app previews (home, product details, cart, orders). UI evolves rapidly; see <code>lib/screens/</code> for current pages.</sub></p>
+
+</div>
 
 ---
 
