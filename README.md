@@ -32,7 +32,7 @@ Marti is a Flutter app that helps artisans showcase products, tell their stories
 
 <div align="center">
 
-  <img src="images/Screenshot_2025-09-21-22-22-56-294_com.local.artsisans.jpg" alt="Craft It - Custom Request Form" width="200" />
+  <img src="images/Screenshot_2025-09-21-22-22-56-294_com.local.artsisans.jpg" alt="Craft It - Buyer can request customized products from local artisans" width="200" />
   <img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Product Browse" width="200" />
   <img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Product Details" width="200" />
   <img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Shopping Cart" width="200" />
