@@ -123,13 +123,15 @@ class _CreateRequestTabState extends State<CreateRequestTab> {
   DateTime? _selectedDeadline;
 
   final List<String> _categories = [
-    'Pottery',
-    'Woodworking',
-    'Textiles',
     'Jewelry',
+    'Textiles',
+    'Pottery',
+    'Woodwork',
     'Metalwork',
+    'Leatherwork',
     'Glasswork',
-    'Leather Goods',
+    'Paintings',
+    'Sculptures',
     'Paper Crafts',
     'Other'
   ];
