@@ -3,13 +3,14 @@
   <img src="assets/images/marti_16_9.png" alt="Marti Logo" width="420" />
 
   <h1>Marti</h1>
-  <p>Connecting artisans with customers through modern, localized, and AI-assisted commerce.</p>
+	<p>Connecting artisans with customers through modern, localized, and AI-assisted commerce.</p>
 
 	<!-- Featured Screenshot -->
-	<p>
+	<p align="center">
 		<img src="images/Screenshot_2025-09-21-21-32-32-968_com.local.artsisans.jpg" alt="Marti Buyer Home Screen" width="360" />
+		<br />
+		<em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em>
 	</p>
-	<p><em>Featured: Buyer Home — discover curated artisan products, explore collections, and quickly access cart and chat for a smooth shopping experience.</em></p>
 
   <p>
 	 <a href="#-features">Features</a> ·
@@ -29,12 +30,12 @@ Marti is a Flutter app that helps artisans showcase products, tell their stories
 
 <div align="center">
 
-	<img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Preview 1" width="220" />
-	<img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Preview 2" width="220" />
-	<img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Preview 3" width="220" />
-	<img src="images/Screenshot_2025-09-21-21-34-43-369_com.local.artsisans.jpg" alt="Preview 4" width="220" />
+  <img src="images/Screenshot_2025-09-21-21-33-36-040_com.local.artsisans.jpg" alt="Preview 1" width="220" />
+  <img src="images/Screenshot_2025-09-21-21-34-10-544_com.local.artsisans.jpg" alt="Preview 2" width="220" />
+  <img src="images/Screenshot_2025-09-21-21-34-21-869_com.local.artsisans.jpg" alt="Preview 3" width="220" />
+  <img src="images/Screenshot_2025-09-21-21-34-43-369_com.local.artsisans.jpg" alt="Preview 4" width="220" />
 
-	<p><sub>In-app previews (home, product details, cart, orders). UI evolves rapidly; see <code>lib/screens/</code> for current pages.</sub></p>
+  <p><sub>In-app previews (home, product details, cart, orders). UI evolves rapidly; see <code>lib/screens/</code> for current pages.</sub></p>
 
 </div>
 
