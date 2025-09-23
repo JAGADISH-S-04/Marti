@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class RetailerAnalyticsService {
   // Move API key to environment variables or secure storage in production
-  static const String _apiKey = 'AIzaSyCjb4VQTSsCYFcqtgiiNmu5grqxF_cEsCQ';
+  static const String _apiKey = ''; #Add your api key here
   static GenerativeModel? _model;
 
   static void initialize() {
