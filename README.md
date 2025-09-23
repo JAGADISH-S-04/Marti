@@ -29,7 +29,7 @@
 Marti is a Flutter app that helps artisans showcase products, tell their stories, and sell to customers seamlessly. It features localized UX, chat, reviews with voice replies, order tracking, notifications, and AI-powered assistance (Firebase AI/Gemini) for rich experiences.
 
 ## API
-Add your api key in (marti/lib/services/gemini_service.dart) & 
+Add your api key in (marti/lib/services/gemini_service.dart) & (marti/lib/services/CI_retailer_analytics_service.dart)
 
 ## Screenshots
 
